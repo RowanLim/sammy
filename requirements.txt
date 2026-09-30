@@ -1,0 +1,8 @@
+# Sammy 运行时依赖（纯软件形态）
+# 安装: uv pip install -r requirements.txt
+
+# 界面（透明浮窗 / 全屏，Mac 与树莓派通用）
+PySide6>=6.6
+
+# 大模型走标准库 urllib，不需要额外 SDK
+# 表情资产是项目自带的 BMP，不需要 Pillow
