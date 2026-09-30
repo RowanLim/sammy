@@ -22,6 +22,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expr", type=int, default=3, help="快照用的表情编号")
     parser.add_argument("--reply", default="", help="快照里显示的回复文本")
     parser.add_argument("--voices", action="store_true", help="列出所有表情")
+    parser.add_argument("--selftest", metavar="PATH",
+                        help="真实显示窗口，2.5 秒后自检窗口状态并截图，然后退出")
     args = parser.parse_args(argv)
 
     if args.voices:
@@ -64,7 +66,37 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     win.show()
+    if args.selftest:
+        return _selftest(app, win, args.selftest)
     return app.exec()
+
+
+def _selftest(app, win, out_path: str) -> int:
+    """真实显示窗口后自检 —— 证明「非离屏」这条路径真的能出窗口。"""
+    from PySide6.QtCore import Qt, QTimer
+
+    def inspect() -> None:
+        win.poke()  # 顺带走一遍交互代码路径（戳一下 + 换表情）
+        handle = win.windowHandle()
+        screen = handle.screen() if handle else None
+        flags = win.windowFlags()
+        print("── 窗口自检 ──")
+        print(f"  是否可见       : {win.isVisible()}")
+        print(f"  窗口尺寸       : {win.width()}×{win.height()}")
+        print(f"  屏幕位置       : ({win.x()}, {win.y()})")
+        print(f"  所在显示器     : {screen.name() if screen else '?'}")
+        print(f"  缩放比         : {win.devicePixelRatio()}")
+        print(f"  无边框         : {bool(flags & Qt.FramelessWindowHint)}")
+        print(f"  始终置顶       : {bool(flags & Qt.WindowStaysOnTopHint)}")
+        print(f"  背景透明       : {win.testAttribute(Qt.WA_TranslucentBackground)}")
+        print(f"  当前表情       : {win.expression}")
+        win.grab().save(out_path)
+        print(f"  截图已存       : {out_path}")
+        app.quit()
+
+    QTimer.singleShot(2500, inspect)
+    app.exec()
+    return 0
 
 
 if __name__ == "__main__":
