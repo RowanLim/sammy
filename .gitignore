@@ -29,3 +29,10 @@ logs/
 *.db
 *.sqlite
 __history__/
+
+# ── 测试与覆盖率产物 ──
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.ruff_cache/
