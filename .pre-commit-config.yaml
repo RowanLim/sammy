@@ -1,0 +1,26 @@
+# 提交前自动跑：格式化 + 检查 + 离线单测（不联网，所以提交不会被网络卡住）
+fail_fast: false
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: pytest-offline
+        name: pytest（离线用例）
+        entry: .venv/bin/python -m pytest -m "not live"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: no-secrets
+        name: 禁止提交凭证
+        entry: bash -c 'git diff --cached --name-only | grep -qE "^\.env$" && { echo "❌ .env 不能被提交"; exit 1; }; exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true

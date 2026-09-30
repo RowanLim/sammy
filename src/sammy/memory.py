@@ -52,8 +52,15 @@ CREATE TABLE IF NOT EXISTS meta (
 
 # 用户明确要求记住的说法 —— 命中就当作高优先级，不依赖模型判断
 EXPLICIT_PATTERNS = (
-    "记住", "帮我记", "记一下", "记得我", "别忘", "以后都", "我的偏好是",
-    "记住我", "remember",
+    "记住",
+    "帮我记",
+    "记一下",
+    "记得我",
+    "别忘",
+    "以后都",
+    "我的偏好是",
+    "记住我",
+    "remember",
 )
 
 
@@ -109,13 +116,17 @@ class Memory:
     def recent(self, days: int = 3, include_digests: bool = True) -> list[sqlite3.Row]:
         since = (date.today() - timedelta(days=days - 1)).isoformat()
         kinds = ("event", "explicit", "digest") if include_digests else ("event", "explicit")
-        q = ("SELECT * FROM journal WHERE day >= ? AND kind IN "
-             f"({','.join('?' * len(kinds))}) ORDER BY ts ASC")
+        q = (
+            "SELECT * FROM journal WHERE day >= ? AND kind IN "
+            f"({','.join('?' * len(kinds))}) ORDER BY ts ASC"
+        )
         return self.conn.execute(q, (since, *kinds)).fetchall()
 
     def day_entries(self, day: str, kinds=("event", "explicit")) -> list[sqlite3.Row]:
-        q = ("SELECT * FROM journal WHERE day = ? AND kind IN "
-             f"({','.join('?' * len(kinds))}) ORDER BY ts ASC")
+        q = (
+            "SELECT * FROM journal WHERE day = ? AND kind IN "
+            f"({','.join('?' * len(kinds))}) ORDER BY ts ASC"
+        )
         return self.conn.execute(q, (day, *kinds)).fetchall()
 
     def has_digest(self, day: str) -> bool:
@@ -329,13 +340,23 @@ def consolidate_now(brain, mem: Memory, day: str | None = None) -> dict:
 def needs_nightly(mem: Memory) -> str | None:
     """该整理哪一天？没有就返回 None。
 
-    规则：Sammy「睡了一觉」= 当天还没整理过，且已经过了凌晨。
-    刚启动时也会被叫一次，所以不依赖程序一直开着。
+    规则：**先把已经过完、但还没整理的日子补上**（最老的优先）——
+    因为 Sammy 可能好几天没开机，"睡了一觉"要能补课。
+
+    今天的只有在深夜（23 点后）才顺手整理；否则当天刚整理过，
+    之后新增的记录就永远不会被整理了（这个 bug 真踩过）。
     """
     today_s = date.today().isoformat()
-    if mem.day_entries(today_s) and not mem.has_digest(today_s):
+    rows = mem.conn.execute(
+        "SELECT DISTINCT day FROM journal WHERE kind IN ('event','explicit') ORDER BY day"
+    ).fetchall()
+    for row in rows:
+        day = row["day"]
+        if day == today_s:
+            continue
+        if not mem.has_digest(day):
+            return day
+
+    if datetime.now().hour >= 23 and mem.day_entries(today_s) and not mem.has_digest(today_s):
         return today_s
-    y = (date.today() - timedelta(days=1)).isoformat()
-    if mem.day_entries(y) and not mem.has_digest(y):
-        return y
     return None

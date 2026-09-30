@@ -35,9 +35,14 @@ UA = {"Accept": "application/vnd.github+json", "User-Agent": "sammy-research"}
 
 
 def search(query: str, per_page: int = 25) -> list[dict]:
-    params = urllib.parse.urlencode({
-        "q": query, "sort": "stars", "order": "desc", "per_page": per_page,
-    })
+    params = urllib.parse.urlencode(
+        {
+            "q": query,
+            "sort": "stars",
+            "order": "desc",
+            "per_page": per_page,
+        }
+    )
     req = urllib.request.Request(f"{API}?{params}", headers=UA)
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -111,7 +116,9 @@ def main() -> int:
         flag = " 📦归档" if r["archived"] else ""
         print(f"{stars:>7}  {lang:<12} {r['pushed']:<11} {r['full_name']}{flag}  —  {desc}")
 
-    print(f"\n共 {len(repos)} 个去重仓库，其中 ≥{args.min_stars} 星 {len(kept)} 个 → docs/research/repos.json")
+    print(
+        f"\n共 {len(repos)} 个去重仓库，其中 ≥{args.min_stars} 星 {len(kept)} 个 → docs/research/repos.json"
+    )
     return 0
 
 

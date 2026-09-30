@@ -56,23 +56,58 @@ happy
 # 模型可能自创的英文情绪词 → 最接近的合法情绪。
 # 不指望穷举，只兜住实测出现过的和常见近义，剩下的走前缀匹配。
 EMOTION_SYNONYMS: dict[str, str] = {
-    "sympathetic": "wronged", "empathetic": "wronged", "concerned": "wronged",
-    "worried": "wronged", "caring": "love", "affectionate": "love",
-    "warm": "smile", "tender": "smile", "gentle": "smile", "friendly": "smile",
-    "cheerful": "happy", "joyful": "happy", "excited": "happy", "glad": "happy",
-    "amused": "giggle", "teasing": "wink", "mischievous": "playful",
-    "thoughtful": "thinking", "confused": "curious", "puzzled": "curious",
-    "curious": "curious", "hopeful": "expect", "eager": "expect",
-    "calm": "normal", "neutral": "normal", "serious": "normal",
-    "tired": "sleepy", "exhausted": "sleepy", "bored": "bored",
-    "surprised": "surprised", "astonished": "shocked", "amazed": "shocked",
-    "disappointed": "sad", "upset": "sad", "sorry": "sad",
-    "annoyed": "angry", "frustrated": "angry",
-    "awkward": "awkward", "embarrassed": "awkward",
-    "proud": "proud", "smug": "proud", "confident": "cool", "chill": "cool",
-    "quiet": "speechless", "silent": "speechless", "speechless": "speechless",
-    "content": "content", "satisfied": "content", "happy": "happy",
-    "cute": "cute", "shy": "cute", "pleading": "wronged",
+    "sympathetic": "wronged",
+    "empathetic": "wronged",
+    "concerned": "wronged",
+    "worried": "wronged",
+    "caring": "love",
+    "affectionate": "love",
+    "warm": "smile",
+    "tender": "smile",
+    "gentle": "smile",
+    "friendly": "smile",
+    "cheerful": "happy",
+    "joyful": "happy",
+    "excited": "happy",
+    "glad": "happy",
+    "amused": "giggle",
+    "teasing": "wink",
+    "mischievous": "playful",
+    "thoughtful": "thinking",
+    "confused": "curious",
+    "puzzled": "curious",
+    "curious": "curious",
+    "hopeful": "expect",
+    "eager": "expect",
+    "calm": "normal",
+    "neutral": "normal",
+    "serious": "normal",
+    "tired": "sleepy",
+    "exhausted": "sleepy",
+    "bored": "bored",
+    "surprised": "surprised",
+    "astonished": "shocked",
+    "amazed": "shocked",
+    "disappointed": "sad",
+    "upset": "sad",
+    "sorry": "sad",
+    "annoyed": "angry",
+    "frustrated": "angry",
+    "awkward": "awkward",
+    "embarrassed": "awkward",
+    "proud": "proud",
+    "smug": "proud",
+    "confident": "cool",
+    "chill": "cool",
+    "quiet": "speechless",
+    "silent": "speechless",
+    "speechless": "speechless",
+    "content": "content",
+    "satisfied": "content",
+    "happy": "happy",
+    "cute": "cute",
+    "shy": "cute",
+    "pleading": "wronged",
 }
 
 
@@ -103,18 +138,20 @@ class SammyBrain:
     def __init__(self, timeout: int = 60, history_turns: int = 6, thinking: str | None = None):
         env = _load_env()
         self.api_key = env.get("DOUBAO_API_KEY", "")
-        self.base_url = env.get("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3").rstrip("/")
+        self.base_url = env.get(
+            "DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"
+        ).rstrip("/")
         self.model = env.get("DOUBAO_MODEL", "doubao-seed-2-0-lite-260215")
         self.timeout = timeout
         self.history_turns = history_turns
         # 这个模型默认会「先想再答」，一次对话多花 3-5 秒。
         # 桌面陪伴场景要的是快，所以默认关掉思考链（设 SAMMY_THINKING=on 可开回来）。
-        self.thinking = thinking if thinking is not None else os.environ.get("SAMMY_THINKING", "off")
+        self.thinking = (
+            thinking if thinking is not None else os.environ.get("SAMMY_THINKING", "off")
+        )
         self.history: list[dict[str, str]] = []
         if not self.api_key:
-            raise RuntimeError(
-                f"没找到 DOUBAO_API_KEY。检查 {ENV_FILE}，或设置同名环境变量。"
-            )
+            raise RuntimeError(f"没找到 DOUBAO_API_KEY。检查 {ENV_FILE}，或设置同名环境变量。")
 
     # ── 对外主入口 ──────────────────────────────────
 
@@ -145,9 +182,7 @@ class SammyBrain:
     def _call(self, user_text: str, memory_context: str = "") -> str:
         system = SYSTEM_PROMPT.format(emotions=" | ".join(EMOTION_KEYS))
         if memory_context:
-            system += (
-                "\n\n以下是你记得的事，自然地用，别生硬地复述：\n" + memory_context
-            )
+            system += "\n\n以下是你记得的事，自然地用，别生硬地复述：\n" + memory_context
         messages = [{"role": "system", "content": system}]
         messages.extend(self.history)
         messages.append({"role": "user", "content": user_text})
@@ -185,8 +220,7 @@ class SammyBrain:
     # ── 记忆：抽取与夜里整理 ────────────────────────
     # 都走独立调用，**不插在对话延迟里**。抽取由后台线程跑。
 
-    def extract_memories(self, user_text: str, reply: str,
-                         known_slots: dict[str, str]) -> dict:
+    def extract_memories(self, user_text: str, reply: str, known_slots: dict[str, str]) -> dict:
         """从一轮对话里抽长期记忆 → {'slots': {...}, 'journal': [...]}"""
         from .memory import EXTRACT_PROMPT, parse_extraction
 
@@ -199,8 +233,7 @@ class SammyBrain:
             return {"slots": {}, "journal": []}
         return parse_extraction(raw)
 
-    def consolidate(self, day: str, entries: list[str],
-                    known_slots: dict[str, str]) -> dict:
+    def consolidate(self, day: str, entries: list[str], known_slots: dict[str, str]) -> dict:
         """夜里整理：把一天的事件压成摘要，顺带更新槽位。"""
         from .memory import CONSOLIDATE_PROMPT
 
@@ -208,7 +241,8 @@ class SammyBrain:
             return {"digest": "", "slots": {}}
         desc = "\n".join(f"- {k}：{v}" for k, v in known_slots.items()) or "（暂无）"
         prompt = CONSOLIDATE_PROMPT.format(
-            day=day, slots=desc,
+            day=day,
+            slots=desc,
             entries="\n".join(f"- {e}" for e in entries),
         )
         try:
@@ -218,6 +252,7 @@ class SammyBrain:
             return {"digest": "", "slots": {}}
 
         from .memory import parse_digest
+
         return parse_digest(raw)
 
     @staticmethod
@@ -254,4 +289,4 @@ class SammyBrain:
         return key, (reply or "……")
 
 
-__all__ = ["SammyBrain", "SYSTEM_PROMPT"]
+__all__ = ["SYSTEM_PROMPT", "SammyBrain"]

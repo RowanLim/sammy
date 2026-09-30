@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """把旧项目里硬编码的凭证搬进 .env，任何时候不打印凭证本身。"""
-import re, pathlib, sys
+
+import re
+import pathlib
+import sys
 
 OLD = pathlib.Path("/Volumes/Mac mini/Sammy")
 NEW = pathlib.Path("/Volumes/Mac mini/Max agent/Sammy")
@@ -40,5 +43,6 @@ else:
 
 # 确认 .env 被 git 忽略
 import subprocess
+
 r = subprocess.run(["git", "check-ignore", "-v", ".env"], cwd=NEW, capture_output=True, text=True)
 print("git 忽略检查:", r.stdout.strip() or "❌ 未被忽略！")

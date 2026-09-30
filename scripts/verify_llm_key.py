@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """验证 .env 里的豆包凭证是否还活着。只打印结果，不打印凭证。"""
-import json, pathlib, urllib.request, urllib.error
+
+import json
+import pathlib
+import urllib.request
+import urllib.error
 
 env = {}
 for line in pathlib.Path("/Volumes/Mac mini/Max agent/Sammy/.env").read_text().splitlines():
@@ -13,7 +17,10 @@ url = env["DOUBAO_BASE_URL"].rstrip("/") + "/chat/completions"
 payload = {
     "model": env["DOUBAO_MODEL"],
     "messages": [
-        {"role": "system", "content": "你是Sammy，一只住在桌面上的小家伙。回答简短、温暖，20字以内。"},
+        {
+            "role": "system",
+            "content": "你是Sammy，一只住在桌面上的小家伙。回答简短、温暖，20字以内。",
+        },
         {"role": "user", "content": "你好呀，你是谁？"},
     ],
     "temperature": 0.8,
@@ -21,7 +28,10 @@ payload = {
 req = urllib.request.Request(
     url,
     data=json.dumps(payload).encode(),
-    headers={"Authorization": "Bearer " + env["DOUBAO_API_KEY"], "Content-Type": "application/json"},
+    headers={
+        "Authorization": "Bearer " + env["DOUBAO_API_KEY"],
+        "Content-Type": "application/json",
+    },
 )
 try:
     with urllib.request.urlopen(req, timeout=20) as r:

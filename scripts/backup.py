@@ -61,8 +61,9 @@ def tar_filter(info: tarfile.TarInfo):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--keep", type=int, default=7, help="保留最近几份快照")
-    ap.add_argument("--refresh-old", action="store_true",
-                    help="重新打包旧项目静态档（默认只在不存在时打一次）")
+    ap.add_argument(
+        "--refresh-old", action="store_true", help="重新打包旧项目静态档（默认只在不存在时打一次）"
+    )
     args = ap.parse_args()
 
     stamp = datetime.now().strftime("%Y-%m-%d")
@@ -83,7 +84,9 @@ def main() -> int:
     if r.returncode != 0:
         print("❌ git bundle 失败:", r.stderr[:400])
         return 1
-    print(f"✅ git bundle          {human(bundle.stat().st_size)}   HEAD={head[:7]}  {len(files)} 个文件")
+    print(
+        f"✅ git bundle          {human(bundle.stat().st_size)}   HEAD={head[:7]}  {len(files)} 个文件"
+    )
 
     # ── 2. 旧项目：只存一份静态档（它是只读参考，不会变） ──
     static_dir = DEST_ROOT / "_static"
@@ -115,9 +118,11 @@ def main() -> int:
                 src.backup(dst)
             src.close()
             dst.close()
-            n_slots = sqlite3.connect(f"file:{mem_copy}?mode=ro", uri=True).execute(
-                "SELECT COUNT(*) FROM slots"
-            ).fetchone()[0]
+            n_slots = (
+                sqlite3.connect(f"file:{mem_copy}?mode=ro", uri=True)
+                .execute("SELECT COUNT(*) FROM slots")
+                .fetchone()[0]
+            )
             print(f"✅ 记忆库快照          {human(mem_copy.stat().st_size)}   {n_slots} 条槽位")
         except Exception as e:
             print(f"⚠️  记忆库备份失败（不阻断其他备份）: {e}")
@@ -142,18 +147,26 @@ def main() -> int:
         c_head = run(["git", "rev-parse", "HEAD"], cwd=tmp).stdout.strip()
         c_files = run(["git", "ls-files"], cwd=tmp).stdout.strip().splitlines()
         ok = c_head == head and len(c_files) == len(files)
-        print(f"   克隆 HEAD={c_head[:7]}  文件数={len(c_files)}  →  "
-              f"{'✅ 与源一致' if ok else '❌ 与源不一致'}")
+        print(
+            f"   克隆 HEAD={c_head[:7]}  文件数={len(c_files)}  →  "
+            f"{'✅ 与源一致' if ok else '❌ 与源不一致'}"
+        )
     else:
         print("   ❌ 克隆失败:", r.stderr[:300])
     shutil.rmtree(tmp, ignore_errors=True)
 
     # ── 5. 清单文件 ──
-    old_desc = f"{human(oldtar.stat().st_size)}（{n_old} 个顶层条目）" if oldtar.exists() else "未生成"
-    mem_row = (f"| `sammy-memory.db` | {human(mem_copy.stat().st_size)} | "
-               f"Sammy 的记忆（槽位 + 日记 + 摘要），SQLite 一致性快照 |"
-               if mem_copy and mem_copy.exists() else "| — | — | 本次没有记忆库 |")
-    (dest / "MANIFEST.md").write_text(f"""# Sammy 备份 · {stamp}
+    old_desc = (
+        f"{human(oldtar.stat().st_size)}（{n_old} 个顶层条目）" if oldtar.exists() else "未生成"
+    )
+    mem_row = (
+        f"| `sammy-memory.db` | {human(mem_copy.stat().st_size)} | "
+        f"Sammy 的记忆（槽位 + 日记 + 摘要），SQLite 一致性快照 |"
+        if mem_copy and mem_copy.exists()
+        else "| — | — | 本次没有记忆库 |"
+    )
+    (dest / "MANIFEST.md").write_text(
+        f"""# Sammy 备份 · {stamp}
 
 自动生成，请勿手改。
 
@@ -168,7 +181,9 @@ def main() -> int:
 ## 校验和
 
 ```
-""" + "".join(f"{d}  {n}\n" for n, d in digests.items()) + f"""```
+"""
+        + "".join(f"{d}  {n}\n" for n, d in digests.items())
+        + f"""```
 
 ## 怎么恢复
 
@@ -186,12 +201,14 @@ mkdir -p /tmp/old-sammy && tar -xzf ~/Backups/Sammy/{stamp}/old-Sammy-code.tar.g
 - 恢复后需要重建环境：`uv venv --python 3.11 .venv && uv pip install -r requirements.txt`
 - `.env`（API 凭证）**不在备份里**（已 gitignore），恢复后需重新配置。
 - 校验：`cd <克隆出来的目录> && git log --oneline | head`
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
     print(f"\n✅ 清单已写 {dest / 'MANIFEST.md'}")
 
     # ── 6. 清理旧备份 ──
     snaps = sorted([d for d in DEST_ROOT.iterdir() if d.is_dir()])
-    for old in snaps[:-args.keep] if len(snaps) > args.keep else []:
+    for old in snaps[: -args.keep] if len(snaps) > args.keep else []:
         shutil.rmtree(old)
         print(f"   清理旧备份 {old.name}")
 

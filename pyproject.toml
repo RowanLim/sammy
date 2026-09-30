@@ -1,0 +1,39 @@
+[project]
+name = "sammy"
+version = "0.2.0"
+description = "Sammy —— 住在桌面上的小家伙"
+requires-python = ">=3.11"
+
+# ── 代码检查与格式化（ruff 一把抓 lint + format）──
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "assets", "docs", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",      # 行宽交给 formatter，不当错误报（中文注释天然偏长）
+    "RUF001",    # 字符串里的全角标点 —— 中文项目必须关
+    "RUF002",    # docstring 里的全角标点
+    "RUF003",    # 注释里的全角标点
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 自检脚本必须先建 QApplication 才能 import 项目模块，import 顺序天然不规整
+"scripts/*.py" = ["E402", "I001"]
+
+# ── 测试 ──
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "live: 需要联网调用真实大模型（默认跑，慢）",
+    "slow: 耗时较长的检查",
+]
+
+# ── 覆盖率 ──
+[tool.coverage.run]
+source = ["src/sammy"]
+omit = ["*/assets/*"]

@@ -15,17 +15,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 # QPixmap 需要先有 QGuiApplication，离屏渲染也必须建
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
 _qt_app = QApplication([])
 
-from sammy.brain import SammyBrain, _canon_emotion  # noqa: E402
-from sammy.expressions import name_of  # noqa: E402
-from sammy.memory import (  # noqa: E402
-    Memory, consolidate_now, extract_and_store, looks_explicit,
-    parse_digest, parse_extraction,
+from sammy.brain import SammyBrain, _canon_emotion
+from sammy.expressions import name_of
+from sammy.memory import (
+    Memory,
+    consolidate_now,
+    extract_and_store,
+    looks_explicit,
+    parse_digest,
+    parse_extraction,
 )
-from sammy import faces  # noqa: E402
+from sammy import faces
 
 FAIL = []
 
@@ -41,8 +45,11 @@ print("═" * 62)
 print("1) 情绪解析器 —— 含实测踩过的坑")
 print("═" * 62)
 check("标准格式", SammyBrain._parse("happy\n今天天气真好"), ("happy", "今天天气真好"))
-check("模型自创词 sympathetic", SammyBrain._parse("sympathetic\n那就别硬扛了"),
-      ("wronged", "那就别硬扛了"))
+check(
+    "模型自创词 sympathetic",
+    SammyBrain._parse("sympathetic\n那就别硬扛了"),
+    ("wronged", "那就别硬扛了"),
+)
 check("冒号格式", SammyBrain._parse("thinking: 让我想想"), ("thinking", "让我想想"))
 check("中文冒号", SammyBrain._parse("smile：好呀"), ("smile", "好呀"))
 check("加粗包装", SammyBrain._parse("**giggle**\n嘿嘿"), ("giggle", "嘿嘿"))
@@ -90,22 +97,27 @@ print("4) 记忆 —— 对齐 PRD P0-5「重启后仍记得昵称和至少 3 �
 print("═" * 62)
 
 # 解析器离线健壮性（模型爱加 ```json 包裹、爱说废话）
-check("JSON 裹在代码块里",
-      parse_extraction('```json\n{"slots":{"a":"b"},"journal":["c"]}\n```'),
-      {"slots": {"a": "b"}, "journal": ["c"]})
-check("前后有废话",
-      parse_extraction('好的，这是结果：{"slots":{},"journal":["他在做 Sammy"]} 完毕'),
-      {"slots": {}, "journal": ["他在做 Sammy"]})
-check("完全不合法",
-      parse_extraction("我记不住"), {"slots": {}, "journal": []})
-check("digest 解析",
-      parse_digest('{"digest":"今天聊了项目","slots":{"项目":"Sammy"}}'),
-      {"digest": "今天聊了项目", "slots": {"项目": "Sammy"}})
+check(
+    "JSON 裹在代码块里",
+    parse_extraction('```json\n{"slots":{"a":"b"},"journal":["c"]}\n```'),
+    {"slots": {"a": "b"}, "journal": ["c"]},
+)
+check(
+    "前后有废话",
+    parse_extraction('好的，这是结果：{"slots":{},"journal":["他在做 Sammy"]} 完毕'),
+    {"slots": {}, "journal": ["他在做 Sammy"]},
+)
+check("完全不合法", parse_extraction("我记不住"), {"slots": {}, "journal": []})
+check(
+    "digest 解析",
+    parse_digest('{"digest":"今天聊了项目","slots":{"项目":"Sammy"}}'),
+    {"digest": "今天聊了项目", "slots": {"项目": "Sammy"}},
+)
 check("显式记住被识别", looks_explicit("帮我记住：我只喝美式"), True)
 check("闲聊不误判", looks_explicit("今天天气不错"), False)
 
 # 真对话 → 真抽取 → 落库 → 关库 → 重开（模拟重启）
-import tempfile  # noqa: E402
+import tempfile
 
 tmp_db = pathlib.Path(tempfile.mkdtemp()) / "test_memory.db"
 mem = Memory(tmp_db)
@@ -120,9 +132,11 @@ print("\n  走 4 轮真实对话，让模型自己判断该记什么：")
 for user_text, _ in exchanges:
     r = brain.chat(user_text, mem.context_block())
     info = extract_and_store(brain, mem, user_text, r["reply"])
-    print(f"    「{user_text}」→ 槽位 {info['slots']} 条"
-          f"{'（显式）' if info['explicit'] else ''}  日记 {info['journal']} 条"
-          f"  {info['keys'] if info['keys'] else ''}")
+    print(
+        f"    「{user_text}」→ 槽位 {info['slots']} 条"
+        f"{'（显式）' if info['explicit'] else ''}  日记 {info['journal']} 条"
+        f"  {info['keys'] if info['keys'] else ''}"
+    )
 
 # 关键：关掉再打开 —— 模拟 Sammy 重启
 mem.close()
@@ -135,8 +149,7 @@ for k, v in slots.items():
 
 check("P0-5 槽位 ≥3 条", len(slots) >= 3, True)
 check("P0-5 记住了昵称", any("rowan" in str(v).lower() for v in slots.values()), True)
-check("P0-5 记住了咖啡偏好",
-      any("美式" in str(v) for v in slots.values()), True)
+check("P0-5 记住了咖啡偏好", any("美式" in str(v) for v in slots.values()), True)
 check("记忆能塞进提示词", ("Rowan" in ctx or "rowan" in ctx.lower()), True)
 
 # 显式要求的东西必须留下痕迹（哪怕模型没抽成槽位）
@@ -148,11 +161,13 @@ for line in ctx.splitlines()[:12]:
     print(f"    {line}")
 
 # 夜里整理（真实调用）—— 指定今天，否则默认是整理"昨天"
-from datetime import date as _date  # noqa: E402
+from datetime import date as _date
 
 info = consolidate_now(brain, mem2, _date.today().isoformat())
-print(f"\n  夜里整理：{info['entries']} 条事件 → 摘要 {len(info['digest'])} 字，"
-      f"新增/更新槽位 {info['new_slots']} 条")
+print(
+    f"\n  夜里整理：{info['entries']} 条事件 → 摘要 {len(info['digest'])} 字，"
+    f"新增/更新槽位 {info['new_slots']} 条"
+)
 if info["digest"]:
     print(f"    摘要：{info['digest'][:120]}")
 check("整理产出了摘要", bool(info["digest"]), True)
@@ -161,7 +176,7 @@ mem2.close()
 
 print()
 print("═" * 62)
-print(f"延迟：最快 {min(lat):.2f}s  最慢 {max(lat):.2f}s  平均 {sum(lat)/len(lat):.2f}s")
+print(f"延迟：最快 {min(lat):.2f}s  最慢 {max(lat):.2f}s  平均 {sum(lat) / len(lat):.2f}s")
 print(f"PRD P0-1 标准「3 秒内返回」：{'✅ 通过' if max(lat) < 3.0 else '❌ 未达标'}")
 print("═" * 62)
 

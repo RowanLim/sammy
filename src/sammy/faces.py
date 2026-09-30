@@ -157,7 +157,9 @@ def face_pixmap(index: int, size: QSize) -> QPixmap:
                     out.setPixel(dst_x, dst_y, lit)
 
     scaled = QPixmap.fromImage(out).scaled(
-        size, Qt.KeepAspectRatio, Qt.FastTransformation  # 最近邻，保留像素锐利感
+        size,
+        Qt.KeepAspectRatio,
+        Qt.FastTransformation,  # 最近邻，保留像素锐利感
     )
 
     painter = QPainter(blank)
@@ -189,14 +191,14 @@ def assets_ready() -> bool:
 
 
 __all__ = [
-    "DEV_W",
     "DEV_H",
+    "DEV_W",
     "LIT",
-    "face_pixmap",
-    "face_box",
-    "preload",
     "assets_ready",
     "content_bounds",
-    "frame_size",
     "debug_frames",
+    "face_box",
+    "face_pixmap",
+    "frame_size",
+    "preload",
 ]

@@ -72,6 +72,21 @@ Sammy/
 
 因为 800×480 就是那块 5 寸屏的分辨率 —— 二期搬到树莓派时，**把缩放系数从 0.55 改成 1.0**，元素位置一个都不用动。
 
+## 开发
+
+平台分工、工具链、日常流程、验收纪律 → 见 **[docs/开发流程.md](docs/开发流程.md)**。
+
+```bash
+pytest -m "not live"        # 离线单测（0.6 秒，提交时 pre-commit 自动跑）
+pytest -m live              # 联网验收（延迟预算、重启后还记得）
+pytest --cov=sammy          # 覆盖率
+ruff check src tests scripts
+ruff format src tests scripts
+pre-commit run --all-files  # 手动跑一遍全部钩子
+```
+
+三层测试：**离线单测**（确定性、可断言）→ **联网验收**（PRD 里带数字的标准）→ **真机自检**（`--selftest`，看截图）。
+
 ## 铁律
 
 1. **PRD 是唯一事实来源** —— 想加功能，先改 PRD，再写代码。

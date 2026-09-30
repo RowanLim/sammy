@@ -58,12 +58,20 @@ class Bridge(QObject):
 
 
 class SammyWindow(QWidget):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        brain: SammyBrain | None = None,
+        memory: Memory | None = None,
+        autoconnect: bool = True,
+    ) -> None:
+        """brain / memory 都可注入。
+
+        autoconnect=False 时什么都不去连（测试用）—— 否则跑一次测试就会
+        真连一次大模型、真在外置目录建一个记忆库。
+        """
         super().__init__()
         self.setWindowTitle("Sammy")
-        self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
-        )
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(int(faces.DEV_W * SCALE), int(faces.DEV_H * SCALE))
 
@@ -76,22 +84,24 @@ class SammyWindow(QWidget):
         self.idle_seconds = 0
         self._drag: QPoint | None = None
 
-        # 大脑
-        self.brain: SammyBrain | None = None
-        try:
-            self.brain = SammyBrain()
-        except Exception as e:
-            self.status = "大脑未接通"
-            self.status_ok = False
-            self.sammy_line = f"{e}"
-            self.expression = 17  # 生病脸
+        # 大脑（可注入）
+        self.brain = brain
+        if self.brain is None and autoconnect:
+            try:
+                self.brain = SammyBrain()
+            except Exception as e:
+                self.status = "大脑未接通"
+                self.status_ok = False
+                self.sammy_line = f"{e}"
+                self.expression = 17  # 生病脸
 
-        # 记忆（独立于大脑：大脑挂了也要能把记忆读出来）
-        self.memory: Memory | None = None
-        try:
-            self.memory = Memory()
-        except Exception as e:
-            print(f"  ⚠️ 记忆打不开（不影响对话）: {e}")
+        # 记忆（可注入；独立于大脑 —— 大脑挂了也要能读出记忆）
+        self.memory = memory
+        if self.memory is None and autoconnect:
+            try:
+                self.memory = Memory()
+            except Exception as e:
+                print(f"  ⚠️ 记忆打不开（不影响对话）: {e}")
 
         # 输入框
         self.input = QLineEdit(self)
@@ -103,8 +113,10 @@ class SammyWindow(QWidget):
             f" color: #cfead6; padding-left: 18px; font-size: {int(30 * SCALE)}px; }}"
         )
         self.input.setGeometry(
-            int(INPUT_BOX.x() * SCALE), int(INPUT_BOX.y() * SCALE),
-            int(INPUT_BOX.width() * SCALE), int(INPUT_BOX.height() * SCALE),
+            int(INPUT_BOX.x() * SCALE),
+            int(INPUT_BOX.y() * SCALE),
+            int(INPUT_BOX.width() * SCALE),
+            int(INPUT_BOX.height() * SCALE),
         )
 
         self.bridge = Bridge()
@@ -162,16 +174,24 @@ class SammyWindow(QWidget):
         threading.Thread(target=self._call_brain, args=(text,), daemon=True).start()
 
     def _call_brain(self, text: str) -> None:
+        # 对话失败和记忆失败是两件事，必须分开兜 ——
+        # 否则一条记忆没写进去，就会把用户已经拿到的回复覆盖成"我卡住了"。
         try:
             ctx = self.memory.context_block() if self.memory else ""
             result = self.brain.chat(text, ctx)
-            self.bridge.replyReady.emit(result)
-            # 抽记忆放在同一条后台线程里 —— 用户已经看到回复了，这里不占他的等待
-            if self.memory:
-                info = extract_and_store(self.brain, self.memory, text, result["reply"])
-                self.bridge.memoryTouched.emit(info)
         except Exception as e:
             self.bridge.failed.emit(str(e))
+            return
+
+        self.bridge.replyReady.emit(result)
+
+        # 抽记忆放在同一条后台线程里 —— 用户已经看到回复了，这里不占他的等待
+        if self.memory:
+            try:
+                info = extract_and_store(self.brain, self.memory, text, result["reply"])
+                self.bridge.memoryTouched.emit(info)
+            except Exception as e:
+                print(f"  ⚠️ 记忆写入失败（回复不受影响）: {e}")
 
     def _on_memory(self, info: dict) -> None:
         bits = []
@@ -216,7 +236,7 @@ class SammyWindow(QWidget):
         if self.idle_seconds == 120:
             self.set_expression(27)  # 犯困
         elif self.idle_seconds == 300:
-            self.set_expression(1)   # 睡着
+            self.set_expression(1)  # 睡着
             self.status = "睡着了"
         if self.idle_seconds in (120, 300):
             self.update()
@@ -239,7 +259,7 @@ class SammyWindow(QWidget):
 
     # ── 绘制 ────────────────────────────────────
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.scale(SCALE, SCALE)  # ← 一行切换屏幕：树莓派上改成 1.0
@@ -251,9 +271,9 @@ class SammyWindow(QWidget):
 
         # 脸
         box = faces.face_box()
-        p.drawPixmap(box.topLeft(), faces.face_pixmap(
-            self.expression, QSize(box.width(), box.height())
-        ))
+        p.drawPixmap(
+            box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
+        )
 
         # 状态行：表情名 · 状态灯 ~~~~ 状态文字
         label = f"{emoji_of(self.expression)} {name_of(self.expression)}"
@@ -263,8 +283,11 @@ class SammyWindow(QWidget):
         dot_x = 46 + QFontMetrics(p.font()).horizontalAdvance(label) + 18
         p.setFont(QFont("PingFang SC", 22))
         p.setPen(TEXT if self.status_ok else WARN)
-        p.drawText(QRect(dot_x + 20, STATUS_Y, 754 - dot_x - 20, 36),
-                   Qt.AlignRight | Qt.AlignVCenter, self.status)
+        p.drawText(
+            QRect(dot_x + 20, STATUS_Y, 754 - dot_x - 20, 36),
+            Qt.AlignRight | Qt.AlignVCenter,
+            self.status,
+        )
         p.setBrush(GREEN if self.status_ok else WARN)
         p.setPen(Qt.NoPen)
         p.drawEllipse(QPoint(dot_x, STATUS_Y + 18), 7, 7)
@@ -277,17 +300,23 @@ class SammyWindow(QWidget):
         if self.my_line:
             p.setFont(QFont("PingFang SC", 20))
             p.setPen(TEXT_DIM)
-            p.drawText(MY_LINE_BOX, Qt.AlignLeft | Qt.AlignVCenter,
-                       QFontMetrics(p.font()).elidedText(
-                           f"你：{self.my_line}", Qt.ElideRight, MY_LINE_BOX.width()))
+            p.drawText(
+                MY_LINE_BOX,
+                Qt.AlignLeft | Qt.AlignVCenter,
+                QFontMetrics(p.font()).elidedText(
+                    f"你：{self.my_line}", Qt.ElideRight, MY_LINE_BOX.width()
+                ),
+            )
 
         # 回复文字：自适应字号，宁可缩小也不许被切掉
         flags = Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap
         font = QFont("PingFang SC", 26)
         for size in (26, 24, 22, 20, 18):
             font = QFont("PingFang SC", size)
-            if QFontMetrics(font).boundingRect(REPLY_BOX, flags, self.sammy_line).height() \
-                    <= REPLY_BOX.height():
+            if (
+                QFontMetrics(font).boundingRect(REPLY_BOX, flags, self.sammy_line).height()
+                <= REPLY_BOX.height()
+            ):
                 break
         p.setFont(font)
         p.setPen(TEXT)
@@ -298,13 +327,16 @@ class SammyWindow(QWidget):
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(CLOSE_C, CLOSE_R, CLOSE_R)
         p.setPen(GREEN)
-        p.drawText(QRect(CLOSE_C.x() - CLOSE_R, CLOSE_C.y() - CLOSE_R,
-                         CLOSE_R * 2, CLOSE_R * 2), Qt.AlignCenter, "✕")
+        p.drawText(
+            QRect(CLOSE_C.x() - CLOSE_R, CLOSE_C.y() - CLOSE_R, CLOSE_R * 2, CLOSE_R * 2),
+            Qt.AlignCenter,
+            "✕",
+        )
         p.end()
 
     # ── 交互 ────────────────────────────────────
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802
+    def mousePressEvent(self, event) -> None:
         pos = event.position() / SCALE
         if (pos - CLOSE_C).manhattanLength() < CLOSE_R * 1.6:
             QApplication.quit()
@@ -317,12 +349,12 @@ class SammyWindow(QWidget):
             menu.addAction("退出 Sammy", QApplication.quit)
             menu.exec(event.globalPosition().toPoint())
 
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+    def mouseMoveEvent(self, event) -> None:
         if self._drag is not None and event.buttons() & Qt.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag)
 
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+    def mouseReleaseEvent(self, event) -> None:
         self._drag = None
 
-    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+    def mouseDoubleClickEvent(self, event) -> None:
         self.poke()

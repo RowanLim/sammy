@@ -1,0 +1,5 @@
+# 开发工具（不进运行时依赖）
+ruff>=0.6
+pytest>=8.0
+pytest-cov>=5.0
+pre-commit>=3.7

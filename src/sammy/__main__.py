@@ -22,8 +22,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expr", type=int, default=3, help="快照用的表情编号")
     parser.add_argument("--reply", default="", help="快照里显示的回复文本")
     parser.add_argument("--voices", action="store_true", help="列出所有表情")
-    parser.add_argument("--selftest", metavar="PATH",
-                        help="真实显示窗口，2.5 秒后自检窗口状态并截图，然后退出")
+    parser.add_argument(
+        "--selftest", metavar="PATH", help="真实显示窗口，2.5 秒后自检窗口状态并截图，然后退出"
+    )
     parser.add_argument("--memory", action="store_true", help="看看 Sammy 记得什么")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -36,8 +37,10 @@ def main(argv: list[str] | None = None) -> int:
         st = mem.stats()
         slots = mem.slots()
         print(f"记忆库: {st['db']}")
-        print(f"槽位 {st['slots']} 条 / 日记 {st['journal']} 条 / 摘要 {st['digests']} 篇"
-              + (f" / 始于 {st['since']}" if st["since"] else ""))
+        print(
+            f"槽位 {st['slots']} 条 / 日记 {st['journal']} 条 / 摘要 {st['digests']} 篇"
+            + (f" / 始于 {st['since']}" if st["since"] else "")
+        )
         print()
         print("── 槽位（结构化事实）──")
         for k, v in slots.items():
