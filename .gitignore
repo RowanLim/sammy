@@ -1,6 +1,7 @@
 # ── 密钥，永不进仓库 ──
 .env
 .env.*
+!.env.example
 *.key
 *_key.txt
 secrets/
