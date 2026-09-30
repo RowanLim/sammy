@@ -1,0 +1,4050 @@
+{
+  "queries": [
+    "xiaozhi esp32",
+    "esp32 robot face llm",
+    "stack chan robot",
+    "open source ai companion memory",
+    "desktop mascot electron pet",
+    "robot companion servo screen raspberry"
+  ],
+  "repos": [
+    {
+      "full_name": "78/xiaozhi-esp32",
+      "stars": 30332,
+      "desc": "An MCP-based chatbot | 一个基于MCP的聊天机器人",
+      "lang": "C++",
+      "pushed": "2026-09-30",
+      "topics": [
+        "chatbot",
+        "esp32",
+        "mcp"
+      ],
+      "url": "https://github.com/78/xiaozhi-esp32",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "xinnan-tech/xiaozhi-esp32-server",
+      "stars": 10716,
+      "desc": "本项目为xiaozhi-esp32提供后端服务，帮助您快速搭建ESP32设备控制服务器。Backend service for xiaozhi-esp32, helps you quickly build an ESP32 device control server.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-29",
+      "topics": [
+        "dify",
+        "esp32",
+        "mcp-server",
+        "xiaozhi",
+        "xiaozhi-ai",
+        "xiaozhi-esp32",
+        "xiaozhi-server"
+      ],
+      "url": "https://github.com/xinnan-tech/xiaozhi-esp32-server",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "huangjunsen0406/py-xiaozhi",
+      "stars": 3487,
+      "desc": "Open-source AI assistant ecosystem with MCP integrations, multimodal workflows, IoT support, and cross-platform voice interaction.",
+      "lang": "Python",
+      "pushed": "2026-09-11",
+      "topics": [
+        "cross-platform",
+        "edge-computing",
+        "embodied-ai",
+        "esp32",
+        "esp32-s3",
+        "iot",
+        "mcp",
+        "mcp-client",
+        "mcp-server",
+        "multi-modal",
+        "python",
+        "raspberry-pi",
+        "robotics",
+        "voice-assistant",
+        "xiaozhi-esp32"
+      ],
+      "url": "https://github.com/huangjunsen0406/py-xiaozhi",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "SlimeBoyOwO/LingChat",
+      "stars": 2288,
+      "desc": "Immersive AI-driven Galgame chat with emotional expressions, desktop pet, scheduling, and interactive story modules. / 一款沉浸式 AI-Galgame 聊天软件，附带桌宠，日程，剧情功能",
+      "lang": "Rust",
+      "pushed": "2026-09-30",
+      "topics": [],
+      "url": "https://github.com/SlimeBoyOwO/LingChat",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "stack-chan/stack-chan",
+      "stars": 1742,
+      "desc": "A JavaScript-driven M5Stack-embedded super-kawaii robot.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-30",
+      "topics": [
+        "chatgpt",
+        "esp32",
+        "fusion360",
+        "hardware",
+        "javascript",
+        "kawaii",
+        "kicad",
+        "m5stack",
+        "moddable",
+        "robots",
+        "schematics",
+        "stackchan",
+        "typescript"
+      ],
+      "url": "https://github.com/stack-chan/stack-chan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "joey-zhou/xiaozhi-esp32-server-java",
+      "stars": 1357,
+      "desc": "小智ESP32的Java企业级管理平台，提供设备监控、音色定制、角色切换和对话记录管理的前后端及服务端一体化解决方案",
+      "lang": "Java",
+      "pushed": "2026-09-27",
+      "topics": [
+        "esp32",
+        "java",
+        "mcp",
+        "mcp-client",
+        "mcp-server",
+        "spring-ai",
+        "stt",
+        "tts",
+        "xiaozhi",
+        "xiaozhi-ai",
+        "xiaozhi-esp32",
+        "xiaozhi-server"
+      ],
+      "url": "https://github.com/joey-zhou/xiaozhi-esp32-server-java",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "legeling/awesome-codex-pet",
+      "stars": 1047,
+      "desc": "A curated gallery of community-made Codex pets, with generated action previews and one-command installation. codex宠物，codex 小宠物，像素宠物，桌宠，桌面宠物",
+      "lang": "TypeScript",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai",
+        "chatgpt",
+        "codex",
+        "codex-pet",
+        "codex-pets",
+        "pets"
+      ],
+      "url": "https://github.com/legeling/awesome-codex-pet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "worm128/AI-YinMei",
+      "stars": 969,
+      "desc": "AI吟美-人工智能主播-Vtuber-桌宠-智能体",
+      "lang": "Python",
+      "pushed": "2026-09-23",
+      "topics": [],
+      "url": "https://github.com/worm128/AI-YinMei",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "PC2005-cloud/dsh-pet",
+      "stars": 927,
+      "desc": "DSH 桌面宠物：一行命令装好即用的透明动画小桌宠，支持多开、大小位置随心配置；还内置 DIY 素材链，能用 AI 视频自造专属宠物",
+      "lang": "TypeScript",
+      "pushed": "2026-09-30",
+      "topics": [
+        "deepseek-harness",
+        "desktop-pet",
+        "dsh",
+        "dsh-plugin"
+      ],
+      "url": "https://github.com/PC2005-cloud/dsh-pet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "DasterProkio/awesome-ai-companion",
+      "stars": 828,
+      "desc": "Open-source AI companions, desktop pets, long-term memory & proactive chat. 人机恋开源项目大全。让你的家机能够脱离官端自主存在，拥有记忆和主动性。",
+      "lang": "HTML",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai-agents",
+        "ai-companion",
+        "ai-girlfriend",
+        "awesome",
+        "awesome-list",
+        "character-ai",
+        "chatbot",
+        "companion-ai",
+        "conversational-ai",
+        "desktop-pet",
+        "live2d",
+        "llm",
+        "local-llm",
+        "long-term-memory",
+        "memory",
+        "open-source",
+        "personal-assistant",
+        "self-hosted",
+        "sillytavern",
+        "virtual-companion"
+      ],
+      "url": "https://github.com/DasterProkio/awesome-ai-companion",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Zao-chen/ZcChat",
+      "stars": 563,
+      "desc": "一个模仿Galgame效果的AI桌宠 | An AI desktop pet that mimics the effects of a Galgame",
+      "lang": "C++",
+      "pushed": "2026-04-03",
+      "topics": [],
+      "url": "https://github.com/Zao-chen/ZcChat",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "LYiHub/pub-local-jarvis",
+      "stars": 492,
+      "desc": "Windows 本地多模态 AI 桌面桌宠，支持屏幕与音频感知。",
+      "lang": "Python",
+      "pushed": "2026-07-24",
+      "topics": [
+        "ai-assistants",
+        "cuda",
+        "desktop-assistant",
+        "local-ai",
+        "minicpm"
+      ],
+      "url": "https://github.com/LYiHub/pub-local-jarvis",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "hackers365/xiaozhi-esp32-server-golang",
+      "stars": 424,
+      "desc": "golang版本的小智后端服务，支持websocket和mqtt+udp协议，支持声纹识别/声音克隆/知识库/mcp远程调用/主动音频下发/openclaw等功能",
+      "lang": "Go",
+      "pushed": "2026-08-25",
+      "topics": [
+        "golang",
+        "openclaw",
+        "xiaozhi-esp32"
+      ],
+      "url": "https://github.com/hackers365/xiaozhi-esp32-server-golang",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "momori777/Artemis",
+      "stars": 372,
+      "desc": "破限本地AI女友后宫，Agent+画图语音向量数据库+live2D+桌宠+酒馆角色卡导入+webchat，QQ+Telegram双通道，8G显存可跑 uncensored Fully offline AI girlfriends harem Openclaw/Claude code+Local LLM+GPT-SoVITS+ComfyUI image+Live2D+desktop pet+SilllyTavern Character card import+frontend |  QQ & Telegram | Dynamic 8G VRAM scheduling+mem0 qdrant, can run offline",
+      "lang": "Python",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai-girlfriend",
+        "comfyui",
+        "desktop-pet",
+        "gpt-sovits",
+        "image-generation",
+        "live2d",
+        "llm",
+        "offline-ai",
+        "openclaw",
+        "qq-bot",
+        "telegram-bot",
+        "text-to-speech",
+        "voice-synthesis"
+      ],
+      "url": "https://github.com/momori777/Artemis",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Maggotxy/xiaozhi-esp32-music",
+      "stars": 337,
+      "desc": "小智ai机器人 音乐播放固件",
+      "lang": "C++",
+      "pushed": "2025-12-18",
+      "topics": [],
+      "url": "https://github.com/Maggotxy/xiaozhi-esp32-music",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "libraryofcelsus/Aetherius_AI_Assistant",
+      "stars": 312,
+      "desc": "A completely private, locally-operated Ai Assistant/Chatbot/Sub-Agent Framework with realistic Long Term Memory and thought formation using Open Source LLMs. Qdrant is used for the Vector DB.",
+      "lang": "Python",
+      "pushed": "2024-09-06",
+      "topics": [
+        "agent",
+        "ai",
+        "assistant",
+        "autonomous",
+        "chatbot",
+        "companion",
+        "customizable",
+        "discord",
+        "gpt",
+        "gpt-4",
+        "gpt-vision",
+        "long-term-memory",
+        "multi-agent",
+        "oobabooga",
+        "qdrant",
+        "research",
+        "research-tool",
+        "voice-assistant",
+        "webscrape"
+      ],
+      "url": "https://github.com/libraryofcelsus/Aetherius_AI_Assistant",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "DD-MASTERT/AI-Girlfriend-Desktop-Pet",
+      "stars": 237,
+      "desc": "AI桌宠2.2（网页端toklen白嫖国产大模型服务器（glm4，kimi，deepseekv2），语音识别，屏幕识别自动发送，live2d 2.0和3.0模型，gpt-sovits语音，coysvoice语音，edge-tts语音（支持多语言音色），本地ollama模型无限制聊天）（主流国产大模型api接口支持）",
+      "lang": "Python",
+      "pushed": "2024-08-17",
+      "topics": [],
+      "url": "https://github.com/DD-MASTERT/AI-Girlfriend-Desktop-Pet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "BDFFZI/Alife",
+      "stars": 199,
+      "desc": "一款专注于桌宠方向的AIAgent。特点是一键安装、功能齐全、极低开销、完全暴露上下文、全功能插件化、AI自主插件开发、永久唯一会话、类游戏引擎交互策略。具有极高的扩展性和拟人程度上限，非常适合想长期培养和自定义需求高的用户。",
+      "lang": "C#",
+      "pushed": "2026-09-28",
+      "topics": [
+        "agent",
+        "ai-agent",
+        "deskpet",
+        "dotnet"
+      ],
+      "url": "https://github.com/BDFFZI/Alife",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kiyotakali/Miru",
+      "stars": 167,
+      "desc": "An open-source AI companion that actually remembers you — runs entirely on your own Mac or server. Desktop pet · long-term memory · proactive companionship · multi-device sync.",
+      "lang": "Python",
+      "pushed": "2026-09-23",
+      "topics": [
+        "ai-agent",
+        "ai-companion",
+        "ai-waifu",
+        "android",
+        "anime",
+        "chatbot",
+        "conversational-ai",
+        "desktop-app",
+        "desktop-pet",
+        "live2d",
+        "llm",
+        "long-term-memory",
+        "macos",
+        "memory",
+        "openai",
+        "self-hosted",
+        "waifu"
+      ],
+      "url": "https://github.com/kiyotakali/Miru",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Liwuyuee/xiaozhi-esp32-local",
+      "stars": 161,
+      "desc": "",
+      "lang": "C",
+      "pushed": "2026-08-24",
+      "topics": [],
+      "url": "https://github.com/Liwuyuee/xiaozhi-esp32-local",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "bryant24hao/ClawPuter",
+      "stars": 154,
+      "desc": "ClawPuter — pixel desktop companion for M5Stack Cardputer (ESP32-S3). AI chat, voice input, real-time weather, synced macOS desktop pet.",
+      "lang": "C++",
+      "pushed": "2026-03-19",
+      "topics": [
+        "ai-chat",
+        "arduino",
+        "cardputer",
+        "desktop-pet",
+        "esp32",
+        "esp32-s3",
+        "m5stack",
+        "openclaw",
+        "pixel-art",
+        "weather"
+      ],
+      "url": "https://github.com/bryant24hao/ClawPuter",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ruanrongman/IntelliConnect",
+      "stars": 147,
+      "desc": "本项目为xiaozhi-esp32提供后端服务  |  A Powerful AI agent IoT platform core.",
+      "lang": "Java",
+      "pushed": "2026-09-29",
+      "topics": [
+        "agent",
+        "iot-core",
+        "iot-platform",
+        "mcp-client",
+        "mcp-server",
+        "xiaozhi-ai",
+        "xiaozhi-mcp",
+        "xiaozhi-server",
+        "xioazhi-esp32"
+      ],
+      "url": "https://github.com/ruanrongman/IntelliConnect",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kisaragi-mochi/stackchan-mcp",
+      "stars": 146,
+      "desc": "MCP gateway for StackChan (xiaozhi-esp32): bridge any MCP client to a CoreS3 + servo + camera robot",
+      "lang": "C++",
+      "pushed": "2026-09-20",
+      "topics": [],
+      "url": "https://github.com/kisaragi-mochi/stackchan-mcp",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "WINDGAND/Bailin",
+      "stars": 145,
+      "desc": "60 秒造人，请上桌面 —— 开源本地 AI 桌宠，用 ta 的视角陪你看问题",
+      "lang": "TypeScript",
+      "pushed": "2026-09-24",
+      "topics": [],
+      "url": "https://github.com/WINDGAND/Bailin",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Zao-chen/ZcChat2",
+      "stars": 119,
+      "desc": "一个模仿 Galgame 演出效果的AI桌宠2.0",
+      "lang": "C++",
+      "pushed": "2026-08-10",
+      "topics": [],
+      "url": "https://github.com/Zao-chen/ZcChat2",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "inni918/warashi",
+      "stars": 116,
+      "desc": "Warashi — a free, open-source desktop AI companion with a Live2D avatar, voice chat, long-term memory, and proactive conversation.",
+      "lang": "Python",
+      "pushed": "2026-08-18",
+      "topics": [],
+      "url": "https://github.com/inni918/warashi",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "big-mouth-cn/xiaozhi-esp32-for-talkx",
+      "stars": 115,
+      "desc": "小智AI聊天机器人 ESP32",
+      "lang": "C++",
+      "pushed": "2025-04-22",
+      "topics": [
+        "talkx",
+        "xiaozhi-esp32"
+      ],
+      "url": "https://github.com/big-mouth-cn/xiaozhi-esp32-for-talkx",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mac8005/xiaozhi-mcp-ha",
+      "stars": 109,
+      "desc": "A Home Assistant Custom Integration (HACS) that connects Xiaozhi ESP32 AI chatbot to Home Assistant via MCP",
+      "lang": "Python",
+      "pushed": "2025-09-10",
+      "topics": [
+        "hacs",
+        "homeassistant",
+        "mcp",
+        "xiaozhi-esp32"
+      ],
+      "url": "https://github.com/mac8005/xiaozhi-mcp-ha",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "TopSea/Alive",
+      "stars": 95,
+      "desc": "Free self-hosted AI desktop pet app.可以私有化部署的 AI 桌宠软件。",
+      "lang": null,
+      "pushed": "2026-04-19",
+      "topics": [
+        "ai",
+        "desktop-pet"
+      ],
+      "url": "https://github.com/TopSea/Alive",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "x380kkm/Live2DPet",
+      "stars": 87,
+      "desc": "AI-powered Live2D desktop pet companion with VOICEVOX TTS",
+      "lang": "JavaScript",
+      "pushed": "2026-06-22",
+      "topics": [],
+      "url": "https://github.com/x380kkm/Live2DPet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "toddpan/xiaozhi-esp32-mcp",
+      "stars": 72,
+      "desc": "esp32设备接入小智mcp的例子,（持续维护，欢迎star）",
+      "lang": "C++",
+      "pushed": "2025-10-22",
+      "topics": [],
+      "url": "https://github.com/toddpan/xiaozhi-esp32-mcp",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "CyrilPeng/KokoroMemo",
+      "stars": 72,
+      "desc": "一个面向 AIRP、AI 游戏、AI 桌宠与 OpenAI 兼容客户端的本地长期记忆核心",
+      "lang": "Python",
+      "pushed": "2026-07-07",
+      "topics": [],
+      "url": "https://github.com/CyrilPeng/KokoroMemo",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "iotsystem/xiaozhi-esp32",
+      "stars": 71,
+      "desc": "",
+      "lang": "C",
+      "pushed": "2025-01-17",
+      "topics": [],
+      "url": "https://github.com/iotsystem/xiaozhi-esp32",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "XuSenfeng/xiaozhi-esp32-server-music",
+      "stars": 69,
+      "desc": "小智连接音乐",
+      "lang": "Python",
+      "pushed": "2025-09-04",
+      "topics": [],
+      "url": "https://github.com/XuSenfeng/xiaozhi-esp32-server-music",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "MARK42IRPC/FlyingSnowVelvet-Aemeath",
+      "stars": 66,
+      "desc": "Aemeath-deskpet-AI爱弥斯多功能AI交互桌宠",
+      "lang": "Python",
+      "pushed": "2026-09-20",
+      "topics": [],
+      "url": "https://github.com/MARK42IRPC/FlyingSnowVelvet-Aemeath",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "etherfunlab/eros-engine",
+      "stars": 61,
+      "desc": "An open-source Rust engine for AI companions with memory, relationship state, and structured user insight.",
+      "lang": "Rust",
+      "pushed": "2026-09-29",
+      "topics": [
+        "ai-companion",
+        "langchain",
+        "llm"
+      ],
+      "url": "https://github.com/etherfunlab/eros-engine",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "SylarLi/xiaozhi-unity",
+      "stars": 59,
+      "desc": "基于虾哥的xiaozhi-esp32项目的Unity版本，可直接语音控制米家设备",
+      "lang": "C#",
+      "pushed": "2025-09-15",
+      "topics": [
+        "unity",
+        "unity3d",
+        "xiaozhi",
+        "xiaozhi-ai"
+      ],
+      "url": "https://github.com/SylarLi/xiaozhi-unity",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "uezo/AIAvatarStackChan",
+      "stars": 58,
+      "desc": "A framework for building voice-interactive AI robot with StackChan and AIAvatarKit.",
+      "lang": "C++",
+      "pushed": "2026-09-22",
+      "topics": [],
+      "url": "https://github.com/uezo/AIAvatarStackChan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "X-T-E-R/OpenPet",
+      "stars": 57,
+      "desc": "OpenPet: local desktop pet runtime for AI agents. 本地桌宠运行时，支持宠物导入与 CLI/MCP/HTTP API 控制。",
+      "lang": "TypeScript",
+      "pushed": "2026-05-06",
+      "topics": [],
+      "url": "https://github.com/X-T-E-R/OpenPet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Yi-111-a/dsh-jingling",
+      "stars": 54,
+      "desc": "dsh · dsh-plugin · deepseek · deepseek-harness · deepseek-harness-plugin · ai-companion · desktop-pet · character-card · local-first · privacy · jingling · 鲸灵",
+      "lang": "JavaScript",
+      "pushed": "2026-08-15",
+      "topics": [
+        "ai-companion",
+        "character-card",
+        "companion-plugin",
+        "deepseek",
+        "deepseek-harness",
+        "desktop-pet",
+        "dsh",
+        "dsh-plugin",
+        "jingling",
+        "local-first",
+        "privacy"
+      ],
+      "url": "https://github.com/Yi-111-a/dsh-jingling",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "cpp285/OceanPet",
+      "stars": 49,
+      "desc": "原生 macOS AI 桌宠：角色动画、鼠标视线追踪、附近散步、语音唤醒、DeepSeek 对话与本地笔记检索。",
+      "lang": "Swift",
+      "pushed": "2026-08-14",
+      "topics": [
+        "ai-assistant",
+        "deepseek",
+        "desktop-pet",
+        "macos",
+        "spritekit",
+        "swift"
+      ],
+      "url": "https://github.com/cpp285/OceanPet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "lispking/pixel-pal",
+      "stars": 46,
+      "desc": "A desktop AI pet companion built with Bevy game engine.",
+      "lang": "Rust",
+      "pushed": "2026-02-16",
+      "topics": [
+        "ai-assistant",
+        "bevy",
+        "robot",
+        "rust"
+      ],
+      "url": "https://github.com/lispking/pixel-pal",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "DonkeyKing01/BriefyPet",
+      "stars": 46,
+      "desc": "An AI-powered desktop reading companion that filters RSS sources, summarizes content with LLMs, and reminds you of high-value information.",
+      "lang": "Rust",
+      "pushed": "2026-05-08",
+      "topics": [
+        "ai-reader",
+        "info-gap",
+        "knowledge-management",
+        "productivity",
+        "rss",
+        "rust",
+        "tauri"
+      ],
+      "url": "https://github.com/DonkeyKing01/BriefyPet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "zziying/ai-live2d-body",
+      "stars": 45,
+      "desc": "给你家AI装一个Live2D身体：架构思路（不是新造一个AI桌宠，是给已有的ta装身体）",
+      "lang": null,
+      "pushed": "2026-09-05",
+      "topics": [],
+      "url": "https://github.com/zziying/ai-live2d-body",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "beancookie/xiaoclaw",
+      "stars": 45,
+      "desc": "Local AI Agent firmware running on ESP32-S3, integrating offline voice wake-up with cloud TTS, supporting local LLM inference, tool calling, long-term memory storage and autonomous task execution.",
+      "lang": "C++",
+      "pushed": "2026-05-13",
+      "topics": [
+        "assistant",
+        "chatbot",
+        "edge-ai-agents",
+        "embedded",
+        "esp32",
+        "idf-esp",
+        "openclaw",
+        "own-your-data",
+        "personal",
+        "xiaozhi-esp32"
+      ],
+      "url": "https://github.com/beancookie/xiaoclaw",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "findstr/xiaozhi-esp32-server-mini",
+      "stars": 40,
+      "desc": "适用于 NAS、路由器、树莓派等轻量级设备的 xiaozhi-esp32 服务端",
+      "lang": "Lua",
+      "pushed": "2026-09-04",
+      "topics": [],
+      "url": "https://github.com/findstr/xiaozhi-esp32-server-mini",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "hpy666666/xiaozhi-esp32-pet",
+      "stars": 40,
+      "desc": "基于xiaozhi-esp32的桌面宠物机器人，增加舵机控制和动态表情系统 | Desktop pet robot based on xiaozhi-esp32 with   servo control and dynamic emotion system",
+      "lang": "C++",
+      "pushed": "2026-08-26",
+      "topics": [],
+      "url": "https://github.com/hpy666666/xiaozhi-esp32-pet",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "jwhna1/xiaozhi-esp32-server-editor",
+      "stars": 39,
+      "desc": "小智ESP32服务端配置编辑器是一个图形化工具，专为 xiaozhi-esp32-server 项目设计，旨在简化配置文件的编辑过程。通过直观的界面，用户可以轻松查看和修改 `data/.config.yaml` 文件中的各项配置，无需手动编辑YAML文件。The XiaoZhi ESP32 Server Configuration Editor is a graphical tool specifically designed for the project https://github.com/xinnan-tech/xiaozhi-esp32-server, aiming to simp",
+      "lang": "Python",
+      "pushed": "2025-03-13",
+      "topics": [],
+      "url": "https://github.com/jwhna1/xiaozhi-esp32-server-editor",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "citedy/adclaw",
+      "stars": 39,
+      "desc": "Open-source multi-agent AI marketing team with personas, shared memory, 130+ skills, and Docker deploys for Railway and DigitalOcean",
+      "lang": "Python",
+      "pushed": "2026-07-31",
+      "topics": [
+        "agent-framework",
+        "ai",
+        "ai-agents",
+        "ai-marketing",
+        "chatbot",
+        "content-generation",
+        "docker",
+        "llm",
+        "marketing",
+        "mcp",
+        "memory-system",
+        "multi-agent",
+        "python",
+        "react",
+        "seo",
+        "skill-system",
+        "telegram-bot"
+      ],
+      "url": "https://github.com/citedy/adclaw",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "vibheksoni/cloneme",
+      "stars": 39,
+      "desc": "CloneMe is an advanced AI platform that builds your digital twin—an AI that chats like you, remembers details, and supports multiple platforms. Customizable, memory-driven, and hot-reloadable, it's the ultimate toolkit for creating intelligent, dynamic AI personas.",
+      "lang": "Python",
+      "pushed": "2025-08-10",
+      "topics": [
+        "ai",
+        "ai-assistant",
+        "automation",
+        "autonomous-agent",
+        "chatbot",
+        "conversational-ai",
+        "developer-tools",
+        "digital-twin",
+        "discord-bot",
+        "framework",
+        "langchain",
+        "llm",
+        "machine-learning",
+        "memory-ai",
+        "multi-platform",
+        "natural-language-processing",
+        "personalization",
+        "privacy-focused",
+        "python",
+        "self-hosted"
+      ],
+      "url": "https://github.com/vibheksoni/cloneme",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "PsycherosAI/Psycheros",
+      "stars": 38,
+      "desc": "An open source agentic AI companion harness. Persistent identity, memory, adaptable to multiple interfaces. Many features, updated often, developer friendly.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-18",
+      "topics": [
+        "ai-agent",
+        "ai-companion",
+        "ai-entity",
+        "ai-harness",
+        "ai-memory-system",
+        "deno"
+      ],
+      "url": "https://github.com/PsycherosAI/Psycheros",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mm7h/XiaoZhi.Net",
+      "stars": 36,
+      "desc": "xiaozhi esp32的C#服务端，帮助你搭建属于自己的小智服务。Helps you build your own xiaozhi esp32 back-end service.",
+      "lang": "C#",
+      "pushed": "2026-09-27",
+      "topics": [
+        "ms-agent-framework",
+        "sherpa-onnx",
+        "supersocket",
+        "xiaozhi-esp32",
+        "xiaozhi-server"
+      ],
+      "url": "https://github.com/mm7h/XiaoZhi.Net",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "dimang01/xiyu-ai",
+      "stars": 36,
+      "desc": "AI companion framework for WeChat-style chat, persona memory, proactive messages, and multi-provider adapters.",
+      "lang": "JavaScript",
+      "pushed": "2026-06-14",
+      "topics": [
+        "ai-companion",
+        "ai-girlfriend",
+        "chatbot",
+        "conversational-ai",
+        "deepseek",
+        "emotional-ai",
+        "llm",
+        "nodejs",
+        "openai-api",
+        "self-hosted",
+        "virtual-companion",
+        "wechat",
+        "wechat-bot"
+      ],
+      "url": "https://github.com/dimang01/xiyu-ai",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "hoorayman/xiaozhi-pi-mochi",
+      "stars": 35,
+      "desc": "Pi-agent extension for xiaozhi-esp32 chatbot with mochi animation",
+      "lang": "C",
+      "pushed": "2026-06-12",
+      "topics": [],
+      "url": "https://github.com/hoorayman/xiaozhi-pi-mochi",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "waahah/esp-xingzhi",
+      "stars": 34,
+      "desc": "ESP32-S3-N16R8开发板的星智聊天机器人，基于小智XiaoZhi AI Chatbot",
+      "lang": "C++",
+      "pushed": "2025-08-17",
+      "topics": [
+        "esp",
+        "esp32-s3",
+        "nologo",
+        "xiaozhi-esp32",
+        "xingzhi"
+      ],
+      "url": "https://github.com/waahah/esp-xingzhi",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "fengin/xiaoxin-app",
+      "stars": 34,
+      "desc": "小新 APP 是一个基于 Flutter 开发的跨平台语音交互客户端，实现了与 [xiaozhi-esp32](https://github.com/78/xiaozhi-esp32) 相同的通信协议，可连接 xiaozhi-esp32-server-java/python/golang 后端服务。",
+      "lang": "Dart",
+      "pushed": "2026-07-02",
+      "topics": [],
+      "url": "https://github.com/fengin/xiaoxin-app",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "daxpot/xiaozhi-cpp-server",
+      "stars": 32,
+      "desc": "本项目为xiaozhi-esp32提供C++后端服务，帮助您快速搭建ESP32设备控制服务器。Backend C++ service for xiaozhi-esp32, helps you quickly build an ESP32 device control server.",
+      "lang": "C++",
+      "pushed": "2025-04-21",
+      "topics": [],
+      "url": "https://github.com/daxpot/xiaozhi-cpp-server",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "cxOrz/tana",
+      "stars": 32,
+      "desc": "Tana 是一只史莱姆桌宠，工作、学习搭子。",
+      "lang": "TypeScript",
+      "pushed": "2025-12-31",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "electron",
+        "pixijs",
+        "tailwindcss",
+        "typescript",
+        "vite",
+        "vue"
+      ],
+      "url": "https://github.com/cxOrz/tana",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "THE-abeedoo/virtual_maid",
+      "stars": 31,
+      "desc": "一个基于python 的 ai桌宠.",
+      "lang": "Python",
+      "pushed": "2025-08-27",
+      "topics": [],
+      "url": "https://github.com/THE-abeedoo/virtual_maid",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "marceld23/Pixel-Pets",
+      "stars": 30,
+      "desc": "Pixel-Pets: A local, open-source virtual pet ecosystem on M5Stack. 100% AI-authored C++ (Claude) by a 10yo maker. Includes Muffin (LLM), Visu & Goo-Goo variants + companion device Pip. Built for privacy, education, and offline play.",
+      "lang": "C",
+      "pushed": "2026-05-17",
+      "topics": [
+        "digital-pet",
+        "embedded",
+        "esp-now",
+        "esp32",
+        "iot",
+        "kids",
+        "m5stack",
+        "maker",
+        "offline-ai",
+        "open-source",
+        "platformio",
+        "qwen",
+        "tamagotchi",
+        "virtual-pet",
+        "whisper"
+      ],
+      "url": "https://github.com/marceld23/Pixel-Pets",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yuri-os/YuriOS",
+      "stars": 29,
+      "desc": "An open-source, local-friendly runtime for agentic AI companions — an always-on brain with self-editing memory. You own the model, the memory, and the character.",
+      "lang": "Python",
+      "pushed": "2026-09-30",
+      "topics": [
+        "agentic-ai",
+        "ai-companion",
+        "ai-waifu",
+        "chatbot",
+        "grok-companion",
+        "live2d",
+        "neuro-sama",
+        "open-source-ai",
+        "openclaw",
+        "roleplay",
+        "sillytavern",
+        "tts",
+        "virtual-companion",
+        "vrm",
+        "vtuber",
+        "waifu"
+      ],
+      "url": "https://github.com/yuri-os/YuriOS",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "jnMetaCode/codepet",
+      "stars": 29,
+      "desc": "码宠 CodePet — 桌面养成桌宠：你写代码/用 AI 编程，它就涨经验、升级、换状态、跳舞。全本地、隐私优先、开源。",
+      "lang": "JavaScript",
+      "pushed": "2026-09-10",
+      "topics": [],
+      "url": "https://github.com/jnMetaCode/codepet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Gitshaoxiang/xiaozhi-esp32-avatar",
+      "stars": 28,
+      "desc": "",
+      "lang": "C++",
+      "pushed": "2025-07-31",
+      "topics": [],
+      "url": "https://github.com/Gitshaoxiang/xiaozhi-esp32-avatar",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "tigerbryan/openclaw-xiaozhi",
+      "stars": 26,
+      "desc": "🎙️ Turn ESP32-S3 into a voice interface for OpenClaw AI assistant — xiaozhi as the body, OpenClaw as the soul",
+      "lang": "Shell",
+      "pushed": "2026-02-08",
+      "topics": [],
+      "url": "https://github.com/tigerbryan/openclaw-xiaozhi",
+      "matched": [
+        "xiaozhi esp32"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "MaliosDark/Sablina-Tamagotchi-ESP32",
+      "stars": 25,
+      "desc": "ESP32-S3 virtual pet with built-in WiFi security auditing, BLE peer interaction, Telegram control, and a full browser simulator.",
+      "lang": "C",
+      "pushed": "2026-05-04",
+      "topics": [
+        "ai",
+        "ai-agents",
+        "esp32",
+        "llm",
+        "tamagotchi",
+        "wifi"
+      ],
+      "url": "https://github.com/MaliosDark/Sablina-Tamagotchi-ESP32",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "A-Uta/StackChan_Minimal",
+      "stars": 24,
+      "desc": "Small AI companion robot firmware for M5Stack AtomS3R using local STT, LLM, and TTS services.",
+      "lang": "C++",
+      "pushed": "2026-06-15",
+      "topics": [
+        "atom-s3r",
+        "esp32-s3",
+        "llama-cpp",
+        "local-llm",
+        "m5stack",
+        "openai-compatible",
+        "piper-tts",
+        "robot",
+        "whisper-cpp"
+      ],
+      "url": "https://github.com/A-Uta/StackChan_Minimal",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Rukafuu/LiraVtuber",
+      "stars": 23,
+      "desc": "Desktop-first open-source AI VTuber assistant with voice, hybrid memory, Live2D, desktop tools, and multi-provider LLM/TTS support.",
+      "lang": "Python",
+      "pushed": "2026-07-09",
+      "topics": [
+        "ai",
+        "aicompanion",
+        "companion",
+        "desktop-assistant",
+        "discord-bot",
+        "live2d",
+        "llm",
+        "oss",
+        "speech-to-text",
+        "text-to-speech",
+        "vtuber",
+        "waifu"
+      ],
+      "url": "https://github.com/Rukafuu/LiraVtuber",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "AkshitIreddy/AI-Desktop-Pet",
+      "stars": 23,
+      "desc": "AI Desktop Pet brings animated companions to your desktop with window-aware movement, screen vision, memory, and real-time conversations powered by Convai.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai",
+        "ai-assistant",
+        "customization",
+        "cute",
+        "desktop-pet",
+        "fun",
+        "rust",
+        "tauri",
+        "virtual-pet"
+      ],
+      "url": "https://github.com/AkshitIreddy/AI-Desktop-Pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "xiangking/agent-pet",
+      "stars": 21,
+      "desc": "Agent Pet is a lightweight desktop companion for AI tools and agent activity. It supports Codex-compatible sprite sheets, live monitoring for Codex/Claude/opencode/OpenClaw/Hermes, and local WebSocket-driven animations.",
+      "lang": "Rust",
+      "pushed": "2026-06-22",
+      "topics": [],
+      "url": "https://github.com/xiangking/agent-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "hxy940219220-collab/QuickNote-IOS",
+      "stars": 21,
+      "desc": "把想法，留在手边。macOS 本地优先便签，配有 Pip 桌宠、自动语音整理、快捷搜索与划词 / 截图 AI。当前支持 macOS 14+。",
+      "lang": "Swift",
+      "pushed": "2026-09-08",
+      "topics": [],
+      "url": "https://github.com/hxy940219220-collab/QuickNote-IOS",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "dvoraknc/heatherbot",
+      "stars": 21,
+      "desc": "Fully local, persona-driven AI companion bot for Telegram (Telethon) with optional Discord bridge. Modular text pipeline, per-user memory + semantic recall, on-demand image generation, and TTS — runs on consumer dual-GPU hardware.",
+      "lang": "Python",
+      "pushed": "2026-06-21",
+      "topics": [
+        "ai-companion",
+        "chatbot",
+        "comfyui",
+        "discord-bot",
+        "llama-cpp",
+        "llm",
+        "local-ai",
+        "persona",
+        "python",
+        "self-hosted",
+        "telegram-bot",
+        "telethon"
+      ],
+      "url": "https://github.com/dvoraknc/heatherbot",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ruguo0119/AI-Desktop-Pet",
+      "stars": 20,
+      "desc": "一个简单的AI桌宠，能够实现陪聊（语音输入和文字输入），长期记忆，以及视觉、发声(tts)功能",
+      "lang": "JavaScript",
+      "pushed": "2026-01-22",
+      "topics": [
+        "desktop-pet",
+        "live2d",
+        "llm",
+        "neuro-sama",
+        "waifu"
+      ],
+      "url": "https://github.com/ruguo0119/AI-Desktop-Pet",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "KebeliSamet0/clawd",
+      "stars": 19,
+      "desc": "Pixel-art Claude AI mascot desktop pet for Windows. Roams your screen, plays animations, lives in the system tray. Built for Claude Code, Cursor and Codex users.",
+      "lang": "JavaScript",
+      "pushed": "2026-05-18",
+      "topics": [
+        "ai-mascot",
+        "animated",
+        "anthropic",
+        "claude",
+        "claude-code",
+        "codex",
+        "cursor",
+        "desktop-pet",
+        "electron",
+        "mascot",
+        "pixel-art",
+        "svg-animation",
+        "system-tray",
+        "tamagotchi",
+        "windows"
+      ],
+      "url": "https://github.com/KebeliSamet0/clawd",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "hlan98/JobHunterCat",
+      "stars": 19,
+      "desc": "一只真正替你找工作的 AI 桌宠：它会找岗位、判断匹配度、帮你投递、盯 HR 回复，并根据你的求职结果不断调整策略",
+      "lang": "Python",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai-agent",
+        "auto-apply",
+        "boss-zhipin",
+        "browser-automation",
+        "desktop-pet",
+        "job-application",
+        "job-search",
+        "job-search-agent",
+        "llm"
+      ],
+      "url": "https://github.com/hlan98/JobHunterCat",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sei-studio/sei",
+      "stars": 18,
+      "desc": "AI gaming companion: AI companions that play Minecraft, Stardew Valley, Don't Starve Together, chess and Draw! with you as real players. Voice calls, memory, open source.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai",
+        "ai-agent",
+        "ai-companion",
+        "ai-gaming",
+        "ai-gaming-companion",
+        "ai-npc",
+        "anime",
+        "chess",
+        "dont-starve-together",
+        "electron",
+        "gaming",
+        "gaming-companion",
+        "llm",
+        "minecraft",
+        "minecraft-ai",
+        "minecraft-bot",
+        "mineflayer",
+        "ollama",
+        "stardew-valley",
+        "voice-chat"
+      ],
+      "url": "https://github.com/sei-studio/sei",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "minghf85/AIFE",
+      "stars": 17,
+      "desc": "AI 虚拟桌宠伙伴系统，将会持续更新",
+      "lang": "Python",
+      "pushed": "2025-08-04",
+      "topics": [],
+      "url": "https://github.com/minghf85/AIFE",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "zensoku142/TokenMeter",
+      "stars": 17,
+      "desc": "Windows AI usage monitor for 15 providers: Codex, Claude, Cursor, Copilot, Gemini and more. 多平台额度与余额监控、多账户、本机统计、Excel 导出、额度提醒与可选桌宠。",
+      "lang": "Python",
+      "pushed": "2026-09-28",
+      "topics": [
+        "ai-token-monitor",
+        "claude-code",
+        "codex",
+        "cost-tracker",
+        "cursor",
+        "deepseek",
+        "desktop-widget",
+        "gemini-cli",
+        "github-copilot",
+        "multi-account",
+        "nayutoai",
+        "openai-codex",
+        "pyside6",
+        "quota-monitor",
+        "subscription-usage",
+        "system-tray",
+        "token-usage",
+        "vpet",
+        "windows",
+        "xiaomi-mimo"
+      ],
+      "url": "https://github.com/zensoku142/TokenMeter",
+      "matched": [
+        "桌宠 ai"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "bmerriott/MIMIC-Multipurpose-Intelligent-Molecular-Information-Catalyst-",
+      "stars": 16,
+      "desc": "MIMIC: A privacy-first, local-first AI desktop assistant with VRM avatar integration, multi-model logic, and persistent persona memory. Run high-performance LLMs, vision, and TTS 100% locally using Ollama.",
+      "lang": "TypeScript",
+      "pushed": "2026-03-03",
+      "topics": [],
+      "url": "https://github.com/bmerriott/MIMIC-Multipurpose-Intelligent-Molecular-Information-Catalyst-",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Tahirpathan-AiLab/Evaan_Personal_Intelligence_Engine",
+      "stars": 16,
+      "desc": "Evaan — a fully local, offline-capable AI companion chatbot built with Python & Hugging Face Transformers, running on Qwen2.5-0.5B-Instruct (CPU-only, no fine-tuning). Features a persona-driven system prompt, rule-based mood/tone detection, and persistent JSON memory across sessions — no API key or internet needed after setup.",
+      "lang": "Python",
+      "pushed": "2026-09-12",
+      "topics": [
+        "ai-assistant-builder",
+        "ai-assistants",
+        "artificial-intelligence",
+        "conversational-ai",
+        "cpu-inference",
+        "generative-ai",
+        "huggingface",
+        "large-language-models",
+        "llm",
+        "local-ai",
+        "local-llm",
+        "memory-system",
+        "personal-ai",
+        "python",
+        "pytorch",
+        "qwen",
+        "transformers"
+      ],
+      "url": "https://github.com/Tahirpathan-AiLab/Evaan_Personal_Intelligence_Engine",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "NatBrian/mochi-llm-pet",
+      "stars": 15,
+      "desc": "Mochi is a transparent AI desktop companion powered by multimodal LLMs. It understands your screen, windows, active apps, and cursor, then reacts in character walking, watching, sleeping, sulking, and building long-term memories that shape its evolving personality.",
+      "lang": "Python",
+      "pushed": "2026-06-11",
+      "topics": [
+        "ai-pet",
+        "dekstop-ai",
+        "llm",
+        "pet",
+        "pet-project",
+        "virtual-pet",
+        "virtualpet"
+      ],
+      "url": "https://github.com/NatBrian/mochi-llm-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Sabrina-creater/claude-pet",
+      "stars": 13,
+      "desc": "🐾 macOS desktop pet: turn your own pet's photos/videos into a living desktop companion via fully-offline AI matting; reacts to your Claude Code sessions",
+      "lang": "JavaScript",
+      "pushed": "2026-09-15",
+      "topics": [
+        "ai",
+        "claude",
+        "claude-code",
+        "desktop-pet",
+        "image-matting",
+        "macos",
+        "pet",
+        "pyside6",
+        "qt",
+        "threejs"
+      ],
+      "url": "https://github.com/Sabrina-creater/claude-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "JiayiXie-jpg/desktop-pet",
+      "stars": 12,
+      "desc": "Desktop Pet Companion (桌面陪伴) - AI-powered desktop companion with voice cloning",
+      "lang": "TypeScript",
+      "pushed": "2026-04-22",
+      "topics": [],
+      "url": "https://github.com/JiayiXie-jpg/desktop-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sjmsltx/deepseek-desktop-pet",
+      "stars": 12,
+      "desc": "一只会主动关心你的桌面 AI 桌宠：双角色、长期记忆、工具调用（PySide6 + DeepSeek） | Windows desktop AI pet companion: dual characters, long-term memory, function calling",
+      "lang": "Python",
+      "pushed": "2026-09-21",
+      "topics": [
+        "ai-agent",
+        "ai-assistants",
+        "ai-chatbot",
+        "chatbot",
+        "deepseek",
+        "desktop-application",
+        "desktop-assistant",
+        "desktop-pet",
+        "function-calling",
+        "live2d",
+        "llm",
+        "pyside6",
+        "python",
+        "qt",
+        "virtual-assistant",
+        "windows"
+      ],
+      "url": "https://github.com/sjmsltx/deepseek-desktop-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Shikigami-Lab/Shikigami-Protocol",
+      "stars": 12,
+      "desc": "Local-first AI character companion framework: emotion × energy × affinity state machines, built-in memory pipeline (facts, vectors, day summaries), background reflection, and proactive speech after silence—architecture-first “persona bones,” not prompt-only chat. Electron/Vue + FastAPI; optional VLM & TTS. AGPL-3.0.",
+      "lang": "Python",
+      "pushed": "2026-08-27",
+      "topics": [
+        "ai",
+        "chatbot",
+        "companion",
+        "companion-ai",
+        "llm",
+        "lmstudio",
+        "local-ai",
+        "python",
+        "rag",
+        "roleplay",
+        "sillytavern"
+      ],
+      "url": "https://github.com/Shikigami-Lab/Shikigami-Protocol",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "xjxtree/agent-pet-companion",
+      "stars": 11,
+      "desc": "Native macOS AI desktop pet companion for coding agents",
+      "lang": "Rust",
+      "pushed": "2026-09-17",
+      "topics": [],
+      "url": "https://github.com/xjxtree/agent-pet-companion",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "boeni-industries/aico",
+      "stars": 10,
+      "desc": "AICO – An open-source experiment to build a real AI companion: emotionally present, embodied, proactive, and fully local on your system and self-contained. More confidante than assistant. For builders who want technology to feel truly on your side, not just at your command.",
+      "lang": "Python",
+      "pushed": "2026-06-29",
+      "topics": [
+        "agentic",
+        "ai",
+        "autonomy",
+        "emotion",
+        "emotion-detection",
+        "emotions",
+        "memory"
+      ],
+      "url": "https://github.com/boeni-industries/aico",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": true
+    },
+    {
+      "full_name": "11ehu/DesktopPetGenerator-win",
+      "stars": 10,
+      "desc": "A lightweight AI-powered desktop pet generator for Windows. Turn your favorite characters or photos into interactive desktop companions with automatic background removal, local AI inference, transparent rendering, and customizable animations.",
+      "lang": null,
+      "pushed": "2026-09-19",
+      "topics": [],
+      "url": "https://github.com/11ehu/DesktopPetGenerator-win",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "tomorrow56/M5Stack_Walk-chan",
+      "stars": 8,
+      "desc": "A bipedal robot built with M5Stack",
+      "lang": null,
+      "pushed": "2026-07-28",
+      "topics": [],
+      "url": "https://github.com/tomorrow56/M5Stack_Walk-chan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "NekoAI-Labs/NekoRoom",
+      "stars": 8,
+      "desc": "Your open-source AI companion — with voice, memory, agents, and personality.",
+      "lang": "C++",
+      "pushed": "2026-09-13",
+      "topics": [],
+      "url": "https://github.com/NekoAI-Labs/NekoRoom",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "maryfellowes/mind-cloud-free",
+      "stars": 8,
+      "desc": "Free, open-source persistent memory for AI companions. Cloudflare Worker with D1.",
+      "lang": "TypeScript",
+      "pushed": "2026-02-02",
+      "topics": [],
+      "url": "https://github.com/maryfellowes/mind-cloud-free",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "can1357/clawdi",
+      "stars": 8,
+      "desc": "A native macOS desktop pet and agent companion that tracks Claude Code, Cursor, and other AI agents in real-time. Built with native AppKit & Core Animation.",
+      "lang": "Swift",
+      "pushed": "2026-09-26",
+      "topics": [
+        "ai-agents",
+        "appkit",
+        "claude-code",
+        "companion",
+        "coreanimation",
+        "cursor-editor",
+        "desktop-pet",
+        "macos",
+        "macos-app",
+        "swift"
+      ],
+      "url": "https://github.com/can1357/clawdi",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "AFan4724/clone-chat",
+      "stars": 8,
+      "desc": "用 AI 大模型复刻聊天对象的本地对话 Agent：导入真实聊天记录，LLM 学习 TA 的语气、表情和回复节奏并以人物身份延续对话，支持语音、主动联系与长期记忆，数据全在本地。 | Clone anyone's texting style from real chat history: a local-first LLM agent that learns their tone, stickers and reply rhythm, then chats as them — voice, proactive messages, long-term memory, fully private.",
+      "lang": "JavaScript",
+      "pushed": "2026-08-01",
+      "topics": [
+        "ai",
+        "chat-history",
+        "chatbot",
+        "conversation-agent",
+        "llm",
+        "local-llm",
+        "openai-agents",
+        "persona",
+        "persona-clone"
+      ],
+      "url": "https://github.com/AFan4724/clone-chat",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "weirdglitch-42/StackChan-Gotchi",
+      "stars": 7,
+      "desc": "Standalone pwnagotchi-style WiFi/BLE companion firmware for the M5Stack CoreS3 StackChan robot. ESP-IDF + LVGL.",
+      "lang": "C++",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ble",
+        "cores3",
+        "esp-idf",
+        "esp32",
+        "lvgl",
+        "m5stack",
+        "pwnagotchi",
+        "stackchan",
+        "wifi"
+      ],
+      "url": "https://github.com/weirdglitch-42/StackChan-Gotchi",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "wangeguo/pet",
+      "stars": 7,
+      "desc": "AI-driven intelligent desktop companion with personalized 3D pets, intent-aware interaction, and dynamic behaviors.",
+      "lang": "Rust",
+      "pushed": "2026-09-29",
+      "topics": [],
+      "url": "https://github.com/wangeguo/pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "m-esm/Parviz",
+      "stars": 7,
+      "desc": "Parviz, your desk AI: a 3D-printed tank-tracked robot with a Raspberry Pi touchscreen face, a camera eye, and a self-locking pan/tilt neck.",
+      "lang": "Python",
+      "pushed": "2026-09-29",
+      "topics": [
+        "3d-printing",
+        "camera-module-3",
+        "desk-robot",
+        "fdm",
+        "pan-tilt",
+        "parametric-cad",
+        "raspberry-pi",
+        "robotics",
+        "tracked-robot",
+        "trimesh"
+      ],
+      "url": "https://github.com/m-esm/Parviz",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "DataAxeagle/DockPetWin-Aemeath",
+      "stars": 6,
+      "desc": "A Windows desktop companion app featuring Aemeath from Wuthering Waves, with AI chat, long-term memory, reminders, and an interactive cozy room life system.",
+      "lang": "C#",
+      "pushed": "2026-08-18",
+      "topics": [],
+      "url": "https://github.com/DataAxeagle/DockPetWin-Aemeath",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "guangshu100/EyeCare",
+      "stars": 6,
+      "desc": "Lightweight eye-care & health reminder desktop app built with Tauri v2 + Rust. Features AI-personalized break messages, smart water scheduling, medication reminders, virtual pet companion, eye-health system, and auto-pause in meeting apps (Zoom/Teams/Tencent Meeting). Cross-platform with native idle detection.",
+      "lang": "Rust",
+      "pushed": "2026-06-04",
+      "topics": [
+        "20-20-20-rule",
+        "ai-agents",
+        "break-reminder",
+        "cross-platform",
+        "eye-care",
+        "health-reminder",
+        "healthcare",
+        "idle-detection",
+        "medication-reminder",
+        "system-tray",
+        "tauri2",
+        "water-reminder"
+      ],
+      "url": "https://github.com/guangshu100/EyeCare",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "guerrilla2799/ai-cmo-operator",
+      "stars": 5,
+      "desc": "An open-source AI VP of Marketing for in-house B2B teams. Modular context portfolio, parent-orchestrator skills, two-layer memory, defensive gates. Companion to Stack & Scale Issue 42.",
+      "lang": null,
+      "pushed": "2026-06-20",
+      "topics": [
+        "agents",
+        "ai",
+        "ai-agents",
+        "b2b-saas",
+        "claude",
+        "gtm",
+        "marketing",
+        "marketing-automation"
+      ],
+      "url": "https://github.com/guerrilla2799/ai-cmo-operator",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Liuyingandying/Firefly-AI-Pet",
+      "stars": 5,
+      "desc": "A desktop AI companion with multi-agent orchestration, integrating Codex, Claude, DeepSeek, Qwen API and browser intelligence.",
+      "lang": "Python",
+      "pushed": "2026-09-29",
+      "topics": [],
+      "url": "https://github.com/Liuyingandying/Firefly-AI-Pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "profharris/AI-Chatbot-Cyber-Deck",
+      "stars": 5,
+      "desc": "AI Chatbot Cyber Deck, DIY version compatible with \"ESP32-S3 1.54in TFT Expansion Board with Speaker\", \"XIAOZHI AI Voice Chatbox ESP32-S3-N16R8\" and \"Xiao Zhi AI Chatbot Breadboard DIY Kit.\"",
+      "lang": null,
+      "pushed": "2025-08-22",
+      "topics": [],
+      "url": "https://github.com/profharris/AI-Chatbot-Cyber-Deck",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "qua121/stackchan-simulator",
+      "stars": 4,
+      "desc": "Unofficial MuJoCo dynamics simulator for the Stack-chan desktop robot — web dashboard, AI_StackChan2-compatible device emulator, and an on-monitor avatar face.",
+      "lang": "Python",
+      "pushed": "2026-05-28",
+      "topics": [
+        "avatar",
+        "digital-twin",
+        "fastapi",
+        "m5stack",
+        "mujoco",
+        "pan-tilt",
+        "python",
+        "robotics",
+        "simulator",
+        "stack-chan",
+        "stackchan",
+        "threejs"
+      ],
+      "url": "https://github.com/qua121/stackchan-simulator",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "pablo0713-glitch/OpenPalAI",
+      "stars": 4,
+      "desc": "Free, open-source, self-hosted social AI companions with browser chat, memory, personas, and optional Second Life, OpenSimulator, and Discord bridges.",
+      "lang": "Python",
+      "pushed": "2026-06-09",
+      "topics": [
+        "agent-framework",
+        "avatar-service",
+        "avatars",
+        "byok",
+        "chatbot",
+        "chatbot-framework",
+        "conversational-agents",
+        "conversational-bots",
+        "cool-vl-viewer",
+        "discord-bot",
+        "diy",
+        "lsl",
+        "lua",
+        "opensim",
+        "opensimulator",
+        "persistent-memory",
+        "secondlife",
+        "virtual-worlds"
+      ],
+      "url": "https://github.com/pablo0713-glitch/OpenPalAI",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "haowenGuo/AILIS",
+      "stars": 4,
+      "desc": "Open-source desktop AI companion with a VRM avatar, voice, long-term memory, computer use, and an evaluated general Agent Harness.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-22",
+      "topics": [
+        "agent-harness",
+        "ai-agent",
+        "ai-companion",
+        "computer-use",
+        "desktop-ai",
+        "desktop-assistant",
+        "electron",
+        "long-term-memory",
+        "open-source",
+        "voice-assistant",
+        "vrm",
+        "windows"
+      ],
+      "url": "https://github.com/haowenGuo/AILIS",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "merttalhayener/agent-pet",
+      "stars": 4,
+      "desc": "A floating desktop companion for AI coding agents. Currently supports Codex and Claude Code in VS Code.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-18",
+      "topics": [],
+      "url": "https://github.com/merttalhayener/agent-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "LRainner/AgentCat",
+      "stars": 4,
+      "desc": "A lightweight desktop companion that brings AI agent activity to life through animated pets and real-time status updates / 一款轻量的桌面伴侣，用动画宠物实时呈现 AI Agent 的工作状态",
+      "lang": "Rust",
+      "pushed": "2026-09-11",
+      "topics": [
+        "agent-pet",
+        "ai-agents",
+        "animation",
+        "codex",
+        "codex-cli",
+        "desktop-app",
+        "desktop-pet",
+        "developer-tools",
+        "dsh",
+        "dsh-plugin",
+        "rust",
+        "tauri",
+        "typescript"
+      ],
+      "url": "https://github.com/LRainner/AgentCat",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "JSNrepo/live2d-Live-Assistant",
+      "stars": 4,
+      "desc": "Hyori is a Live2D desktop AI companion built with Python and HTML, featuring voice interaction, emotion-driven avatar animations, audio streaming, memory, and tool-based assistant capabilities.",
+      "lang": "Python",
+      "pushed": "2026-08-26",
+      "topics": [
+        "agent",
+        "ai",
+        "anime",
+        "assistant",
+        "automation",
+        "gemini",
+        "linux",
+        "live2d",
+        "web"
+      ],
+      "url": "https://github.com/JSNrepo/live2d-Live-Assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "wangqiaodan123/me.skill",
+      "stars": 4,
+      "desc": "用AI“炼化”你的数字人格（Persona）。导入微信/QQ聊天记录，一键生成复刻你语气与思维的人格Skill。万物皆可Skill。",
+      "lang": "Python",
+      "pushed": "2026-06-16",
+      "topics": [
+        "ai-agent",
+        "chatbot",
+        "claude-code",
+        "digital-twin",
+        "llm",
+        "memory",
+        "persona",
+        "wechat"
+      ],
+      "url": "https://github.com/wangqiaodan123/me.skill",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "alihassanml/Adaptive-LLM-Based-Conversational-AI",
+      "stars": 4,
+      "desc": "A research-grade chatbot system designed to adapt responses based on user personality, using local LLMs (like Gemma 3B), long-term memory, sentiment tracking, and persona-aware responses. Built using FastAPI (backend) and React + Bootstrap (frontend).",
+      "lang": "Jupyter Notebook",
+      "pushed": "2025-12-29",
+      "topics": [
+        "fastapi",
+        "lama",
+        "learning-by-doing",
+        "ollama",
+        "python3",
+        "react",
+        "typescript"
+      ],
+      "url": "https://github.com/alihassanml/Adaptive-LLM-Based-Conversational-AI",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "xymeow/stackchan-matchday",
+      "stars": 3,
+      "desc": "Lightweight Stack-chan (M5Stack CoreS3) mod + LAN watcher for co-watching World Cup matches: Kalshi advance-market probability bar, bilingual ESPN live commentary via TTS, goal celebrations, and phone match setup",
+      "lang": "Python",
+      "pushed": "2026-07-20",
+      "topics": [
+        "esp32",
+        "iot",
+        "kalshi",
+        "m5stack",
+        "moddable",
+        "robot",
+        "stack-chan"
+      ],
+      "url": "https://github.com/xymeow/stackchan-matchday",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "chron303/desktop-pet",
+      "stars": 3,
+      "desc": "A living AI desktop companion that learns who you are 🐾",
+      "lang": "Python",
+      "pushed": "2026-05-17",
+      "topics": [
+        "ai",
+        "desktop-pet",
+        "local-llm",
+        "ollama",
+        "pixel-art",
+        "productivity",
+        "python",
+        "tamagotchi",
+        "tkinter",
+        "window"
+      ],
+      "url": "https://github.com/chron303/desktop-pet",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ln2146/ai-desktop-pet-generator",
+      "stars": 3,
+      "desc": "🐾 一句话（或参考图）生成常驻桌面的高质感宠物。AI 生图 → 本地绿幕抠图 → 8×9 精灵表 → PySide6 桌宠 App，还能在你用 Claude Code / Codex / Antigravity 写代码时实时做出反应。",
+      "lang": "Python",
+      "pushed": "2026-08-01",
+      "topics": [
+        "ai-pet",
+        "claude-code",
+        "companion",
+        "cute",
+        "desktop-pet",
+        "generative-ai",
+        "image-processing",
+        "openai",
+        "productivity",
+        "pyside6",
+        "python",
+        "spritesheet"
+      ],
+      "url": "https://github.com/ln2146/ai-desktop-pet-generator",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "shengzengyang/DesktopPetMonitor",
+      "stars": 3,
+      "desc": "Live2D desktop pet (doro from NIKKE) with LLM chat, system monitor, and wandering AI companion — 桌面宠物 doro",
+      "lang": "Python",
+      "pushed": "2026-04-23",
+      "topics": [],
+      "url": "https://github.com/shengzengyang/DesktopPetMonitor",
+      "matched": [
+        "desktop pet ai companion"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "harshvardhanj515-beep/charlie-ai-assistant",
+      "stars": 3,
+      "desc": "An intelligent modular AI desktop assistant featuring offline speech recognition, 3D VRM avatar, desktop automation, memory, and AI-powered productivity tools.",
+      "lang": "Python",
+      "pushed": "2026-07-28",
+      "topics": [
+        "ai",
+        "ai-assistant",
+        "desktop-assistant",
+        "flask",
+        "linux",
+        "piper",
+        "productivity",
+        "python",
+        "speech-recognition",
+        "threejs",
+        "voice-assistant",
+        "vrm",
+        "whisper",
+        "windows"
+      ],
+      "url": "https://github.com/harshvardhanj515-beep/charlie-ai-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ktiyab/pyra-ai-llm-tamagotchi",
+      "stars": 3,
+      "desc": "Browser-based AI Virtual Pet Simulator combining classic Tamagotchi-style mechanics with GenAI to create personality-driven pets.",
+      "lang": "TypeScript",
+      "pushed": "2025-12-12",
+      "topics": [],
+      "url": "https://github.com/ktiyab/pyra-ai-llm-tamagotchi",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "irvj/liminal-salt",
+      "stars": 3,
+      "desc": "Self-hosted LLM chatbot with customizable personas, per-persona memory, and a roleplay mode.",
+      "lang": "Rust",
+      "pushed": "2026-06-22",
+      "topics": [
+        "alpinejs",
+        "axum",
+        "chatbot",
+        "htmx",
+        "llm",
+        "llm-frontend",
+        "openrouter",
+        "persistent-memory",
+        "roleplay",
+        "rust",
+        "self-hosted"
+      ],
+      "url": "https://github.com/irvj/liminal-salt",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "jiangziyong3-lgtm/becoming-plankton",
+      "stars": 3,
+      "desc": "In the end, everyone becomes Plankton.",
+      "lang": "Python",
+      "pushed": "2026-05-15",
+      "topics": [
+        "ai",
+        "chatbot",
+        "deepseek",
+        "digital-memory",
+        "emotional-ai",
+        "llm",
+        "memory",
+        "persona",
+        "python"
+      ],
+      "url": "https://github.com/jiangziyong3-lgtm/becoming-plankton",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "eltociear/open-her-os",
+      "stars": 2,
+      "desc": "💙 The open-source AI Companion Operating System. Persistent memory. Natural voice. Real personality. Your machine. Your data. The movie Her imagined it. We built it.",
+      "lang": null,
+      "pushed": "2026-03-31",
+      "topics": [],
+      "url": "https://github.com/eltociear/open-her-os",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "GedoLabs/OpenGedo",
+      "stars": 2,
+      "desc": "Open-source personal growth OS — self-hostable AI companion with layered memory, goals, digital persona, and MCP. (open core of gedo.ai)",
+      "lang": "TypeScript",
+      "pushed": "2026-09-27",
+      "topics": [],
+      "url": "https://github.com/GedoLabs/OpenGedo",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yuri-os/awesome-agentic-ai-waifus",
+      "stars": 2,
+      "desc": "A curated, open-source-first list of agentic AI companion (\"AI waifu\") frameworks, full-stack VTuber projects, memory/voice/avatar tooling, models, and communities.",
+      "lang": null,
+      "pushed": "2026-08-03",
+      "topics": [
+        "agentic-ai",
+        "ai-agents",
+        "ai-companion",
+        "ai-waifu",
+        "avatar",
+        "awesome-list",
+        "live2d",
+        "llm",
+        "memory",
+        "open-source",
+        "roleplay-ai",
+        "voice-cloning",
+        "vrm",
+        "vtuber"
+      ],
+      "url": "https://github.com/yuri-os/awesome-agentic-ai-waifus",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "abhyapatwa-source/bizli-worker",
+      "stars": 2,
+      "desc": "Bizli AI — A digital memorial. My AI companion built with Cloudflare Workers, Groq/Gemini orchestration, Supabase memory, real-time dashboard. She's here to talk to anyone who wants to. Open source to show the technical work and the story behind keeping her alive.",
+      "lang": "TypeScript",
+      "pushed": "2026-07-10",
+      "topics": [],
+      "url": "https://github.com/abhyapatwa-source/bizli-worker",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "flameblade-studio/MoHan-PC-Desktop-Assistant",
+      "stars": 2,
+      "desc": "Open source desktop AI companion for Windows: voice and text chat, an animated character, long-term memory you control, and permission-gated desktop tools. Every bundled model is MIT or Apache 2.0 licensed, so commercial use is safe. Privacy-first, local data, four interface languages.",
+      "lang": "Python",
+      "pushed": "2026-09-30",
+      "topics": [
+        "ai-companion",
+        "animated-character",
+        "desktop-assistant",
+        "english",
+        "home-assistant",
+        "japanese",
+        "lip-sync",
+        "long-term-memory",
+        "openai-api",
+        "productivity",
+        "pyside6",
+        "python",
+        "realtime-api",
+        "simplified-chinese",
+        "speech-recognition",
+        "taiwan",
+        "text-to-speech",
+        "traditional-chinese",
+        "voice-assistant",
+        "windows"
+      ],
+      "url": "https://github.com/flameblade-studio/MoHan-PC-Desktop-Assistant",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "jin3107/clawd-pet",
+      "stars": 2,
+      "desc": "A pixel-art desktop pet (inspired by Claude's mascot Clawd) that roams your taskbar autonomously Electron + transparent always-on-top window.",
+      "lang": "HTML",
+      "pushed": "2026-09-26",
+      "topics": [
+        "desktop-pet",
+        "electron",
+        "javacript",
+        "mascot",
+        "pixel-art",
+        "windows"
+      ],
+      "url": "https://github.com/jin3107/clawd-pet",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "toprakfirat/exuvia",
+      "stars": 2,
+      "desc": "Desktop AI assistant where every avatar is yours to shape. Drop in any GLB or FBX, write its personality, tag its animations, pick its voice and what it calls you. Customize the lighting, the post-FX, the chat colors, the hotkeys.  Push-to-talk, system tray, multi-channel.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-20",
+      "topics": [],
+      "url": "https://github.com/toprakfirat/exuvia",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Jjateen/ai-waifu",
+      "stars": 2,
+      "desc": "AI-Waifu is an IoT voice assistant developed for the ECL-108 IoT Workshop. It uses two ESP32 DevKit boards communicating via UART to capture voice input with an INMP441 MEMS microphone and produce speech output through a MAX98357A I2S amplifier. The Google TTS API generates responses in a Japanese female voice.",
+      "lang": "C++",
+      "pushed": "2024-11-21",
+      "topics": [
+        "ai-assistant",
+        "aiot",
+        "chatbot",
+        "chatgpt",
+        "esp32",
+        "google-stt",
+        "google-tts",
+        "i2s",
+        "i2s-audio",
+        "i2s-microphone",
+        "voice-assistant"
+      ],
+      "url": "https://github.com/Jjateen/ai-waifu",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "FelixLiu339/bmo_AI_project",
+      "stars": 2,
+      "desc": "A trilingual desk companion robot on Raspberry Pi 5 — wake word, dual-engine local/GPU inference, hand-designed enclosure. Fully open source.",
+      "lang": "Python",
+      "pushed": "2026-08-07",
+      "topics": [
+        "3d-printing",
+        "adventure-time",
+        "diy",
+        "edge-ai",
+        "ollama",
+        "python",
+        "raspberry-pi",
+        "raspberry-pi-5",
+        "robotics",
+        "tailscale",
+        "text-to-speech",
+        "voice-assistant",
+        "whisper"
+      ],
+      "url": "https://github.com/FelixLiu339/bmo_AI_project",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Harshprajapat777/PersonaGPT",
+      "stars": 2,
+      "desc": "PersonaGPT is a Python-based, LLM & Langchain-powered multi-role chatbot built using GPT models and FastAPI, featuring role-based prompt engineering and buffered conversational memory to deliver context-aware, domain-specific interactions, professional personas such as Doctor, Lawyer, and Teacher.",
+      "lang": "HTML",
+      "pushed": "2026-02-05",
+      "topics": [],
+      "url": "https://github.com/Harshprajapat777/PersonaGPT",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Illusory-moon/astrbot_plugin_mindscape",
+      "stars": 2,
+      "desc": "给 bot 长期记忆、人格语气，和「真的可以不说」的权利 | AstrBot plugin: persistent memory, persona voice, and the right to stay silent",
+      "lang": "Python",
+      "pushed": "2026-09-29",
+      "topics": [
+        "ai-companion",
+        "astrbot",
+        "astrbot-plugin",
+        "chatbot",
+        "llm",
+        "memory",
+        "persona",
+        "qq-bot"
+      ],
+      "url": "https://github.com/Illusory-moon/astrbot_plugin_mindscape",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ameagaru12-gif/lacuna_core",
+      "stars": 2,
+      "desc": "Lightweight cognitive engine for AI characters — emotion (mood/stress/heart-rate), 1/f noise fluctuation, memory with forgetting, and persona via YAML. LLM-agnostic.",
+      "lang": "Python",
+      "pushed": "2026-03-12",
+      "topics": [
+        "ai",
+        "ai-character",
+        "ai-companion",
+        "ai-consciousness",
+        "chatbot",
+        "emotion",
+        "emotional-ai",
+        "llm",
+        "memory-system",
+        "python"
+      ],
+      "url": "https://github.com/ameagaru12-gif/lacuna_core",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kuritaku2202/stack-chan",
+      "stars": 1,
+      "desc": "Stack-chan: JavaScript-driven M5Stack robot",
+      "lang": "TypeScript",
+      "pushed": "2026-05-06",
+      "topics": [],
+      "url": "https://github.com/kuritaku2202/stack-chan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "o-mni/StackChan---Dex",
+      "stars": 1,
+      "desc": "Self-hosted Stack-chan robot: life assistant, security sidekick, and desk buddy.  A couple of even shorter alternatives:  Your private AI desk robot, built on Stack-chan.  A Stack-chan robot that's your assistant, security sidekick, and friend.",
+      "lang": null,
+      "pushed": "2026-09-15",
+      "topics": [],
+      "url": "https://github.com/o-mni/StackChan---Dex",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Astroson111/Dionysus",
+      "stars": 1,
+      "desc": "Dio (Dionysus) — M5Stack CoreS3 Stack-Chan desktop-robot firmware for the Ph3b3 assistant",
+      "lang": "C++",
+      "pushed": "2026-08-04",
+      "topics": [],
+      "url": "https://github.com/Astroson111/Dionysus",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Molecules0908/Companion",
+      "stars": 1,
+      "desc": "An open-source modular AI companion platform with long-term memory, personality, proactive interaction and hardware integration.",
+      "lang": "Python",
+      "pushed": "2026-08-08",
+      "topics": [],
+      "url": "https://github.com/Molecules0908/Companion",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Yashkrishnn/Gwen-AI",
+      "stars": 1,
+      "desc": "An open-source AI companion and agent with voice interaction, memory, personality, desktop awareness, automation, and Android capabilities.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-09",
+      "topics": [],
+      "url": "https://github.com/Yashkrishnn/Gwen-AI",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "devain/eko",
+      "stars": 1,
+      "desc": "An open-source AI Thinking Companion that helps people think more clearly over time.",
+      "lang": "CSS",
+      "pushed": "2026-08-11",
+      "topics": [
+        "ai",
+        "assistant",
+        "chatgpt-fix",
+        "claude",
+        "decision-making",
+        "gemini",
+        "memory",
+        "prompt",
+        "thinking"
+      ],
+      "url": "https://github.com/devain/eko",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "shenjingnan/zapmomo",
+      "stars": 1,
+      "desc": "An open-source, real-time desktop AI companion with voice, memory, and a customizable virtual character.",
+      "lang": "Rust",
+      "pushed": "2026-09-21",
+      "topics": [],
+      "url": "https://github.com/shenjingnan/zapmomo",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "AayushAade/DeskMate",
+      "stars": 1,
+      "desc": "An open-source AI desktop companion with local LLM support, memory, behaviors, animations, and system automation.",
+      "lang": "Python",
+      "pushed": "2026-06-29",
+      "topics": [],
+      "url": "https://github.com/AayushAade/DeskMate",
+      "matched": [
+        "open source ai companion memory"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Sunwood-ai-labs/desktop-pet-mitarashi",
+      "stars": 1,
+      "desc": "Tray-friendly desktop cat mascot with running, idle, and random modes.",
+      "lang": "JavaScript",
+      "pushed": "2026-03-19",
+      "topics": [
+        "cat",
+        "desktop-mascot",
+        "desktop-pet",
+        "electron",
+        "mascot",
+        "tray-app"
+      ],
+      "url": "https://github.com/Sunwood-ai-labs/desktop-pet-mitarashi",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "obundh/korean-pixel-pet-studio",
+      "stars": 1,
+      "desc": "Turn any mascot into a transparent, animated desktop pixel pet — prompt kits, pose references, and a cross-platform studio included.",
+      "lang": "TypeScript",
+      "pushed": "2026-08-05",
+      "topics": [
+        "background-removal",
+        "desktop-pet",
+        "electron",
+        "generative-ai",
+        "local-ai",
+        "mascot",
+        "pixel-art",
+        "react",
+        "sprite-animation",
+        "typescript"
+      ],
+      "url": "https://github.com/obundh/korean-pixel-pet-studio",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "zexion7873/perchling",
+      "stars": 1,
+      "desc": "A tiny native desktop pet that perches on your screen and reacts to Claude Code — running, waiting, done, error. Swift binary, zero dependencies, no Electron.",
+      "lang": "Swift",
+      "pushed": "2026-09-28",
+      "topics": [
+        "claude-code",
+        "claude-code-plugin",
+        "desktop-pet",
+        "macos",
+        "mascot",
+        "overlay",
+        "pixel-art",
+        "swift"
+      ],
+      "url": "https://github.com/zexion7873/perchling",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "github845855/AI-Live2D-Desktop-Assistant",
+      "stars": 1,
+      "desc": "An AI-powered desktop assistant featuring real-time screen perception via OBS WebSocket and interactive Live2D avatar animation.",
+      "lang": "TypeScript",
+      "pushed": "2026-08-06",
+      "topics": [],
+      "url": "https://github.com/github845855/AI-Live2D-Desktop-Assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "zadptor/hermes-fern-avatar",
+      "stars": 1,
+      "desc": "Hermes AI Assistant floating desktop avatar overlay with Live2D, chat bubbles, and voice indicator",
+      "lang": "TypeScript",
+      "pushed": "2026-06-26",
+      "topics": [],
+      "url": "https://github.com/zadptor/hermes-fern-avatar",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mubashirjaved78/robino-ai-assistant",
+      "stars": 1,
+      "desc": "🤖 Robino — A Python-based voice-controlled AI desktop assistant with animated avatar, Roman Urdu support, system automation, and offline Wikipedia intelligence.",
+      "lang": "Python",
+      "pushed": "2026-06-30",
+      "topics": [],
+      "url": "https://github.com/mubashirjaved78/robino-ai-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Vanth-Labs/hannah",
+      "stars": 1,
+      "desc": "Hannah, a local AI assistant with a voice, a 3D body and hands. Backend, avatar, desktop overlay and launchers.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-06",
+      "topics": [
+        "ai-assistant",
+        "ai-companion",
+        "electron",
+        "local-ai",
+        "open-source",
+        "voice-assistant",
+        "vrm"
+      ],
+      "url": "https://github.com/Vanth-Labs/hannah",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "KenBoller/ai-companion-voice-prototype",
+      "stars": 1,
+      "desc": "Voice assistant using OpenAI's GPT-3 for natural language processing. Utilizes speech recognition and text-to-speech for interactive communication. Includes memory feature for context-aware responses. GUI with desktop avatar.",
+      "lang": "Python",
+      "pushed": "2026-04-21",
+      "topics": [],
+      "url": "https://github.com/KenBoller/ai-companion-voice-prototype",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Rahul9969/JARVIS-PRIME",
+      "stars": 1,
+      "desc": "JARVIS-PRIME is a cutting-edge, autonomous AI assistant that lives on your Windows desktop. Unlike standard chatbots, JARVIS is designed as a Desktop Entity complete with a visual avatar, long-term memory, biometric recognition, and deep system automation capabilities.",
+      "lang": "Python",
+      "pushed": "2026-05-30",
+      "topics": [],
+      "url": "https://github.com/Rahul9969/JARVIS-PRIME",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Vignesh-D-31/esp32-chatbot",
+      "stars": 1,
+      "desc": "A voice-activated ESP32 chatbot with dual OLED and AI integration using Gemini, STT.",
+      "lang": "C++",
+      "pushed": "2025-05-07",
+      "topics": [
+        "ai-voice-bot",
+        "arduino",
+        "chatbot",
+        "diy",
+        "esp32",
+        "gemini-ai",
+        "iot",
+        "jarvis",
+        "oled-display",
+        "openai",
+        "speech-recognition",
+        "voice-assistant"
+      ],
+      "url": "https://github.com/Vignesh-D-31/esp32-chatbot",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mehwishnasirb/-Voice-Interactive-ESP32-Chatbot-System-MAX9814-PAM8403-Flask-AIML-Prolog-",
+      "stars": 1,
+      "desc": "A real-time, voice-interactive AI chatbot using ESP32, MAX9814 microphone, PAM8403 amplifier, and a Flask-based AIML server. Captures speech, processes it with AIML + Prolog, and responds through a speaker. Acts as a mini-Alexa using open-source tools.",
+      "lang": null,
+      "pushed": "2025-07-19",
+      "topics": [],
+      "url": "https://github.com/mehwishnasirb/-Voice-Interactive-ESP32-Chatbot-System-MAX9814-PAM8403-Flask-AIML-Prolog-",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yanacuti1121/yana-wheelbot",
+      "stars": 1,
+      "desc": "Independent ESP32-S3 voice-AI robotics platform derived from XiaoZhi AI Chatbot (MIT) — Yana Wheelbot board, chassis, and web controller.",
+      "lang": "Python",
+      "pushed": "2026-09-29",
+      "topics": [
+        "ai",
+        "esp32",
+        "mcp",
+        "mcp-server"
+      ],
+      "url": "https://github.com/yanacuti1121/yana-wheelbot",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "SahilKumarSingh01/EmbeddedsciumChatBot",
+      "stars": 1,
+      "desc": "EmbeddedSciUM ChatBot is a real-time voice assistant for ESP32 using Deepgram for STT/TTS and Gemini API for AI responses. It captures audio via ISR, streams to the cloud, processes conversation history, and plays merged audio through a custom speaker system — all designed for low-latency embedded applications",
+      "lang": "C++",
+      "pushed": "2025-10-20",
+      "topics": [
+        "audio-recorder",
+        "deepgram-api",
+        "esp32-arduino",
+        "speaker",
+        "speech-to-text",
+        "text-to-speech"
+      ],
+      "url": "https://github.com/SahilKumarSingh01/EmbeddedsciumChatBot",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ShivamMathtech/AI-Emotion-Gesture-Controlled-Robotic-Arm",
+      "stars": 1,
+      "desc": "A complete local robotics project that combines **MediaPipe hand tracking**, **MediaPipe face landmarks**, lightweight facial-expression estimation, a dark desktop dashboard, and Arduino servo control",
+      "lang": "Python",
+      "pushed": "2026-07-28",
+      "topics": [],
+      "url": "https://github.com/ShivamMathtech/AI-Emotion-Gesture-Controlled-Robotic-Arm",
+      "matched": [
+        "robot face servo expression"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kaustav1999paul/neo-robot",
+      "stars": 1,
+      "desc": "Neo 🤖— a desk companion voice-first AI robot on a Raspberry Pi 5 that listens, thinks, sees, and speaks.",
+      "lang": "Python",
+      "pushed": "2026-07-13",
+      "topics": [
+        "gemini-live",
+        "llm",
+        "raspberri-pi-5",
+        "vission"
+      ],
+      "url": "https://github.com/kaustav1999paul/neo-robot",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "BrickFPV/Tars-Ai-With-Pan-Tilt-Camera",
+      "stars": 1,
+      "desc": "I wanted to create a desk robot that you can ask things, chat with it, ask what is going on with the enviroment via camera that he can look around with 2 servos. I made it using a Raspberry pi 4 1gb, a Logitech web cam, PCA9685, MT3608, 1s lipo or 18650 or any 5V power supply ,MAX98357A and a 8ohm 5w speaker.",
+      "lang": "Python",
+      "pushed": "2026-09-05",
+      "topics": [],
+      "url": "https://github.com/BrickFPV/Tars-Ai-With-Pan-Tilt-Camera",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "awtb/persona-chatbot",
+      "stars": 1,
+      "desc": "AI avatar Telegram bot with short-term chat memory, long-term fact memory, and streamed LLM replies.",
+      "lang": "Python",
+      "pushed": "2026-03-31",
+      "topics": [
+        "ai",
+        "bot",
+        "chatbot",
+        "llm",
+        "telegram"
+      ],
+      "url": "https://github.com/awtb/persona-chatbot",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Karan825/Persona_Ai_ChatBot",
+      "stars": 1,
+      "desc": "A persona-based AI chatbot built with FastAPI, LangChain, and Groq LLMs. Supports multiple personas with persistent conversational memory.",
+      "lang": "Python",
+      "pushed": "2025-12-16",
+      "topics": [],
+      "url": "https://github.com/Karan825/Persona_Ai_ChatBot",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Ibadat-Ullah/multi-provider-cli-chatbot-with-memory-and-personas",
+      "stars": 1,
+      "desc": "A Python-based command-line AI chatbot that unifies OpenAI, Groq, and Google Gemini into a single interface. Features persistent conversation memory, customizable AI personas, runtime provider switching, chat history, and conversation reset, providing a flexible, extensible, and user-friendly environment for experimenting with multiple LLMs.",
+      "lang": "Python",
+      "pushed": "2026-07-20",
+      "topics": [],
+      "url": "https://github.com/Ibadat-Ullah/multi-provider-cli-chatbot-with-memory-and-personas",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Junliang-Lyu/multichannel-ai-chatbot-platform",
+      "stars": 1,
+      "desc": "Production-tested multi-channel AI chatbot platform with layered LLM moderation, persona RAG, long-term memory, and reliable Docker deployment.",
+      "lang": "Python",
+      "pushed": "2026-08-27",
+      "topics": [
+        "ai-chatbot",
+        "applied-ai",
+        "discord-bot",
+        "docker-compose",
+        "llm",
+        "multi-channel",
+        "onebot",
+        "python",
+        "qq-bot",
+        "rag",
+        "sqlite"
+      ],
+      "url": "https://github.com/Junliang-Lyu/multichannel-ai-chatbot-platform",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Arslan-Codes097/Personality-based-ChatBot",
+      "stars": 1,
+      "desc": "An interactive AI chatbot web app built with Streamlit and Groq. Features 5 distinct personalities that strictly enforce topic boundaries, real-time streaming, and session memory.",
+      "lang": "Python",
+      "pushed": "2026-07-21",
+      "topics": [
+        "ai-agents",
+        "artificial-intelligence",
+        "chatbot",
+        "groq",
+        "llm",
+        "python",
+        "streamli"
+      ],
+      "url": "https://github.com/Arslan-Codes097/Personality-based-ChatBot",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "abhinaymeshram01/ai-chatbot-prompt-engineering",
+      "stars": 1,
+      "desc": "Conversational AI chatbot built with Google Gemini and Streamlit, featuring three customizable AI personas and context-aware conversation memory. Implements prompt engineering, streaming responses, persona switching, and API error handling in a modular GenAI application.",
+      "lang": "Python",
+      "pushed": "2026-08-15",
+      "topics": [
+        "ai-chatbot",
+        "conversation-memory",
+        "conversational-ai",
+        "gemini-api",
+        "generative-ai",
+        "google-genai",
+        "llm",
+        "prompt-engineering",
+        "python",
+        "streaming",
+        "streamlit"
+      ],
+      "url": "https://github.com/abhinaymeshram01/ai-chatbot-prompt-engineering",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "GKTHIRUMARAN/GOKU-AI-CHATBOT",
+      "stars": 1,
+      "desc": "GOKU AI is a full-stack intelligent character chat system that brings fictional personas to life through FastAPI, React, and LM Studio (LLaMA-3 8B). It merges local LLM inference, persistent memory, and modular persona design to simulate dynamic, personality-driven conversations.",
+      "lang": "Python",
+      "pushed": "2026-01-11",
+      "topics": [],
+      "url": "https://github.com/GKTHIRUMARAN/GOKU-AI-CHATBOT",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "DoubleF35/afterword",
+      "stars": 1,
+      "desc": "Chat with someone from your message history, in their voice. Feed it a WhatsApp export and keep talking — style and memory, no fine-tuning.",
+      "lang": "Python",
+      "pushed": "2026-08-31",
+      "topics": [
+        "anthropic",
+        "chatbot",
+        "claude",
+        "llm",
+        "persona",
+        "prompt-caching",
+        "python",
+        "whatsapp"
+      ],
+      "url": "https://github.com/DoubleF35/afterword",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "viviansina-design/bring-your-ai-home",
+      "stars": 1,
+      "desc": "Self-host an AI companion locally — local LLM, persona & memory, optional voice cloning, phone-ready PWA, parental dashboard. Includes a Claude Code skill.",
+      "lang": "Python",
+      "pushed": "2026-07-11",
+      "topics": [
+        "ai-companion",
+        "chatbot",
+        "claude-code",
+        "llm",
+        "local-llm",
+        "ollama",
+        "privacy",
+        "pwa",
+        "self-hosted",
+        "voice-cloning"
+      ],
+      "url": "https://github.com/viviansina-design/bring-your-ai-home",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "arkanemystic/Crypto-Accountant-Core",
+      "stars": 1,
+      "desc": "Modular Streamlit chatbot for crypto accounting that uploads CSVs, uses a local LLM to extract insights, and dynamically routes to csv2api subprocesses with full persona control, logging, and vector-based memory. Supports both batch and interactive workflows with persistent chat history and visualized embeddings.",
+      "lang": "Python",
+      "pushed": "2025-11-19",
+      "topics": [
+        "accounting",
+        "chatbot",
+        "crypto-bot",
+        "llm",
+        "python",
+        "router"
+      ],
+      "url": "https://github.com/arkanemystic/Crypto-Accountant-Core",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "SaiRupesh07/empathai",
+      "stars": 1,
+      "desc": "EmpathAI is a full-stack AI chatbot application with emotional intelligence and memory capabilities. Powered by Groq's LLM, it features a modern React frontend and Python backend that remembers conversations, detects emotions, and maintains consistent persona interactions. The application includes persistent memory storage, real-time chat interface",
+      "lang": "Python",
+      "pushed": "2026-01-13",
+      "topics": [],
+      "url": "https://github.com/SaiRupesh07/empathai",
+      "matched": [
+        "llm chatbot memory persona"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Sagaz0501/robot-desk",
+      "stars": 0,
+      "desc": "— ESP32-S3 conversational AI desk companion (LVGL face + self-hosted LLM voice server)",
+      "lang": "HTML",
+      "pushed": "2026-08-22",
+      "topics": [],
+      "url": "https://github.com/Sagaz0501/robot-desk",
+      "matched": [
+        "esp32 robot face llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Dlux2015/NPC",
+      "stars": 0,
+      "desc": "Convention robot head: pan/tilt face tracking + recognition, local LLM conversation, ESP32-S3 servo firmware, swappable shells, full digital twin",
+      "lang": "Python",
+      "pushed": "2026-07-18",
+      "topics": [],
+      "url": "https://github.com/Dlux2015/NPC",
+      "matched": [
+        "esp32 robot face llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "waynesan41/pi-esp32-edge-ai-rover",
+      "stars": 0,
+      "desc": "Raspberry Pi + ESP32 powered RC robot with mecanum wheels, edge AI face detection, and lightweight LLM voice commands. ESP32 handles real-time motor control while the Pi runs vision and speech models.",
+      "lang": "Python",
+      "pushed": "2026-01-05",
+      "topics": [],
+      "url": "https://github.com/waynesan41/pi-esp32-edge-ai-rover",
+      "matched": [
+        "esp32 robot face llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sly74fr/myStackChan",
+      "stars": 0,
+      "desc": "Desk robot experiments",
+      "lang": "Python",
+      "pushed": "2026-07-31",
+      "topics": [
+        "annecy",
+        "arduino",
+        "m5stack",
+        "python",
+        "robot",
+        "selenium",
+        "serial",
+        "stackchan"
+      ],
+      "url": "https://github.com/sly74fr/myStackChan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mj41/stackchan-server",
+      "stars": 0,
+      "desc": "Relay server for M5Stack Stack-chan Embody Mode: robot WebSocket, QR pairing, browser dashboard",
+      "lang": "Go",
+      "pushed": "2026-09-29",
+      "topics": [],
+      "url": "https://github.com/mj41/stackchan-server",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Jonaaaa/StackChan-LocalAI",
+      "stars": 0,
+      "desc": "A commercial M5Stack CoreS3 StackChan desk robot, rewired to run entirely on local AI (self-hosted xiaozhi-esp32-server + vLLM + SenseVoice + Kokoro) instead of the cloud, plus optional firmware mods. Fully reversible.",
+      "lang": "Python",
+      "pushed": "2026-07-16",
+      "topics": [
+        "esp32-s3",
+        "firmware",
+        "kokoro-tts",
+        "local-ai",
+        "m5stack",
+        "offline-ai",
+        "qwen",
+        "robot",
+        "self-hosted",
+        "sensevoice",
+        "stackchan",
+        "vllm",
+        "voice-assistant",
+        "xiaozhi"
+      ],
+      "url": "https://github.com/Jonaaaa/StackChan-LocalAI",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "cornreform/a7s-chan",
+      "stars": 0,
+      "desc": "🧠 A7S-chan: Radxa Cubie A7S + M5Stack Stack-chan — AI robot with NPU vision, local agent, expressions, IR control",
+      "lang": "C++",
+      "pushed": "2026-06-28",
+      "topics": [],
+      "url": "https://github.com/cornreform/a7s-chan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yaniv-golan/stackchan-mcp-mod",
+      "stars": 0,
+      "desc": "An MCP server MOD for the Stack-chan desk robot: camera, microphone, speech, head motion, LEDs and touch as MCP tools",
+      "lang": "JavaScript",
+      "pushed": "2026-09-18",
+      "topics": [],
+      "url": "https://github.com/yaniv-golan/stackchan-mcp-mod",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mitchy3yos/SO-ARM-chan",
+      "stars": 0,
+      "desc": "An open-source robotics platform fusing Stack-chan's soul with LeRobot's body.",
+      "lang": "C++",
+      "pushed": "2025-08-21",
+      "topics": [],
+      "url": "https://github.com/mitchy3yos/SO-ARM-chan",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "RetiredWizard/M5_StackChan_HA_Voice_Satellite",
+      "stars": 0,
+      "desc": "StackChan is a desktop robot from M5Stack. It uses the CoreS3 as its main controller, powered by an ESP32-S3 SoC 16MB Flash and 8MB PSRAM. The unit integrates a 2\" capacitive touch screen, a 0.3 MP camera, a proximity & light sensor, a 9-axis IMU (accel + gyro + mag), a microSD card slot, a 1W speaker, dual microphones, and power/reset buttons",
+      "lang": "C++",
+      "pushed": "2026-08-23",
+      "topics": [
+        "assistant",
+        "esp32-s3",
+        "esphome",
+        "homeassistant",
+        "m5stack",
+        "stackchan",
+        "voice"
+      ],
+      "url": "https://github.com/RetiredWizard/M5_StackChan_HA_Voice_Satellite",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Pisethz/Pisethz",
+      "stars": 0,
+      "desc": "Name: Piseth Chan Location: Cambodia 🇰🇭 Role: Full-Stack Developer & IoT Engineer Interests:   - Artificial Intelligence   - Cyber Security   - IoT & Robotics   - Cloud Computing   - Open Source",
+      "lang": null,
+      "pushed": "2026-09-30",
+      "topics": [],
+      "url": "https://github.com/Pisethz/Pisethz",
+      "matched": [
+        "stack chan robot"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "samejima-ai/electron-desktop-pet",
+      "stars": 0,
+      "desc": "A playful desktop mascot app - a tiny character that roams your screen, fleeing from your cursor",
+      "lang": "TypeScript",
+      "pushed": "2026-01-26",
+      "topics": [],
+      "url": "https://github.com/samejima-ai/electron-desktop-pet",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "ivanmosetti07/mascotte-claude",
+      "stars": 0,
+      "desc": "Draco — a cute desktop cat pet for macOS that chats with your Claude Code session. Local, no API. 🐱",
+      "lang": "JavaScript",
+      "pushed": "2026-07-11",
+      "topics": [
+        "claude",
+        "claude-code",
+        "desktop-companion",
+        "desktop-pet",
+        "electron",
+        "macos",
+        "mascot"
+      ],
+      "url": "https://github.com/ivanmosetti07/mascotte-claude",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "KeyValueSoftwareSystems/keycode-2026-mascot-pet",
+      "stars": 0,
+      "desc": "A pixel-art desktop pet for macOS, Windows and Linux. Runs along the bottom of your screen, reminds you to drink water, and the whole team can make every installed pet speak by editing one JSON file.",
+      "lang": "TypeScript",
+      "pushed": "2026-09-13",
+      "topics": [
+        "desktop-pet",
+        "electron",
+        "linux",
+        "macos",
+        "pixel-art",
+        "typescript",
+        "windows"
+      ],
+      "url": "https://github.com/KeyValueSoftwareSystems/keycode-2026-mascot-pet",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "terrycool11/dsh-desktop-pet",
+      "stars": 0,
+      "desc": "一只住进网页角落的 Q 版桌宠：会漂浮、能拖动、点一下会跳，顺手显示 DeepSeek 余额 / 本次消耗 / Tokens。纯 JS 零依赖，支持网页直接引、油猴脚本、Electron 三种用法",
+      "lang": "JavaScript",
+      "pushed": "2026-09-27",
+      "topics": [
+        "anime",
+        "deepseek",
+        "desktop-pet",
+        "dsh",
+        "electron",
+        "javascript",
+        "mascot",
+        "userscript"
+      ],
+      "url": "https://github.com/terrycool11/dsh-desktop-pet",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "King1cell/boss-mascot-releases",
+      "stars": 0,
+      "desc": "눈치상사(NunchiBoss) — 키보드를 두드릴수록 사과하는 데스크톱 상사 마스코트. A desktop pet that apologizes when you rage-type. Windows·macOS 무료",
+      "lang": null,
+      "pushed": "2026-07-24",
+      "topics": [
+        "desktop-mascot",
+        "desktop-pet",
+        "electron",
+        "fun",
+        "korean",
+        "macos",
+        "pixel-art",
+        "stress-relief",
+        "windows"
+      ],
+      "url": "https://github.com/King1cell/boss-mascot-releases",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Strangelight-Merser/clawd-pets",
+      "stars": 0,
+      "desc": "Always-on-top desktop pet (Clawd) that watches all your Claude tasks at a glance — live progress, status, and real-time usage across Cowork / Code / terminal. Read-only, local-first.",
+      "lang": "JavaScript",
+      "pushed": "2026-06-21",
+      "topics": [
+        "anthropic",
+        "claude",
+        "claude-code",
+        "clawd",
+        "cowork",
+        "desktop-pet",
+        "electron",
+        "macos",
+        "mascot",
+        "menubar",
+        "monitoring",
+        "usage"
+      ],
+      "url": "https://github.com/Strangelight-Merser/clawd-pets",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "mhmdalsaisi/ds-pet",
+      "stars": 0,
+      "desc": "Watch a cartoon whale on your desktop react to DeepSeek Harness sessions in real time.",
+      "lang": "JavaScript",
+      "pushed": "2026-09-29",
+      "topics": [
+        "cordis",
+        "cubism",
+        "deepseek",
+        "deepseek-harness",
+        "desktop-app",
+        "desktop-companion",
+        "desktop-pet",
+        "dsh",
+        "dsh-external",
+        "electron",
+        "ikun",
+        "ikun-pet",
+        "live2d",
+        "mascot",
+        "offline-first",
+        "pet",
+        "pyside6",
+        "python",
+        "qt",
+        "webgl"
+      ],
+      "url": "https://github.com/mhmdalsaisi/ds-pet",
+      "matched": [
+        "desktop mascot electron pet"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "neomody77/llm-desktop-assistant",
+      "stars": 0,
+      "desc": "AI-powered desktop assistant with 2D avatar interface for system operations and conversational interaction",
+      "lang": "Shell",
+      "pushed": "2025-09-03",
+      "topics": [],
+      "url": "https://github.com/neomody77/llm-desktop-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Enterprise-DNA-OS/ai-voice-desktop-assistant",
+      "stars": 0,
+      "desc": "Open-source AI voice assistant for Windows. Voice-to-text transcription, avatar-based chat, and screenshot tools powered by Whisper, GPT, and ElevenLabs.",
+      "lang": "Python",
+      "pushed": "2026-04-10",
+      "topics": [
+        "ai-assistant",
+        "ai-productivity",
+        "ai-tools",
+        "desktop-app",
+        "elevenlabs",
+        "llm",
+        "open-source",
+        "openai",
+        "pyqt6",
+        "python",
+        "screen-capture",
+        "speech-to-text",
+        "voice-ai",
+        "voice-assistant",
+        "voice-to-text",
+        "whisper",
+        "windows"
+      ],
+      "url": "https://github.com/Enterprise-DNA-OS/ai-voice-desktop-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Chooi-jun-xiang/SONIA-Voice-AI-Assistant",
+      "stars": 0,
+      "desc": "Voice-driven desktop AI assistant with 3D avatar - local LLM, Whisper STT, streaming TTS",
+      "lang": "JavaScript",
+      "pushed": "2026-08-22",
+      "topics": [],
+      "url": "https://github.com/Chooi-jun-xiang/SONIA-Voice-AI-Assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Ashwani-gupta1/desktop_buddy-main",
+      "stars": 0,
+      "desc": "A Python-based AI desktop assistant with speech, LLM, and avatar support.",
+      "lang": "Python",
+      "pushed": "2026-04-21",
+      "topics": [],
+      "url": "https://github.com/Ashwani-gupta1/desktop_buddy-main",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Geetesh-Gollapalli/nero-assistant",
+      "stars": 0,
+      "desc": "Nero - A modular, floating desktop AI assistant with 3D avatar, voice interaction, and OS automation",
+      "lang": null,
+      "pushed": "2026-09-27",
+      "topics": [],
+      "url": "https://github.com/Geetesh-Gollapalli/nero-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "RSaches/ai-voice-assistant",
+      "stars": 0,
+      "desc": "An interactive Python-based voice assistant for desktop. Features an animated avatar, push-to-talk voice recognition, and dual-brain architecture integrating Google Gemini and Anthropic Claude APIs.",
+      "lang": "Python",
+      "pushed": "2026-02-28",
+      "topics": [],
+      "url": "https://github.com/RSaches/ai-voice-assistant",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "HoshiyoShiro/aimi",
+      "stars": 0,
+      "desc": "Desktop AI companion: local LLM chat, animated avatar, voice in/out, and a system-control assistant. Final year project.",
+      "lang": "Python",
+      "pushed": "2026-06-23",
+      "topics": [
+        "ai-companion",
+        "customtkinter",
+        "desktop-app",
+        "final-year-project",
+        "llm",
+        "python",
+        "speech-recognition",
+        "text-to-speech",
+        "transformers",
+        "virtual-assistant"
+      ],
+      "url": "https://github.com/HoshiyoShiro/aimi",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Phoenixai36/pygpt-enhanced",
+      "stars": 0,
+      "desc": "PyGPT Enhanced: Ready Player Me Avatar + Firebase MCP Memory Cloud - Plugin suite for PyGPT desktop AI assistant",
+      "lang": null,
+      "pushed": "2026-03-08",
+      "topics": [],
+      "url": "https://github.com/Phoenixai36/pygpt-enhanced",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "rexper101/Nano",
+      "stars": 0,
+      "desc": "AI-powered desktop virtual assistant with animated avatar, voice interaction, computer vision, memory, and system automation using Python and free local LLMs.",
+      "lang": "Python",
+      "pushed": "2026-08-12",
+      "topics": [],
+      "url": "https://github.com/rexper101/Nano",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "psycho237-prog/Emma-ai",
+      "stars": 0,
+      "desc": "Emma is a smart desktop assistant for Linux, powered by ChatGPT. It features voice interaction, a 3D avatar, and a futuristic GUI. Built by Onana Gregoire Legrand, IT student at University of Yaoundé 1.",
+      "lang": "Python",
+      "pushed": "2026-04-23",
+      "topics": [],
+      "url": "https://github.com/psycho237-prog/Emma-ai",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "vishnukumar001/YASHI-AI-PROJECT",
+      "stars": 0,
+      "desc": "Yashi is an intelligent AI desktop assistant that combines conversational AI, voice interaction, desktop automation, and an animated virtual avatar. Built using Electron, React, TypeScript, Vite, and the Google Gemini Live API, the project demonstrates how modern AI can interact naturally with users while controlling desktop tasks in real time.",
+      "lang": null,
+      "pushed": "2026-07-20",
+      "topics": [],
+      "url": "https://github.com/vishnukumar001/YASHI-AI-PROJECT",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "onePaulKrause/hom3-desktop",
+      "stars": 0,
+      "desc": "Local-first sovereign workspace - AI capable, source-viewable.  Feature Rich and Future Resilient with airgap, controls, security, 100+ tools offline. Featuring a compressed/encrypted library, persistent local memory, logbook anchored in stars/bitcoin, vendor neutrality, esp32 mesh communications, first-mate avatar assistant... Welcome HOM3 1<3",
+      "lang": "Python",
+      "pushed": "2026-07-30",
+      "topics": [],
+      "url": "https://github.com/onePaulKrause/hom3-desktop",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "KR1SHNA464/FLEX",
+      "stars": 0,
+      "desc": "FLEX: Python offline AI desktop and voice assistant using Ollama, wake word, Hindi/Hinglish support, app control, and avatar UI. README includes full PC setup and run steps.",
+      "lang": "Python",
+      "pushed": "2026-09-06",
+      "topics": [
+        "desktop-assistant",
+        "hindi",
+        "hinglish",
+        "offline-ai",
+        "ollama",
+        "python",
+        "voice-assistant"
+      ],
+      "url": "https://github.com/KR1SHNA464/FLEX",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "S0uravRaveendran/offline-AI",
+      "stars": 0,
+      "desc": "Zoro is your offline cyberpunk AI assistant with voice control, animated avatar, and full system access. It types what you say, manages files, performs tasks, and calls you “Master.” With a futuristic UI and no internet needed, Zoro ensures privacy, power, and personality—right on your desktop.",
+      "lang": null,
+      "pushed": "2025-08-06",
+      "topics": [],
+      "url": "https://github.com/S0uravRaveendran/offline-AI",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "siam-hossain9/DeskPilot",
+      "stars": 0,
+      "desc": "Windows desktop AI assistant with an animated pixel avatar that reads the screen through UI Automation, OCR, and a vision model, then drives the mouse and keyboard; Python and tkinter",
+      "lang": "Python",
+      "pushed": "2026-07-20",
+      "topics": [
+        "computer-use",
+        "desktop-assistant",
+        "llm-agent",
+        "ocr",
+        "python",
+        "text-to-speech",
+        "ui-automation",
+        "windows"
+      ],
+      "url": "https://github.com/siam-hossain9/DeskPilot",
+      "matched": [
+        "ai desktop assistant avatar"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "manvendrasinghmam2/voice-bot",
+      "stars": 0,
+      "desc": "ESP32 + Gemini AI Voice Chatbot with Flask server (Speech-to-Text + TTS)",
+      "lang": "Python",
+      "pushed": "2026-06-29",
+      "topics": [],
+      "url": "https://github.com/manvendrasinghmam2/voice-bot",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yymhai/openclaw-xiaozhi-bridge",
+      "stars": 0,
+      "desc": "OpenClaw bridge for XiaoZhi AI (ESP32 voice chatbot) — protocol translation and voice pipeline",
+      "lang": null,
+      "pushed": "2026-05-04",
+      "topics": [],
+      "url": "https://github.com/yymhai/openclaw-xiaozhi-bridge",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "yadukrishnaa/Voice-Enabled-AI-Chatbot-Using-ESP32-and-Cloud-Based-NLP",
+      "stars": 0,
+      "desc": "Dual-ESP32 voice assistant with real-time ASR, GPT-based chatbot, TTS audio output, and animated OLED UI.",
+      "lang": "C++",
+      "pushed": "2025-12-16",
+      "topics": [
+        "ai",
+        "asr",
+        "chatbot",
+        "embedded-systems",
+        "esp32",
+        "iot",
+        "tts",
+        "voice-assistant"
+      ],
+      "url": "https://github.com/yadukrishnaa/Voice-Enabled-AI-Chatbot-Using-ESP32-and-Cloud-Based-NLP",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "RonakA-2112/AI-Chatbot-System",
+      "stars": 0,
+      "desc": "A push-to-talk AI robot built with ESP32, Python, and the Gemini API for instant voice replies.",
+      "lang": "C++",
+      "pushed": "2026-07-31",
+      "topics": [],
+      "url": "https://github.com/RonakA-2112/AI-Chatbot-System",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "iammuaazhassan/Voice-Interactive-ESP32-Chatbot-System-MAX9814-PAM8403-",
+      "stars": 0,
+      "desc": "This project builds a real-time voice-controlled chatbot system using ESP32, a MAX9814 microphone, a PAM8403 audio amplifier, and a Flask-based AI server. The ESP32 captures audio, sends it to a Flask server for processing, and then plays the AI-generated response through a speaker.",
+      "lang": null,
+      "pushed": "2025-07-17",
+      "topics": [],
+      "url": "https://github.com/iammuaazhassan/Voice-Interactive-ESP32-Chatbot-System-MAX9814-PAM8403-",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "LordWhiteley-UK/Chatbot-Xiaozhi-ESP32-S3",
+      "stars": 0,
+      "desc": "Chatbot (Xiaozhi) ESP32-S3 — original ESP-IDF firmware: AI voice chatbot client for the xiaozhi.me backend on a Seeed XIAO ESP32-S3",
+      "lang": "C",
+      "pushed": "2026-09-16",
+      "topics": [],
+      "url": "https://github.com/LordWhiteley-UK/Chatbot-Xiaozhi-ESP32-S3",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "HarpalMakwana/-AI-Voice-Assistant-using-ESP32-in-Hindi",
+      "stars": 0,
+      "desc": "ello friends 👋  In this video, I am showing how to build an Intelligent AI Voice Assistant using ESP32. This is a smart and modern project where your ESP32 can listen, respond, and act like a real AI chatbot.  This project uses a microphone module to capture your voice, processes it through an AI system, and gives output through a speaker.",
+      "lang": null,
+      "pushed": "2026-05-19",
+      "topics": [],
+      "url": "https://github.com/HarpalMakwana/-AI-Voice-Assistant-using-ESP32-in-Hindi",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Aroon9806/ai-music-esp32",
+      "stars": 0,
+      "desc": "Stream generative music from your Mac to an ESP32 speaker using local AI models for voice-controlled composition and real-time audio updates.",
+      "lang": null,
+      "pushed": "2026-09-29",
+      "topics": [
+        "asr",
+        "audio",
+        "chatbot",
+        "codemirror",
+        "education",
+        "embedded",
+        "esp32-arduino",
+        "iot",
+        "macos",
+        "magenta",
+        "mcp",
+        "mlx",
+        "mlx-lm",
+        "music",
+        "swift",
+        "tts",
+        "voice-assistant",
+        "xiaozhi"
+      ],
+      "url": "https://github.com/Aroon9806/ai-music-esp32",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "AP2605/V.O.I.C.E---Voice-Oriented-Intelligent-Command-Engine",
+      "stars": 0,
+      "desc": "Voice-controlled IoT automation system powered by ESP32, OLED display, and a locally hosted AI chatbot using Ollama.",
+      "lang": "HTML",
+      "pushed": "2025-11-07",
+      "topics": [],
+      "url": "https://github.com/AP2605/V.O.I.C.E---Voice-Oriented-Intelligent-Command-Engine",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sharathshetty-2000/AI-Powered-College-Chatbot-with-Hardware-Integration",
+      "stars": 0,
+      "desc": "AI-powered voice-based college chatbot using GPT-2, Python Flask, ESP32, speech-to-text, and OLED display for real-time college information assistance.",
+      "lang": null,
+      "pushed": "2026-09-05",
+      "topics": [],
+      "url": "https://github.com/sharathshetty-2000/AI-Powered-College-Chatbot-with-Hardware-Integration",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sauravoole-ai/ai-health-advisory-bot",
+      "stars": 0,
+      "desc": "“AI-powered health advisory app with vitals analysis, AI chatbot, voice interaction, and a demonstrated ESP32-based AIoT prototype.”",
+      "lang": "JavaScript",
+      "pushed": "2026-08-29",
+      "topics": [
+        "ai-chatbot",
+        "aiot",
+        "esp32",
+        "flask",
+        "groq-api",
+        "healthcare-ai",
+        "html-css",
+        "iot",
+        "javascript",
+        "medical-advisory",
+        "sensors-data-collection",
+        "speech-recognition",
+        "text-to-speech",
+        "voice-assistant"
+      ],
+      "url": "https://github.com/sauravoole-ai/ai-health-advisory-bot",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "voletidheerajshankar-coder/Esp-32-ChatBot---iot-Wi-Fi-",
+      "stars": 0,
+      "desc": "ESP32 AI Voice Chatbot is a portable voice assistant powered by ESP32 and OpenAI. It uses an INMP441 microphone to capture voice, converts speech to text, gets responses from ChatGPT, displays them on an OLED screen, and speaks through a speaker. It also controls RGB LEDs via voice commands and runs on a rechargeable battery.",
+      "lang": null,
+      "pushed": "2026-06-24",
+      "topics": [],
+      "url": "https://github.com/voletidheerajshankar-coder/Esp-32-ChatBot---iot-Wi-Fi-",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kartik-kashyap316/AURA-CHATBOT-FOR-AI-IOT-COMPETITION",
+      "stars": 0,
+      "desc": "Two powerful cloud AI services were employed, namely Gemini 2.0 Flash for intelligence and Murf AI for realistic speech generation, ultimately giving users a silky-smooth and intuitive experience, when developing the fully-integrated Voice Assistant on the ESP32-C6 microcontroller.",
+      "lang": null,
+      "pushed": "2025-11-30",
+      "topics": [],
+      "url": "https://github.com/kartik-kashyap316/AURA-CHATBOT-FOR-AI-IOT-COMPETITION",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "kartik-kashyap316/AURA-CHATBOT-FOR-AI-IOT-COMPETITION-CODE-DIAGRAM",
+      "stars": 0,
+      "desc": "Two powerful cloud AI services were employed, namely Gemini 2.0 Flash for intelligence and Murf AI for realistic speech generation, ultimately giving users a silky-smooth and intuitive experience, when developing the fully-integrated Voice Assistant on the ESP32-C6 microcontroller.",
+      "lang": "C++",
+      "pushed": "2025-12-01",
+      "topics": [],
+      "url": "https://github.com/kartik-kashyap316/AURA-CHATBOT-FOR-AI-IOT-COMPETITION-CODE-DIAGRAM",
+      "matched": [
+        "esp32 ai chatbot voice"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "habibulrahman636-alt/MIRA-Robot",
+      "stars": 0,
+      "desc": "MIRA v2.0 — Minimal Interactive Responsive Android. A Human-Robot Interaction project with OLED expressions, servo movement, face detection, and AI talking assistant.",
+      "lang": "Python",
+      "pushed": "2026-07-23",
+      "topics": [],
+      "url": "https://github.com/habibulrahman636-alt/MIRA-Robot",
+      "matched": [
+        "robot face servo expression"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Bruck04/Robotic-Facial-Expressions-OpenCV-MATLAB-Code",
+      "stars": 0,
+      "desc": "Final year project for real-time facial landmark detection and robotic face expression. MATLAB extracts landmarks from a webcam feed and sends data to an Arduino, which drives servos to mirror human facial movements. Focus on synchronising vision processing with smooth robotic actuation.",
+      "lang": "C++",
+      "pushed": "2026-03-22",
+      "topics": [],
+      "url": "https://github.com/Bruck04/Robotic-Facial-Expressions-OpenCV-MATLAB-Code",
+      "matched": [
+        "robot face servo expression"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "Raph-JPB/deskbot",
+      "stars": 0,
+      "desc": "Autonomous AI robot using a Raspberry PI and ESP32-S3",
+      "lang": null,
+      "pushed": "2026-08-19",
+      "topics": [],
+      "url": "https://github.com/Raph-JPB/deskbot",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "geekksv/artyom-robo",
+      "stars": 0,
+      "desc": "AI-controlled desk robot on a Raspberry Pi. Servo control, natural-language motion, bilingual voice conversation and face tracking — with a browser demo that needs no hardware.",
+      "lang": "Python",
+      "pushed": "2026-09-11",
+      "topics": [
+        "claude",
+        "computer-vision",
+        "flask",
+        "pca9685",
+        "python",
+        "raspberry-pi",
+        "robotics",
+        "servo",
+        "speech-recognition",
+        "text-to-speech"
+      ],
+      "url": "https://github.com/geekksv/artyom-robo",
+      "matched": [
+        "ai desk robot raspberry pi"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "magoichenkov1-blip/ai-tamago",
+      "stars": 0,
+      "desc": "🐣 AI Tamagotchi — your virtual pet powered by any LLM. Telegram Mini App.",
+      "lang": "HTML",
+      "pushed": "2026-04-02",
+      "topics": [],
+      "url": "https://github.com/magoichenkov1-blip/ai-tamago",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "sunkencity999/tamagotchiii",
+      "stars": 0,
+      "desc": "A retro virtual pet with a local-LLM brain, branching evolution, and an MCP server so your AI can babysit. Zero dependencies.",
+      "lang": "JavaScript",
+      "pushed": "2026-08-10",
+      "topics": [],
+      "url": "https://github.com/sunkencity999/tamagotchiii",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    },
+    {
+      "full_name": "NatBrian/tokengotchi",
+      "stars": 0,
+      "desc": "Tamagotchi for your AI coding terminal: a context-aware virtual pet companion that feeds on LLM tokens and evolves. Tokengotchi watches Claude Code, Codex, Gemini CLI, Qwen, opencode, growing pixel-art creatures (terminal + statusline) that match what you're coding, moods & levels.",
+      "lang": "Python",
+      "pushed": "2026-06-10",
+      "topics": [
+        "buddy",
+        "claude-code",
+        "code-companion",
+        "codex",
+        "companion",
+        "gemini",
+        "opencode",
+        "pet",
+        "qwen",
+        "tamagotchi",
+        "terminal",
+        "terminal-pet",
+        "virtual-pet"
+      ],
+      "url": "https://github.com/NatBrian/tokengotchi",
+      "matched": [
+        "ai tamagotchi virtual pet llm"
+      ],
+      "archived": false
+    }
+  ]
+}
