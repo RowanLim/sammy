@@ -24,7 +24,49 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--voices", action="store_true", help="列出所有表情")
     parser.add_argument("--selftest", metavar="PATH",
                         help="真实显示窗口，2.5 秒后自检窗口状态并截图，然后退出")
+    parser.add_argument("--memory", action="store_true", help="看看 Sammy 记得什么")
+    parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
+    parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
     args = parser.parse_args(argv)
+
+    if args.memory:
+        from .memory import Memory
+
+        mem = Memory()
+        st = mem.stats()
+        slots = mem.slots()
+        print(f"记忆库: {st['db']}")
+        print(f"槽位 {st['slots']} 条 / 日记 {st['journal']} 条 / 摘要 {st['digests']} 篇"
+              + (f" / 始于 {st['since']}" if st["since"] else ""))
+        print()
+        print("── 槽位（结构化事实）──")
+        for k, v in slots.items():
+            print(f"  {k}：{v}")
+        if not slots:
+            print("  （空）")
+        print()
+        print("── 最近三天 ──")
+        rows = mem.recent(days=3)
+        if rows:
+            cur = ""
+            for r in rows:
+                if r["day"] != cur:
+                    cur = r["day"]
+                    print(f"  {cur}")
+                mark = {"explicit": "★", "digest": "◈"}.get(r["kind"], "·")
+                print(f"    {mark} {r['text']}")
+        else:
+            print("  （空）")
+        return 0
+
+    if args.consolidate:
+        from .brain import SammyBrain
+        from .memory import Memory, consolidate_now
+
+        mem = Memory()
+        info = consolidate_now(SammyBrain(), mem, args.day)
+        print(json.dumps(info, ensure_ascii=False, indent=2))
+        return 0
 
     if args.voices:
         from .expressions import EXPR_EMOJI, EXPR_NAMES

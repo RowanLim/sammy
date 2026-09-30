@@ -12,9 +12,9 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 
 🟡 **M1 进行中 —— 骨架已跑通**
 
-已经能跑：对话（平均 1.83s）、情绪驱动表情、35 张表情渲染、透明浮窗、拖拽、戳一下有反应、空闲会犯困会睡着、出错不崩。
+已经能跑：对话（平均 2.0s）、情绪驱动表情、35 张表情渲染、透明浮窗、拖拽、戳一下有反应、空闲会犯困会睡着、**记忆（槽位+日记+夜间整理，重启不丢）**、出错不崩。
 
-还没做：记忆、双击即开的 `.app`、TTS、唤醒词、休息提醒、工具调用。
+还没做：双击即开的 `.app`、TTS、唤醒词、休息提醒、驱力系统、主动心跳、MCP 工具层。
 
 ## 快速开始
 
@@ -35,8 +35,12 @@ uv pip install --python .venv/bin/python -r requirements.txt
 ./run.sh --ask "今天好累啊，给我点建议"   # 命令行测大脑，打印回复+情绪+耗时
 ./run.sh --voices                       # 列出全部 35 个表情
 ./run.sh --snapshot out.png --expr 4    # 渲染一张脸存成 PNG（不弹窗）
+./run.sh --selftest out.png             # 真实窗口 + 自检 + 截图后退出
+./run.sh --memory                       # 看看 Sammy 记得什么
+./run.sh --consolidate --day 2026-10-01 # 手动跑一次「夜里整理」
 
-.venv/bin/python scripts/dev_check.py   # 自检：解析器 + 渲染 + 真实对话延迟
+.venv/bin/python scripts/dev_check.py   # 自检：解析器 + 渲染 + 对话延迟 + 记忆
+.venv/bin/python scripts/backup.py      # 立即备份（git bundle + 记忆库快照）
 ```
 
 **凭证**：`.env` 里放 `DOUBAO_API_KEY`（见 `.env.example`）。`.env` 已被 git 忽略，永不进仓库。
@@ -52,11 +56,12 @@ Sammy/
 │   ├── preview-window.png 窗口渲染预览
 │   └── preview-35-faces.png 35 张表情总览
 ├── src/sammy/
-│   ├── __main__.py        入口 + 三种模式
+│   ├── __main__.py        入口 + 各种模式
 │   ├── brain.py           独立大脑（豆包，一次调用拿回复+情绪）
+│   ├── memory.py          记忆（槽位 + 日记 + 夜间整理，SQLite）
 │   ├── expressions.py     表情目录 + 情绪→表情映射
 │   ├── faces.py           渲染层（BMP → 荧光绿像素）
-│   └── pet.py             窗口（透明浮窗 + 交互 + 空闲行为）
+│   └── pet.py             窗口（透明浮窗 + 交互 + 空闲行为 + 记忆接线）
 ├── assets/expressions/    35 张 OLED 表情 BMP（继承自旧项目）
 └── scripts/               自检 / 凭证迁移 / 连通性验证
 ```

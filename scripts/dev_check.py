@@ -21,6 +21,10 @@ _qt_app = QApplication([])
 
 from sammy.brain import SammyBrain, _canon_emotion  # noqa: E402
 from sammy.expressions import name_of  # noqa: E402
+from sammy.memory import (  # noqa: E402
+    Memory, consolidate_now, extract_and_store, looks_explicit,
+    parse_digest, parse_extraction,
+)
 from sammy import faces  # noqa: E402
 
 FAIL = []
@@ -80,6 +84,82 @@ for text in probes:
     print(f"  Sammy[{name_of(r['expression'])}]（{r['latency']:.2f}s）：{r['reply']}")
     print()
 
+print()
+print("═" * 62)
+print("4) 记忆 —— 对齐 PRD P0-5「重启后仍记得昵称和至少 3 条关键偏好」")
+print("═" * 62)
+
+# 解析器离线健壮性（模型爱加 ```json 包裹、爱说废话）
+check("JSON 裹在代码块里",
+      parse_extraction('```json\n{"slots":{"a":"b"},"journal":["c"]}\n```'),
+      {"slots": {"a": "b"}, "journal": ["c"]})
+check("前后有废话",
+      parse_extraction('好的，这是结果：{"slots":{},"journal":["他在做 Sammy"]} 完毕'),
+      {"slots": {}, "journal": ["他在做 Sammy"]})
+check("完全不合法",
+      parse_extraction("我记不住"), {"slots": {}, "journal": []})
+check("digest 解析",
+      parse_digest('{"digest":"今天聊了项目","slots":{"项目":"Sammy"}}'),
+      {"digest": "今天聊了项目", "slots": {"项目": "Sammy"}})
+check("显式记住被识别", looks_explicit("帮我记住：我只喝美式"), True)
+check("闲聊不误判", looks_explicit("今天天气不错"), False)
+
+# 真对话 → 真抽取 → 落库 → 关库 → 重开（模拟重启）
+import tempfile  # noqa: E402
+
+tmp_db = pathlib.Path(tempfile.mkdtemp()) / "test_memory.db"
+mem = Memory(tmp_db)
+
+exchanges = [
+    ("你以后就叫我 Rowan", None),
+    ("我最近在做一个桌面机器人项目，叫 Sammy", None),
+    ("帮我记住：我喝咖啡只喝美式，不加糖", None),
+    ("我不太喜欢太吵的环境", None),
+]
+print("\n  走 4 轮真实对话，让模型自己判断该记什么：")
+for user_text, _ in exchanges:
+    r = brain.chat(user_text, mem.context_block())
+    info = extract_and_store(brain, mem, user_text, r["reply"])
+    print(f"    「{user_text}」→ 槽位 {info['slots']} 条"
+          f"{'（显式）' if info['explicit'] else ''}  日记 {info['journal']} 条"
+          f"  {info['keys'] if info['keys'] else ''}")
+
+# 关键：关掉再打开 —— 模拟 Sammy 重启
+mem.close()
+mem2 = Memory(tmp_db)
+slots = mem2.slots()
+ctx = mem2.context_block()
+print(f"\n  重启后重新打开记忆库：{len(slots)} 条槽位")
+for k, v in slots.items():
+    print(f"    · {k}：{v}")
+
+check("P0-5 槽位 ≥3 条", len(slots) >= 3, True)
+check("P0-5 记住了昵称", any("rowan" in str(v).lower() for v in slots.values()), True)
+check("P0-5 记住了咖啡偏好",
+      any("美式" in str(v) for v in slots.values()), True)
+check("记忆能塞进提示词", ("Rowan" in ctx or "rowan" in ctx.lower()), True)
+
+# 显式要求的东西必须留下痕迹（哪怕模型没抽成槽位）
+explicit_rows = mem2.day_entries(mem2.stats()["since"] or "", kinds=("explicit",))
+check("显式记忆原样留存", len(explicit_rows) >= 1, True)
+
+print(f"\n  提示词片段（{len(ctx)} 字）：")
+for line in ctx.splitlines()[:12]:
+    print(f"    {line}")
+
+# 夜里整理（真实调用）—— 指定今天，否则默认是整理"昨天"
+from datetime import date as _date  # noqa: E402
+
+info = consolidate_now(brain, mem2, _date.today().isoformat())
+print(f"\n  夜里整理：{info['entries']} 条事件 → 摘要 {len(info['digest'])} 字，"
+      f"新增/更新槽位 {info['new_slots']} 条")
+if info["digest"]:
+    print(f"    摘要：{info['digest'][:120]}")
+check("整理产出了摘要", bool(info["digest"]), True)
+check("整理后当天有 digest 标记", mem2.has_digest(info["day"]), True)
+mem2.close()
+
+print()
 print("═" * 62)
 print(f"延迟：最快 {min(lat):.2f}s  最慢 {max(lat):.2f}s  平均 {sum(lat)/len(lat):.2f}s")
 print(f"PRD P0-1 标准「3 秒内返回」：{'✅ 通过' if max(lat) < 3.0 else '❌ 未达标'}")

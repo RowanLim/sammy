@@ -1,0 +1,341 @@
+"""Sammy 的记忆 —— 槽位 + 日记 + 夜里整理。
+
+设计依据（docs/research/同类项目调研.md）：
+- 学 Miru：**槽位（结构化事实）和日记（带日期的事件）分开存**，别混成一锅粥。
+- 夜里整理：Sammy 睡着的时候跑摘要与归并 —— 和"它会犯困会睡觉"这个人设天然契合。
+- 用便宜模型干整理，聊天才用好模型。
+
+设计依据（docs/research/对标-NOMI与贾维斯.md）：
+- 隐私原则：**原始感知数据不进长期记忆**，只存"结论"。
+- NOMI 的"认得你"靠的就是槽位这种结构化档案。
+
+存储位置：macOS 标准应用数据目录（不是项目目录）—— 项目在外置盘上，
+拔盘不该丢记忆；而且它在备份清单里单独备份。
+"""
+
+from __future__ import annotations
+
+import json
+import pathlib
+import re
+import sqlite3
+import time
+from datetime import date, datetime, timedelta
+
+APP_DIR = pathlib.Path.home() / "Library" / "Application Support" / "Sammy"
+DB_FILE = APP_DIR / "sammy.db"
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS slots (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  REAL NOT NULL,
+    source      TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS journal (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts       REAL NOT NULL,
+    day      TEXT NOT NULL,
+    kind     TEXT NOT NULL,          -- event | explicit | digest | consolidation
+    text     TEXT NOT NULL,
+    tags     TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_journal_day ON journal(day);
+CREATE INDEX IF NOT EXISTS idx_journal_kind ON journal(kind);
+
+CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+"""
+
+# 用户明确要求记住的说法 —— 命中就当作高优先级，不依赖模型判断
+EXPLICIT_PATTERNS = (
+    "记住", "帮我记", "记一下", "记得我", "别忘", "以后都", "我的偏好是",
+    "记住我", "remember",
+)
+
+
+class Memory:
+    def __init__(self, path: pathlib.Path | None = None):
+        self.path = pathlib.Path(path) if path else DB_FILE
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(str(self.path), check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self.conn.executescript(SCHEMA)
+        self.conn.commit()
+
+    def close(self) -> None:
+        self.conn.close()
+
+    # ── 槽位：结构化事实 ────────────────────────────
+
+    def set_slot(self, key: str, value: str, source: str = "") -> None:
+        key = (key or "").strip()
+        value = (value or "").strip()
+        if not key or not value:
+            return
+        self.conn.execute(
+            "INSERT INTO slots(key, value, updated_at, source) VALUES(?,?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, "
+            "updated_at=excluded.updated_at, source=excluded.source",
+            (key, value, time.time(), source),
+        )
+        self.conn.commit()
+
+    def slots(self) -> dict[str, str]:
+        rows = self.conn.execute("SELECT key, value FROM slots ORDER BY key").fetchall()
+        return {r["key"]: r["value"] for r in rows}
+
+    def drop_slot(self, key: str) -> None:
+        self.conn.execute("DELETE FROM slots WHERE key = ?", (key,))
+        self.conn.commit()
+
+    # ── 日记：带日期的事件 ──────────────────────────
+
+    def add(self, text: str, kind: str = "event", tags: str = "", day: str | None = None) -> int:
+        text = (text or "").strip()
+        if not text:
+            return -1
+        day = day or date.today().isoformat()
+        cur = self.conn.execute(
+            "INSERT INTO journal(ts, day, kind, text, tags) VALUES(?,?,?,?,?)",
+            (time.time(), day, kind, text, tags),
+        )
+        self.conn.commit()
+        return cur.lastrowid or -1
+
+    def recent(self, days: int = 3, include_digests: bool = True) -> list[sqlite3.Row]:
+        since = (date.today() - timedelta(days=days - 1)).isoformat()
+        kinds = ("event", "explicit", "digest") if include_digests else ("event", "explicit")
+        q = ("SELECT * FROM journal WHERE day >= ? AND kind IN "
+             f"({','.join('?' * len(kinds))}) ORDER BY ts ASC")
+        return self.conn.execute(q, (since, *kinds)).fetchall()
+
+    def day_entries(self, day: str, kinds=("event", "explicit")) -> list[sqlite3.Row]:
+        q = ("SELECT * FROM journal WHERE day = ? AND kind IN "
+             f"({','.join('?' * len(kinds))}) ORDER BY ts ASC")
+        return self.conn.execute(q, (day, *kinds)).fetchall()
+
+    def has_digest(self, day: str) -> bool:
+        row = self.conn.execute(
+            "SELECT 1 FROM journal WHERE day = ? AND kind = 'digest' LIMIT 1", (day,)
+        ).fetchone()
+        return row is not None
+
+    def stats(self) -> dict:
+        s = self.conn.execute("SELECT COUNT(*) c FROM slots").fetchone()["c"]
+        j = self.conn.execute("SELECT COUNT(*) c FROM journal").fetchone()["c"]
+        d = self.conn.execute(
+            "SELECT COUNT(DISTINCT day) c FROM journal WHERE kind='digest'"
+        ).fetchone()["c"]
+        first = self.conn.execute("SELECT MIN(day) d FROM journal").fetchone()["d"]
+        return {"slots": s, "journal": j, "digests": d, "since": first, "db": str(self.path)}
+
+    # ── 给提示词用的上下文 ──────────────────────────
+
+    def context_block(self, max_chars: int = 700) -> str:
+        """把记忆压成一段能塞进 system prompt 的文字。宁短不滥。"""
+        parts: list[str] = []
+
+        slots = self.slots()
+        if slots:
+            parts.append("【你记得关于 Rowan 的事】")
+            parts.extend(f"- {k}：{v}" for k, v in slots.items())
+
+        rows = self.recent(days=3)
+        if rows:
+            parts.append("\n【最近这几天】")
+            cur_day = ""
+            for r in rows:
+                if r["day"] != cur_day:
+                    cur_day = r["day"]
+                    parts.append(f"{cur_day}:")
+                mark = "★" if r["kind"] == "explicit" else ("◈" if r["kind"] == "digest" else "·")
+                parts.append(f"  {mark} {r['text']}")
+
+        if not parts:
+            return ""
+        block = "\n".join(parts)
+        if len(block) > max_chars:
+            block = block[: max_chars - 20].rstrip() + "\n…(更早的记不清细节了)"
+        return block
+
+
+# ── 对话后的记忆抽取 ────────────────────────────────
+
+EXTRACT_PROMPT = """从下面这轮对话里，提取**值得长期记住**的信息。像人一样判断：只有以后还用得上的才记。
+
+要提取的：
+- 关于 Rowan 的稳定事实（昵称、工作、习惯、偏好、重要日期、关系、长期目标）
+- 他明确说"记住"的事（这类必须提取）
+- 有后续影响的事件（约定、承诺、正在做的事）
+
+不要提取的：
+- 寒暄、闲聊、临时情绪
+- 你自己说的话
+- 已经在上面的已知事实里出现过的重复内容
+
+**只输出 JSON，不要任何其他文字。** 没有值得记的就输出 {{"slots":{{}},"journal":[]}}
+
+格式：
+{{"slots": {{"键": "值"}},
+ "journal": ["一句话描述的事件"]}}
+
+键用小写英文或中文短语，值要具体（"喜欢喝美式" 好过 "有咖啡偏好"）。
+
+已知事实（别重复提取）：
+{slots}
+
+这轮对话：
+Rowan：{user}
+Sammy：{reply}"""
+
+
+CONSOLIDATE_PROMPT = """你在整理 Sammy 一天里记下的事，压成一段能长期保留的摘要。
+
+要求：
+- 摘要 3-5 句，只留以后还用得上的（发生了什么、有什么进展、什么情绪底色）
+- 顺手把新发现的**稳定事实**提取成槽位；已知的要修正就覆盖
+- 只输出 JSON，不要任何其他文字
+
+格式：
+{{"digest": "一段摘要", "slots": {{"键": "值"}}}}
+
+已知事实：
+{slots}
+
+{day} 这天记下的事：
+{entries}"""
+
+
+def _extract_json(raw: str) -> dict:
+    """从模型输出里抠出 JSON 对象。模型爱加 ```json 包裹或前后废话，这里做容错。"""
+    text = (raw or "").strip()
+    if not text:
+        return {}
+
+    fence = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)
+    if fence:
+        text = fence.group(1).strip()
+
+    start = text.find("{")
+    if start < 0:
+        return {}
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                text = text[start : i + 1]
+                break
+    try:
+        data = json.loads(text)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _clean_slots(slots) -> dict[str, str]:
+    if not isinstance(slots, dict):
+        return {}
+    return {
+        str(k).strip(): str(v).strip()
+        for k, v in slots.items()
+        if str(k).strip() and str(v).strip()
+    }
+
+
+def parse_extraction(raw: str) -> dict:
+    """模型输出 → {'slots': {...}, 'journal': [...]}"""
+    data = _extract_json(raw)
+    journal = data.get("journal") or []
+    if not isinstance(journal, list):
+        journal = []
+    return {
+        "slots": _clean_slots(data.get("slots")),
+        "journal": [str(j).strip() for j in journal if str(j).strip()],
+    }
+
+
+def parse_digest(raw: str) -> dict:
+    """模型输出 → {'digest': str, 'slots': {...}}"""
+    data = _extract_json(raw)
+    digest = str(data.get("digest") or "").strip()
+    return {"digest": digest, "slots": _clean_slots(data.get("slots"))}
+
+
+def looks_explicit(user_text: str) -> bool:
+    t = (user_text or "").lower()
+    return any(p in t for p in EXPLICIT_PATTERNS)
+
+
+def today() -> str:
+    return date.today().isoformat()
+
+
+def now_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M")
+
+
+# ── 服务层：把大脑和存储串起来（界面层只调这两个） ──────
+
+
+def extract_and_store(brain, mem: Memory, user_text: str, reply: str) -> dict:
+    """对话后抽取记忆并落库。在后台线程里跑，不占对话延迟。"""
+    explicit = looks_explicit(user_text)
+    if explicit:
+        # 用户明确要求记住的，先原样存一条高优先级，不赌模型抽不抽得出来
+        mem.add(user_text, kind="explicit", tags="user-asked")
+
+    result = brain.extract_memories(user_text, reply, mem.slots())
+    for k, v in result["slots"].items():
+        mem.set_slot(k, v, source="extract")
+    for item in result["journal"]:
+        mem.add(item, kind="event")
+
+    return {
+        "explicit": explicit,
+        "slots": len(result["slots"]),
+        "journal": len(result["journal"]),
+        "keys": list(result["slots"].keys()),
+    }
+
+
+def consolidate_now(brain, mem: Memory, day: str | None = None) -> dict:
+    """立刻跑一次「夜里整理」。默认整理昨天（模拟睡了一觉）。"""
+    day = day or (date.today() - timedelta(days=1)).isoformat()
+    entries = [r["text"] for r in mem.day_entries(day)]
+    if not entries:
+        return {"day": day, "entries": 0, "digest": "", "new_slots": 0}
+
+    result = brain.consolidate(day, entries, mem.slots())
+    for k, v in result["slots"].items():
+        mem.set_slot(k, v, source="consolidate")
+    if result["digest"]:
+        mem.add(result["digest"], kind="digest", day=day)
+
+    return {
+        "day": day,
+        "entries": len(entries),
+        "digest": result["digest"],
+        "new_slots": len(result["slots"]),
+    }
+
+
+def needs_nightly(mem: Memory) -> str | None:
+    """该整理哪一天？没有就返回 None。
+
+    规则：Sammy「睡了一觉」= 当天还没整理过，且已经过了凌晨。
+    刚启动时也会被叫一次，所以不依赖程序一直开着。
+    """
+    today_s = date.today().isoformat()
+    if mem.day_entries(today_s) and not mem.has_digest(today_s):
+        return today_s
+    y = (date.today() - timedelta(days=1)).isoformat()
+    if mem.day_entries(y) and not mem.has_digest(y):
+        return y
+    return None

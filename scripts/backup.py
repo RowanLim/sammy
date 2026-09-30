@@ -24,6 +24,7 @@ from datetime import datetime
 
 PROJECT = pathlib.Path("/Volumes/Mac mini/Max agent/Sammy")
 OLD_PROJECT = pathlib.Path("/Volumes/Mac mini/Sammy")
+APP_DB = pathlib.Path.home() / "Library" / "Application Support" / "Sammy" / "sammy.db"
 DEST_ROOT = pathlib.Path.home() / "Backups" / "Sammy"
 
 EXCLUDE_DIRS = {"myenv", "node_modules", "__pycache__", ".venv", ".git"}
@@ -100,8 +101,32 @@ def main() -> int:
     elif oldtar.exists():
         print(f"✅ 旧项目静态档已存在   {human(oldtar.stat().st_size)}   （只读参考，不重复打包）")
 
+    # ── 2b. 记忆库（Sammy 的"人生"，丢了不可再生）──
+    # 用 SQLite 官方 backup API 取一致性快照 —— 直接拷文件在写入时会拷到半个事务
+    mem_copy = None
+    if APP_DB.exists():
+        import sqlite3
+
+        mem_copy = dest / "sammy-memory.db"
+        try:
+            src = sqlite3.connect(f"file:{APP_DB}?mode=ro", uri=True)
+            dst = sqlite3.connect(str(mem_copy))
+            with dst:
+                src.backup(dst)
+            src.close()
+            dst.close()
+            n_slots = sqlite3.connect(f"file:{mem_copy}?mode=ro", uri=True).execute(
+                "SELECT COUNT(*) FROM slots"
+            ).fetchone()[0]
+            print(f"✅ 记忆库快照          {human(mem_copy.stat().st_size)}   {n_slots} 条槽位")
+        except Exception as e:
+            print(f"⚠️  记忆库备份失败（不阻断其他备份）: {e}")
+            mem_copy = None
+    else:
+        print("（还没有记忆库，跳过）")
+
     # ── 3. 校验和 + 清单 ──
-    arts = [p for p in (bundle, oldtar) if p.exists()]
+    arts = [p for p in (bundle, oldtar, mem_copy) if p and p.exists()]
     digests = {p.name: sha256(p) for p in arts}
     for name, d in digests.items():
         print(f"   sha256 {name:<24} {d[:16]}…")
@@ -125,6 +150,9 @@ def main() -> int:
 
     # ── 5. 清单文件 ──
     old_desc = f"{human(oldtar.stat().st_size)}（{n_old} 个顶层条目）" if oldtar.exists() else "未生成"
+    mem_row = (f"| `sammy-memory.db` | {human(mem_copy.stat().st_size)} | "
+               f"Sammy 的记忆（槽位 + 日记 + 摘要），SQLite 一致性快照 |"
+               if mem_copy and mem_copy.exists() else "| — | — | 本次没有记忆库 |")
     (dest / "MANIFEST.md").write_text(f"""# Sammy 备份 · {stamp}
 
 自动生成，请勿手改。
@@ -134,7 +162,8 @@ def main() -> int:
 | 文件 | 大小 | 说明 |
 |:---|:---|:---|
 | `Sammy.bundle` | {human(bundle.stat().st_size)} | 新仓库完整 git 历史，{len(files)} 个文件，HEAD `{head[:7]}` |
-| `old-Sammy-code.tar.gz` | {old_desc} | 旧项目 `/Volumes/Mac mini/Sammy` 的源码与文档（已排除 venv / node_modules / 缓存） |
+| `old-Sammy-code.tar.gz` | {old_desc} | 旧项目 `/Volumes/Mac mini/Sammy` 的源码与文档（在 `_static/` 下，只存一份） |
+{mem_row}
 
 ## 校验和
 

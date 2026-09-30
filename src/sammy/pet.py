@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 from . import faces
 from .brain import SammyBrain
 from .expressions import EXPR_NAMES, emoji_of, name_of
+from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
 
 # ── 配色 ────────────────────────────────────────
 GREEN = QColor("#3ddc5a")
@@ -52,6 +53,8 @@ class Bridge(QObject):
 
     replyReady = Signal(dict)
     failed = Signal(str)
+    memoryTouched = Signal(dict)
+    consolidated = Signal(dict)
 
 
 class SammyWindow(QWidget):
@@ -83,6 +86,13 @@ class SammyWindow(QWidget):
             self.sammy_line = f"{e}"
             self.expression = 17  # 生病脸
 
+        # 记忆（独立于大脑：大脑挂了也要能把记忆读出来）
+        self.memory: Memory | None = None
+        try:
+            self.memory = Memory()
+        except Exception as e:
+            print(f"  ⚠️ 记忆打不开（不影响对话）: {e}")
+
         # 输入框
         self.input = QLineEdit(self)
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
@@ -100,11 +110,19 @@ class SammyWindow(QWidget):
         self.bridge = Bridge()
         self.bridge.replyReady.connect(self._on_reply)
         self.bridge.failed.connect(self._on_failed)
+        self.bridge.memoryTouched.connect(self._on_memory)
+        self.bridge.consolidated.connect(self._on_consolidated)
 
         # 空闲计时：会犯困、会睡着
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(1000)
+
+        # 「睡了一觉」：启动 8 秒后查一次，之后每半小时查一次
+        self.night = QTimer(self)
+        self.night.timeout.connect(self._maybe_consolidate)
+        self.night.start(30 * 60 * 1000)
+        QTimer.singleShot(8000, self._maybe_consolidate)
 
     # ── 表情 / 状态 ──────────────────────────────
 
@@ -145,9 +163,32 @@ class SammyWindow(QWidget):
 
     def _call_brain(self, text: str) -> None:
         try:
-            self.bridge.replyReady.emit(self.brain.chat(text))
+            ctx = self.memory.context_block() if self.memory else ""
+            result = self.brain.chat(text, ctx)
+            self.bridge.replyReady.emit(result)
+            # 抽记忆放在同一条后台线程里 —— 用户已经看到回复了，这里不占他的等待
+            if self.memory:
+                info = extract_and_store(self.brain, self.memory, text, result["reply"])
+                self.bridge.memoryTouched.emit(info)
         except Exception as e:
             self.bridge.failed.emit(str(e))
+
+    def _on_memory(self, info: dict) -> None:
+        bits = []
+        if info.get("slots"):
+            bits.append(f"{info['slots']} 条事实")
+        if info.get("journal"):
+            bits.append(f"{info['journal']} 条记录")
+        if info.get("explicit"):
+            bits.append("你要我记的")
+        if bits and not self.thinking:
+            self.status = "记住了 · " + "、".join(bits)
+            self.update()
+
+    def _on_consolidated(self, info: dict) -> None:
+        if info.get("digest") and not self.thinking:
+            self.status = f"睡了一觉，把 {info['day']} 理了理"
+            self.update()
 
     def _on_reply(self, result: dict) -> None:
         self.thinking = False
@@ -179,6 +220,22 @@ class SammyWindow(QWidget):
             self.status = "睡着了"
         if self.idle_seconds in (120, 300):
             self.update()
+
+    # ── 夜里整理（Sammy 睡着的时候干活） ────────────
+
+    def _maybe_consolidate(self) -> None:
+        if self.thinking or not (self.memory and self.brain):
+            return
+        day = needs_nightly(self.memory)
+        if not day:
+            return
+        threading.Thread(target=self._consolidate_worker, args=(day,), daemon=True).start()
+
+    def _consolidate_worker(self, day: str) -> None:
+        try:
+            self.bridge.consolidated.emit(consolidate_now(self.brain, self.memory, day))
+        except Exception as e:
+            print(f"  ⚠️ 夜里整理失败: {e}")
 
     # ── 绘制 ────────────────────────────────────
 

@@ -118,10 +118,13 @@ class SammyBrain:
 
     # ── 对外主入口 ──────────────────────────────────
 
-    def chat(self, user_text: str) -> dict:
-        """返回 {'reply': str, 'emotion': str, 'expression': int, 'latency': float, 'usage': dict}"""
+    def chat(self, user_text: str, memory_context: str = "") -> dict:
+        """返回 {'reply', 'emotion', 'expression', 'latency'}
+
+        memory_context: 由 Memory.context_block() 生成的记忆片段，塞进 system prompt。
+        """
         started = time.time()
-        raw = self._call(user_text)
+        raw = self._call(user_text, memory_context)
         latency = time.time() - started
         emotion, reply = self._parse(raw)
 
@@ -139,15 +142,24 @@ class SammyBrain:
 
     # ── 内部 ────────────────────────────────────────
 
-    def _call(self, user_text: str) -> str:
-        messages = [{"role": "system", "content": SYSTEM_PROMPT.format(emotions=" | ".join(EMOTION_KEYS))}]
+    def _call(self, user_text: str, memory_context: str = "") -> str:
+        system = SYSTEM_PROMPT.format(emotions=" | ".join(EMOTION_KEYS))
+        if memory_context:
+            system += (
+                "\n\n以下是你记得的事，自然地用，别生硬地复述：\n" + memory_context
+            )
+        messages = [{"role": "system", "content": system}]
         messages.extend(self.history)
         messages.append({"role": "user", "content": user_text})
 
+        return self._post(messages, temperature=0.8)
+
+    def _post(self, messages: list[dict], temperature: float = 0.8) -> str:
+        """统一的 HTTP 出口 —— 对话和记忆整理共用，避免两套请求逻辑。"""
         payload = {
             "model": self.model,
             "messages": messages,
-            "temperature": 0.8,
+            "temperature": temperature,
         }
         if self.thinking == "off":
             payload["thinking"] = {"type": "disabled"}
@@ -169,6 +181,44 @@ class SammyBrain:
             raise RuntimeError(f"连不上大模型: {type(e).__name__}: {e}") from e
 
         return body["choices"][0]["message"]["content"] or ""
+
+    # ── 记忆：抽取与夜里整理 ────────────────────────
+    # 都走独立调用，**不插在对话延迟里**。抽取由后台线程跑。
+
+    def extract_memories(self, user_text: str, reply: str,
+                         known_slots: dict[str, str]) -> dict:
+        """从一轮对话里抽长期记忆 → {'slots': {...}, 'journal': [...]}"""
+        from .memory import EXTRACT_PROMPT, parse_extraction
+
+        desc = "\n".join(f"- {k}：{v}" for k, v in known_slots.items()) or "（暂无）"
+        prompt = EXTRACT_PROMPT.format(slots=desc, user=user_text, reply=reply)
+        try:
+            raw = self._post([{"role": "user", "content": prompt}], temperature=0.2)
+        except Exception as e:
+            print(f"  ⚠️ 记忆抽取失败: {e}")
+            return {"slots": {}, "journal": []}
+        return parse_extraction(raw)
+
+    def consolidate(self, day: str, entries: list[str],
+                    known_slots: dict[str, str]) -> dict:
+        """夜里整理：把一天的事件压成摘要，顺带更新槽位。"""
+        from .memory import CONSOLIDATE_PROMPT
+
+        if not entries:
+            return {"digest": "", "slots": {}}
+        desc = "\n".join(f"- {k}：{v}" for k, v in known_slots.items()) or "（暂无）"
+        prompt = CONSOLIDATE_PROMPT.format(
+            day=day, slots=desc,
+            entries="\n".join(f"- {e}" for e in entries),
+        )
+        try:
+            raw = self._post([{"role": "user", "content": prompt}], temperature=0.3)
+        except Exception as e:
+            print(f"  ⚠️ 夜里整理失败: {e}")
+            return {"digest": "", "slots": {}}
+
+        from .memory import parse_digest
+        return parse_digest(raw)
 
     @staticmethod
     def _parse(raw: str) -> tuple[str, str]:
