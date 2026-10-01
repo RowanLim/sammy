@@ -37,6 +37,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 ./run.sh --snapshot out.png --expr 4    # 渲染一张脸存成 PNG（不弹窗）
 ./run.sh --selftest out.png             # 真实窗口 + 自检 + 截图后退出
 ./run.sh --memory                       # 看看 Sammy 记得什么
+./run.sh --models                       # 看各档位模型配置状态（凭证只显示长度）
 ./run.sh --consolidate --day 2026-10-01 # 手动跑一次「夜里整理」
 
 .venv/bin/python scripts/dev_check.py   # 自检：解析器 + 渲染 + 对话延迟 + 记忆

@@ -9,32 +9,15 @@
 from __future__ import annotations
 
 import json
-import os
-import pathlib
 import time
 import urllib.error
 import urllib.request
 
 from .expressions import EMOTION_KEYS, expression_for
+from .models import ENV_FILE, ModelConfig
+from .models import load_env as _load_env  # 测试与脚本用的名字，保持兼容
 
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-ENV_FILE = PROJECT_ROOT / ".env"
-
-
-def _load_env() -> dict[str, str]:
-    """读 .env（不覆盖已存在的环境变量）。"""
-    env: dict[str, str] = {}
-    if ENV_FILE.exists():
-        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            env[k.strip()] = v.strip()
-    for k in ("DOUBAO_API_KEY", "DOUBAO_BASE_URL", "DOUBAO_MODEL"):
-        if os.environ.get(k):
-            env[k] = os.environ[k]
-    return env
+__all__ = ["SYSTEM_PROMPT", "SammyBrain", "_load_env"]
 
 
 SYSTEM_PROMPT = """你是 Sammy，一只住在 Rowan 桌面上的小家伙。你不是一个通用的语音助手，你是他的伙伴。
@@ -135,23 +118,35 @@ def _canon_emotion(candidate: str) -> str | None:
 class SammyBrain:
     """独立大脑：一次调用拿到 回复 + 情绪。"""
 
-    def __init__(self, timeout: int = 60, history_turns: int = 6, thinking: str | None = None):
-        env = _load_env()
-        self.api_key = env.get("DOUBAO_API_KEY", "")
-        self.base_url = env.get(
-            "DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"
-        ).rstrip("/")
-        self.model = env.get("DOUBAO_MODEL", "doubao-seed-2-0-lite-260215")
+    def __init__(
+        self,
+        config: ModelConfig | None = None,
+        timeout: int = 60,
+        history_turns: int = 6,
+        thinking: str | None = None,
+    ):
+        """不传 config 就用 CHAT 档（聊天要快）。要调工具时用 `SammyBrain.for_agent()`。"""
+        self.config = config or ModelConfig.from_env("CHAT")
+        self.tier = self.config.tier
+        self.api_key = self.config.api_key
+        self.base_url = self.config.base_url.rstrip("/")
+        self.model = self.config.model
         self.timeout = timeout
         self.history_turns = history_turns
-        # 这个模型默认会「先想再答」，一次对话多花 3-5 秒。
-        # 桌面陪伴场景要的是快，所以默认关掉思考链（设 SAMMY_THINKING=on 可开回来）。
-        self.thinking = (
-            thinking if thinking is not None else os.environ.get("SAMMY_THINKING", "off")
-        )
+        # 有些模型默认「先想再答」，一次对话多花 3-5 秒。桌面陪伴要快，默认关掉；
+        # 需要它认真想的时候把 SAMMY_THINKING 设成 on 开回来。
+        self.thinking = thinking if thinking is not None else self.config.thinking
         self.history: list[dict[str, str]] = []
         if not self.api_key:
-            raise RuntimeError(f"没找到 DOUBAO_API_KEY。检查 {ENV_FILE}，或设置同名环境变量。")
+            raise RuntimeError(
+                f"{self.tier} 档没配凭证 —— 在 {ENV_FILE} 里填 SAMMY_{self.tier}_API_KEY，"
+                f"或设置同名环境变量。用 `./run.sh --models` 看各档位状态。"
+            )
+
+    @classmethod
+    def for_agent(cls, **kwargs) -> SammyBrain:
+        """代理档：调工具 / 多步推理 / 记忆整理用这个。"""
+        return cls(config=ModelConfig.from_env("AGENT"), **kwargs)
 
     # ── 对外主入口 ──────────────────────────────────
 
