@@ -18,7 +18,7 @@ class FakeBrain:
         self.calls: list[tuple[str, str]] = []
         self.extracted: list[tuple[str, str]] = []
 
-    def chat(self, text, memory_context=""):
+    def chat(self, text, memory_context="", on_event=None):
         self.calls.append((text, memory_context))
         if self.fail:
             raise RuntimeError("网络炸了")

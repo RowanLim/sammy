@@ -55,6 +55,7 @@ class Bridge(QObject):
     failed = Signal(str)
     memoryTouched = Signal(dict)
     consolidated = Signal(dict)
+    activity = Signal(str)  # 工具调用时通知界面："正在联网…"
 
 
 class SammyWindow(QWidget):
@@ -124,6 +125,7 @@ class SammyWindow(QWidget):
         self.bridge.failed.connect(self._on_failed)
         self.bridge.memoryTouched.connect(self._on_memory)
         self.bridge.consolidated.connect(self._on_consolidated)
+        self.bridge.activity.connect(self._on_activity)
 
         # 空闲计时：会犯困、会睡着
         self.timer = QTimer(self)
@@ -178,7 +180,9 @@ class SammyWindow(QWidget):
         # 否则一条记忆没写进去，就会把用户已经拿到的回复覆盖成"我卡住了"。
         try:
             ctx = self.memory.context_block() if self.memory else ""
-            result = self.brain.chat(text, ctx)
+            result = self.brain.chat(
+                text, ctx, on_event=lambda name: self.bridge.activity.emit(name)
+            )
         except Exception as e:
             self.bridge.failed.emit(str(e))
             return
@@ -192,6 +196,18 @@ class SammyWindow(QWidget):
                 self.bridge.memoryTouched.emit(info)
             except Exception as e:
                 print(f"  ⚠️ 记忆写入失败（回复不受影响）: {e}")
+
+    def _on_activity(self, tool_name: str) -> None:
+        """它决定联网了 —— 必须让用户看见，否则多等的几秒会像卡死。"""
+        labels = {
+            "web_search": "正在上网查…",
+            "fetch_url": "正在读网页…",
+            "current_time": "正在看时间…",
+        }
+        self.status = labels.get(tool_name, f"正在用 {tool_name}…")
+        self.thinking = True
+        self.set_expression(5 if tool_name == "web_search" else 16)  # 疑惑 / 思考
+        self.update()
 
     def _on_memory(self, info: dict) -> None:
         bits = []

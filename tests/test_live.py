@@ -7,8 +7,20 @@ import pytest
 
 from sammy.brain import SammyBrain
 from sammy.memory import Memory, extract_and_store
+from sammy.models import ModelConfig
 
-pytestmark = pytest.mark.live
+
+def _configured() -> bool:
+    """没配凭证时跳过，而不是报错 —— 否则换个供应商就会看到一片红。"""
+    return ModelConfig.from_env("CHAT").ready
+
+
+pytestmark = [
+    pytest.mark.live,
+    pytest.mark.skipif(
+        not _configured(), reason="CHAT 档没配凭证（在 .env 里填 SAMMY_CHAT_API_KEY）"
+    ),
+]
 
 
 @pytest.fixture(scope="module")
