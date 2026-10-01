@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--care", action="store_true", help="看休息提醒的计时状态")
     parser.add_argument("--say", metavar="TEXT", help="试听：把文本洗一遍再念出来")
     parser.add_argument("--voice-name", help="配合 --say 指定声音（默认 Tingting）")
+    parser.add_argument("--screens", action="store_true", help="列出所有屏幕，以及铺满后的结果")
+    parser.add_argument("--kiosk", action="store_true", help="小屏模式：无边框铺满指定屏幕")
+    parser.add_argument("--display", help="配合 --kiosk：屏幕序号或名字（不给就用记住的/主屏）")
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -191,6 +194,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
+    if args.screens:
+        from .faces import DEV_H, DEV_W
+        from .screen import describe_screens
+
+        print(describe_screens(DEV_W, DEV_H))
+        return 0
+
     if args.snapshot:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -199,7 +209,18 @@ def main(argv: list[str] | None = None) -> int:
     from .pet import SammyWindow
 
     app = QApplication(sys.argv[:1])
-    win = SammyWindow()
+    win = SammyWindow(kiosk=args.kiosk, display=args.display)
+    if args.kiosk:
+        from .screen import remember
+
+        which = str(args.display) if args.display else str(win.target_screen["index"])
+        remember(which)  # 选过一次就记住，下次不用再问
+        f = win._kiosk_geom
+        print(
+            f"小屏模式：屏 [{win.target_screen['index']}] {win.target_screen['name']} "
+            f"{win.target_screen['width']}×{win.target_screen['height']}"
+            f" → 窗口 {f.width}×{f.height}（缩放 {f.scale:.2f}，居中留边 {f.x}/{f.y}）"
+        )
 
     if args.snapshot:
         from .expressions import name_of

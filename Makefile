@@ -11,6 +11,8 @@ help:
 	@echo "make models     看各档位模型配置状态"
 	@echo "make drives     看它此刻的驱力（精力/无聊/亲近）"
 	@echo "make attention  看它此刻会不会先开口、卡在哪一条闸门"
+	@echo "make screens    列出所有屏幕，以及铺满后的结果"
+	@echo "make kiosk      小屏模式：无边框铺满指定屏幕（接小屏后用这个）"
 	@echo "make memory     看 Sammy 记得什么"
 	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
 	@echo "make accept     跑 M1 验收（PRD P0 逐条，出数字）"
@@ -44,6 +46,14 @@ memory:
 
 attention:
 	./run.sh --attention
+
+screens:
+	./run.sh --screens
+
+# 小屏模式：铺满记住的那块屏（没记住就用主屏）
+# 指定屏：./run.sh --kiosk --display 1
+kiosk:
+	./run.sh --kiosk
 
 fmt:
 	$(VENV) -m ruff check --fix src tests scripts

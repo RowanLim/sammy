@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import faces
+from . import faces, screen
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .care import Care, care_prompt
@@ -32,7 +32,8 @@ TEXT_DIM = QColor("#5f8a6c")
 WARN = QColor("#e8c05a")
 
 # ── 窗口缩放：树莓派上改成 1.0 ──
-SCALE = 0.55
+DEFAULT_SCALE = 0.55  # 桌面浮窗的默认缩放；小屏模式由 screen.fit() 按屏算
+SCALE = DEFAULT_SCALE  # 兼容旧引用 —— 窗口内部一律用 self.scale
 
 # ── 800×480 设备坐标系下的版面 ──
 CLOSE_C = QPoint(752, 34)
@@ -73,6 +74,8 @@ class SammyWindow(QWidget):
         attention: Attention | None = None,
         care: Care | None = None,
         speaker: Speaker | None = None,
+        kiosk: bool = False,
+        display: str | int | None = None,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -81,10 +84,36 @@ class SammyWindow(QWidget):
         真连一次大模型、真在外置目录建一个记忆库。
         """
         super().__init__()
+
+        # ── 屏幕与缩放 ───────────────────────────────
+        # 800×480 是"设备坐标系"（树莓派的 5 寸屏），画脸的逻辑只认它。
+        # 这里唯一负责的是：映射到真实像素 —— 换屏不动任何画脸的代码。
+        self.scale = DEFAULT_SCALE
+        self.target_screen: dict | None = None
+        self._kiosk_geom: screen.Fit | None = None
+        if kiosk:
+            self.target_screen = screen.resolve_screen(display)
+            self._kiosk_geom = screen.fit(
+                faces.DEV_W,
+                faces.DEV_H,
+                self.target_screen["width"],
+                self.target_screen["height"],
+            )
+            self.scale = self._kiosk_geom.scale
+
         self.setWindowTitle("Sammy")
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        # 小屏模式不加 Qt.Tool：Tool 窗口在某些显示器上不会被显示出来
+        flags = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        if not kiosk:
+            flags |= Qt.Tool
+        self.setWindowFlags(flags)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.resize(int(faces.DEV_W * SCALE), int(faces.DEV_H * SCALE))
+        if self._kiosk_geom is not None:
+            f = self._kiosk_geom
+            self.resize(f.width, f.height)
+            self.move(self.target_screen["x"] + f.x, self.target_screen["y"] + f.y)
+        else:
+            self.resize(int(faces.DEV_W * self.scale), int(faces.DEV_H * self.scale))
 
         self.expression = 3  # 微笑开场
         self.my_line = ""
@@ -149,13 +178,13 @@ class SammyWindow(QWidget):
         self.input.setStyleSheet(
             f"QLineEdit {{ background: rgba(18,42,26,190);"
             f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
-            f" color: #cfead6; padding-left: 18px; font-size: {int(30 * SCALE)}px; }}"
+            f" color: #cfead6; padding-left: 18px; font-size: {int(30 * self.scale)}px; }}"
         )
         self.input.setGeometry(
-            int(INPUT_BOX.x() * SCALE),
-            int(INPUT_BOX.y() * SCALE),
-            int(INPUT_BOX.width() * SCALE),
-            int(INPUT_BOX.height() * SCALE),
+            int(INPUT_BOX.x() * self.scale),
+            int(INPUT_BOX.y() * self.scale),
+            int(INPUT_BOX.width() * self.scale),
+            int(INPUT_BOX.height() * self.scale),
         )
 
         self.bridge = Bridge()
@@ -473,7 +502,7 @@ class SammyWindow(QWidget):
     def paintEvent(self, event) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.scale(SCALE, SCALE)  # ← 一行切换屏幕：树莓派上改成 1.0
+        p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
 
         # 屏幕玻璃
         p.setPen(QPen(GREEN_DIM, 3))
@@ -548,7 +577,7 @@ class SammyWindow(QWidget):
     # ── 交互 ────────────────────────────────────
 
     def mousePressEvent(self, event) -> None:
-        pos = event.position() / SCALE
+        pos = event.position() / self.scale
         if (pos - CLOSE_C).manhattanLength() < CLOSE_R * 1.6:
             QApplication.quit()
             return
