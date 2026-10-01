@@ -19,10 +19,11 @@ def _isolate_state(tmp_path, monkeypatch):
     就是拿你的真实数据当实验品。（记忆库那边已经是用 tmp_path 注入的了，
     驱力和心跳这两处是后加的，容易漏。）
     """
-    from sammy import attention, drives
+    from sammy import attention, care, drives
 
     monkeypatch.setattr(attention, "STATE_FILE", tmp_path / "attention.json")
     monkeypatch.setattr(drives, "STATE_FILE", tmp_path / "drives.json")
+    monkeypatch.setattr(care, "STATE_FILE", tmp_path / "care.json")
 
 
 class FakeBrain:
@@ -253,7 +254,7 @@ def test_speaks_up_when_everything_allows(chatty):
     chatty._heartbeat()
     assert chatty.thinking, "什么都满足时该进入'想说话'状态"
     assert chatty.last_gate and chatty.last_gate.ok
-    chatty._speak_up()  # 同步跑，免得等线程
+    chatty._speak_up("测试指令")  # 同步跑，免得等线程
     assert chatty.brain.spoke, "应该走 speak_first 这条路，而不是 chat()"
     assert not chatty.brain.calls, "主动开口不该被当成'回了谁的话'"
 
@@ -300,8 +301,62 @@ def test_generation_failure_does_not_burn_quota(chatty):
     """生成失败不该消耗今天的机会 —— 否则网络抖一下，今天就再也不会主动了。"""
     chatty.brain.fail = True
     chatty._heartbeat()
-    chatty._speak_up()
+    chatty._speak_up("测试指令")
     assert chatty.attention.spoken_today == 0
+
+
+def test_care_reminder_takes_priority_over_chatting(chatty):
+    """你坐太久时，先提醒你起来动动，而不是先找你闲聊。
+
+    关心身体比找人聊要紧 —— 而且两者不能在同一分钟各说一句（那就是两条消息）。
+    """
+    import time
+
+    from sammy.care import Care
+
+    now = time.time()
+    c = Care()
+    start = now - 45 * 60
+    c.note_activity(now=start)
+    for m in range(5, 46, 5):  # 模拟"一直在用"
+        c.note_activity(now=start + m * 60)
+    chatty.care = c
+    chatty.drives.boredom = 1.0  # 它其实也很想聊
+
+    chatty._heartbeat()
+    assert chatty._speak_kind == "care", "该先提醒你动一动"
+    assert chatty.last_care_gate.ok
+    assert chatty.thinking
+
+
+def test_care_reminder_does_not_burn_the_chat_quota(chatty):
+    """两件事各记各的账 —— 提醒你休息不该算作"它今天找过你 3 次"。"""
+    chatty._speak_kind = "care"
+    chatty._on_spoke_up(chatty.brain.speak_first("提醒你动一动"))
+    assert chatty.attention.spoken_today == 0
+    assert chatty.care.last_reminded is not None
+
+
+def test_care_reminder_shows_on_the_chat_line(chatty):
+    """提醒也是它主动开口，所以走同一条显示路径（你那一侧同样是空的）。"""
+    chatty.my_line = "我说过的话"
+    chatty._speak_kind = "care"
+    chatty._on_spoke_up(chatty.brain.speak_first("提醒你动一动"))
+    assert chatty.my_line == ""
+    assert chatty.sammy_line == "我自己想说话"
+
+
+def test_snooze_from_the_menu_is_reachable(chatty):
+    """「推后」必须有真能点到的地方 —— 否则被催烦了只能卸载。"""
+    import time
+
+    from sammy.care import SNOOZE_MINUTES
+
+    chatty.snooze_care()
+    assert chatty.care.snooze_until is not None, "推后没生效"
+    assert chatty.care.snooze_until > time.time() + (SNOOZE_MINUTES - 1) * 60
+    assert not chatty.care.due().ok, "推后之后不该还在催"
+    assert "推后" in chatty.status or "半小时" in chatty.status
 
 
 # ── 对话接线 ──────────────────────────────────────

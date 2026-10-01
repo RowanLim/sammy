@@ -31,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--attention", action="store_true", help="看它此刻会不会先开口、卡在哪一条闸门"
     )
+    parser.add_argument("--care", action="store_true", help="看休息提醒的计时状态")
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -48,6 +49,26 @@ def main(argv: list[str] | None = None) -> int:
         d = Drives.load().tick()
         print(json.dumps(d.snapshot(), ensure_ascii=False, indent=2))
         print(f"\n它现在的样子：{status_text(d)}")
+        return 0
+
+    if args.care:
+        from .care import ACTIVE_WINDOW_MINUTES, REMIND_AFTER_MINUTES, SNOOZE_MINUTES, Care
+
+        c = Care.load()
+        gate = c.due()
+        print(f"你已经连续坐了：{c.session_minutes():.0f} 分钟")
+        if c.snooze_until:
+            import time as _t
+
+            print(
+                f"（你推后过，到 {_t.strftime('%H:%M', _t.localtime(c.snooze_until))} 为止不打扰）"
+            )
+        print(f"现在该不该提醒你：{'该' if gate.ok else '不该'}")
+        print(f"  理由：{gate.reason}")
+        print(
+            f"\n参数：连续 {REMIND_AFTER_MINUTES} 分钟提醒 / "
+            f"离开 {ACTIVE_WINDOW_MINUTES} 分钟算走开、重新计时 / 可推后 {SNOOZE_MINUTES} 分钟"
+        )
         return 0
 
     if args.attention:

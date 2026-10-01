@@ -36,6 +36,18 @@ MIN_WANT = 0.55  # want_to_talk 的门槛（见 drives.py）
 STATE_FILE = ensure_app_support() / "attention.json"
 
 
+def in_quiet_hours(now: float) -> bool:
+    """现在是不是免打扰时段（23:00–08:00，跨午夜）。
+
+    提到模块级是为了让**休息提醒也能用同一份定义** ——
+    两边各写一遍「什么算深夜」，早晚会不一致，而且不一致的时候没人会发现。
+    """
+    hour = int(time.strftime("%H", time.localtime(now)))
+    if QUIET_START <= QUIET_END:
+        return QUIET_START <= hour < QUIET_END
+    return hour >= QUIET_START or hour < QUIET_END
+
+
 @dataclass(frozen=True)
 class Gate:
     """一次判断的结果。`reason` 是给调参用的，不是给用户看的。"""
@@ -74,7 +86,6 @@ class Attention:
 
         if self._in_quiet_hours(now):
             return Gate(False, f"免打扰时段（{QUIET_START}:00–{QUIET_END}:00）")
-
         if started_at is not None:
             since_start = (now - started_at) / 60.0
             if since_start < STARTUP_GRACE_MINUTES:
@@ -121,11 +132,7 @@ class Attention:
 
     @staticmethod
     def _in_quiet_hours(now: float) -> bool:
-        hour = int(time.strftime("%H", time.localtime(now)))
-        if QUIET_START <= QUIET_END:
-            return QUIET_START <= hour < QUIET_END
-        # 跨午夜：23 点到次日 8 点
-        return hour >= QUIET_START or hour < QUIET_END
+        return in_quiet_hours(now)
 
     def _today(self, now: float) -> str:
         return time.strftime("%Y-%m-%d", time.localtime(now))

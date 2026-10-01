@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 from . import faces
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
+from .care import Care, care_prompt
 from .drives import Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
 from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
@@ -69,6 +70,7 @@ class SammyWindow(QWidget):
         memory: Memory | None = None,
         drives: Drives | None = None,
         attention: Attention | None = None,
+        care: Care | None = None,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -125,6 +127,11 @@ class SammyWindow(QWidget):
             else (Attention.load() if autoconnect else Attention())
         )
         self.last_gate = None
+        self._speak_kind = "chat"
+
+        # 休息提醒（可注入）：盯的是"你坐太久了"，和"它想不想聊"是两回事
+        self.care = care if care is not None else (Care.load() if autoconnect else Care())
+        self.last_care_gate = None
 
         # 输入框
         self.input = QLineEdit(self)
@@ -179,6 +186,7 @@ class SammyWindow(QWidget):
             return
         self.idle_seconds = 0
         self.drives.on_interaction()
+        self.care.note_activity()
         self._last_interaction_at = time.time()
         self._idle_face = None
         self.set_expression(random.choice(POKE_FACES))
@@ -194,6 +202,7 @@ class SammyWindow(QWidget):
         self.input.clear()
         self.idle_seconds = 0
         self.drives.on_interaction(greeted=True)
+        self.care.note_activity()
         self._last_interaction_at = time.time()
         self._idle_face = None
         self.my_line = text
@@ -320,6 +329,7 @@ class SammyWindow(QWidget):
         """退出前把状态存下来：否则重启就"满血复活"，人设是断的。"""
         self._save_drives()
         self._save_attention()
+        self._save_care()
         super().closeEvent(event)
 
     # ── 主动心跳（它先开口） ─────────────────────────
@@ -332,6 +342,15 @@ class SammyWindow(QWidget):
         """
         if self.thinking or self.brain is None or self._drag is not None:
             return
+
+        # ① 先看"你坐太久了没" —— 关心你的身体，比它想找人聊更要紧
+        care_gate = self.care.due()
+        self.last_care_gate = care_gate
+        if care_gate.ok:
+            self._start_speaking(care_prompt(self.care.session_minutes()), kind="care")
+            return
+
+        # ② 再看"它自己想不想说话"
         silent = (
             (time.time() - self._last_interaction_at) / 60.0
             if self._last_interaction_at
@@ -346,19 +365,30 @@ class SammyWindow(QWidget):
         if not gate.ok:
             return
 
-        self.thinking = True
-        self.status = "想跟你说句话…"
-        self.set_expression(32)  # 期待脸
-        self.update()
-        threading.Thread(target=self._speak_up, daemon=True).start()
-
-    def _speak_up(self) -> None:
-        try:
-            instruction = open_prompt(
+        self._start_speaking(
+            open_prompt(
                 want_to_talk=self.drives.want_to_talk,
                 closeness=self.drives.closeness,
                 boredom=self.drives.boredom,
-            )
+            ),
+            kind="chat",
+        )
+
+    def _start_speaking(self, instruction: str, kind: str) -> None:
+        """两种主动开口共用这条出口 —— 表情和状态文字按类型区分，机制只有一套。"""
+        self.thinking = True
+        self._speak_kind = kind
+        if kind == "care":
+            self.status = "该提醒你动一动了…"
+            self.set_expression(5)  # 疑惑脸：它是在打量你
+        else:
+            self.status = "想跟你说句话…"
+            self.set_expression(32)  # 期待脸
+        self.update()
+        threading.Thread(target=self._speak_up, args=(instruction,), daemon=True).start()
+
+    def _speak_up(self, instruction: str) -> None:
+        try:
             ctx = self.memory.context_block() if self.memory else ""
             result = self.brain.speak_first(instruction, ctx)
         except Exception as e:
@@ -372,10 +402,15 @@ class SammyWindow(QWidget):
         self.my_line = ""
         self.sammy_line = result.get("reply", "……")
         self.set_expression(result.get("expression", 2))
-        self.status = f"它自己开口了 · {result.get('latency', 0):.1f}s"
         # 真开口了才记账 —— 判断通过但生成失败，不该消耗今天的机会
-        self.attention.note_spoke()
-        self._save_attention()
+        if getattr(self, "_speak_kind", "chat") == "care":
+            self.status = f"提醒你动一动了 · {result.get('latency', 0):.1f}s"
+            self.care.note_reminded()
+            self._save_care()
+        else:
+            self.status = f"它自己开口了 · {result.get('latency', 0):.1f}s"
+            self.attention.note_spoke()
+            self._save_attention()
         self._idle_face = None
         self.update()
 
@@ -384,6 +419,27 @@ class SammyWindow(QWidget):
             self.attention.save()
         except OSError as e:
             print(f"  ⚠️ 心跳状态存不下来: {e}")
+
+    def _save_care(self) -> None:
+        try:
+            self.care.save()
+        except OSError as e:
+            print(f"  ⚠️ 休息计时存不下来: {e}")
+
+    def snooze_care(self) -> None:
+        """推后休息提醒（右键菜单里）。
+
+        这条路径必须有：**被硬催着起来的提醒，用户第一件事就是把它卸载掉。**
+        给一个"现在别烦我"的出口，比把提醒做得更"聪明"有用得多。
+        """
+        self.care.snooze()
+        self._save_care()
+        self.my_line = ""
+        self.sammy_line = "行，那再过半小时。"
+        self.status = "好，再过半小时提醒你"
+        self.set_expression(8)  # 眨眼：懂你
+        self._idle_face = None
+        self.update()
 
     # ── 夜里整理（Sammy 睡着的时候干活） ────────────
 
@@ -490,6 +546,8 @@ class SammyWindow(QWidget):
         elif event.button() == Qt.RightButton:
             menu = QMenu(self)
             menu.addAction("戳一下", self.poke)
+            # 「推后」必须有真能点到的地方 —— 被硬催着起来的提醒，用户第一件事就是卸载它
+            menu.addAction("让我再坐会儿（推后 30 分钟）", self.snooze_care)
             menu.addAction("退出 Sammy", QApplication.quit)
             menu.exec(event.globalPosition().toPoint())
 
