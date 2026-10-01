@@ -4,17 +4,21 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory
+.PHONY: help check check-live fmt backup app run models memory set-key
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
 	@echo "make models     看各档位模型配置状态"
 	@echo "make memory     看 Sammy 记得什么"
+	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
 	@echo "make check      本地跑一遍 CI 会跑的全部检查"
 	@echo "make check-live 联网验收（要凭证，慢）"
 	@echo "make fmt        格式化 + 自动修"
 	@echo "make backup     立即备份（git bundle + 记忆库）并推远程"
 	@echo "make app        打包成 .app（P0-4，还没做）"
+
+set-key:
+	$(VENV) scripts/set_key.py --verify
 
 run:
 	./run.sh
