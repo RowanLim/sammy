@@ -23,6 +23,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+
+from sammy.paths import env_file
+
 PY = str(ROOT / ".venv" / "bin" / "python")
 
 # 客服腔 / 破人设的标志词。命中说明它退化成了通用助手，而不是 Sammy。
@@ -63,6 +66,11 @@ def _valence(emotion: str) -> str:
         return "negative"
     return "neutral"
 
+
+# 按 Rowan 的决定推迟的项：**不算失败，也不算通过** —— 如实标「未测」。
+# 为什么单独一档：把推迟项算成失败，会让整份验收看起来一塌糊涂；
+# 算成通过，那就是撒谎。**未测就是未测。**
+DEFERRED = {"稳定性"}
 
 results: list[tuple[str, bool, str]] = []
 
@@ -193,19 +201,51 @@ def check_offline_graceful() -> None:
 
 
 def check_app_bundle() -> None:
-    """双击图标 → 窗口出现 → 能对话，全程无终端。"""
+    """双击图标 → 窗口出现 → 能对话，全程无终端。
+
+    ⚠️ 只检查"文件存在"不算验收 —— 那是第一版的写法。
+    真启动一次，看窗口进程能不能活下来（事件循环在跑 = 窗口是开着的）。
+    """
     app = ROOT / "dist" / "Sammy.app"
     if not app.exists():
-        record("P0-4 双击即用", False, f"还没打包：{app} 不存在")
+        record("P0-4 双击即用", False, f"还没打包：{app} 不存在（跑 make app）")
         return
-    exe = app / "Contents" / "MacOS"
-    binaries = list(exe.iterdir()) if exe.exists() else []
-    record(
-        "P0-4 双击即用",
-        bool(binaries),
-        f"{app.relative_to(ROOT)} 存在，可执行文件 {[b.name for b in binaries]}"
-        f"（体积 {sum(f.stat().st_size for f in app.rglob('*') if f.is_file()) / 1e6:.0f} MB）",
+    exe_dir = app / "Contents" / "MacOS"
+    binaries = list(exe_dir.iterdir()) if exe_dir.exists() else []
+    if not binaries:
+        record("P0-4 双击即用", False, f"{app} 里没有可执行文件")
+        return
+    binary = binaries[0]
+
+    # ① 包内不能有凭证
+    leaked = [str(f.relative_to(app)) for f in app.rglob("*") if f.is_file() and f.name == ".env"]
+
+    # ② 真启动（不带参数 = 双击的行为）
+    proc = subprocess.Popen(
+        [str(binary)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
+    time.sleep(10)
+    alive = proc.poll() is None
+    output = ""
+    if alive:
+        proc.terminate()
+        try:
+            output, _ = proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    else:
+        output = proc.stdout.read() if proc.stdout else ""
+
+    size_mb = sum(f.stat().st_size for f in app.rglob("*") if f.is_file()) / 1e6
+    ok = alive and not leaked
+    detail = (
+        f"{app.relative_to(ROOT)}（{size_mb:.0f} MB）；"
+        f"启动 10 秒后窗口进程{'仍活着' if alive else '**已经退出**'}；"
+        f"包内凭证 {'无' if not leaked else f'有 {leaked} ← 事故'}"
+    )
+    if not alive:
+        detail += f"；输出尾部：{output.strip()[-200:]}"
+    record("P0-4 双击即用", ok, detail)
 
 
 # ── P0-5 记忆 ─────────────────────────────────────
@@ -262,16 +302,24 @@ def check_soak(minutes: float = 0.0) -> None:
 
 
 def check_expression_end_to_end() -> None:
-    """说开心的事→笑脸，难过→安慰表情。"""
+    """说开心的事→笑脸，难过→**安慰表情**。
+
+    ⚠️ 判据第一版只断言"两个表情不相等"，于是「难过 → 表情 2（无表情）」
+    也判成通过。**太松的检查比没有检查更糟：它会让你以为这块验过了。**
+    现在明确要求：难过必须落到一个"心疼/安慰"类的表情上。
+    """
     b = brain()
     happy = b.chat("我今天特别开心，刚拿到一个大订单！")
     sad = b.chat("说实话我今天很难过，被朋友误会了。")
-    ok = happy["expression"] != sad["expression"] and happy["expression"] in range(1, 36)
+    # 安慰类：难过 / 委屈 / 心疼（歪头看着你那种）
+    COMFORTING = {"sad", "wronged", "love", "shy"}
+    comforting = sad.get("emotion") in COMFORTING
     record(
         "P0-3 表情跟着变",
-        ok,
+        happy["emotion"] != "normal" and comforting,
         f"开心 → 表情 {happy['expression']}（{happy['emotion']}）；"
-        f"难过 → 表情 {sad['expression']}（{sad['emotion']}）",
+        f"难过 → 表情 {sad['expression']}（{sad['emotion']}）"
+        f"{'' if comforting else ' ← 这里没给出安慰表情，是**真缺陷**，别当成通过'}",
     )
 
 
@@ -292,15 +340,20 @@ def main() -> int:
     ap.add_argument("--only", default="", help="只跑名字里含这段文字的检查")
     args = ap.parse_args()
 
-    if not (ROOT / ".env").exists():
-        print("⚠️  没有 .env —— 联网相关检查会全挂")
+    if not env_file().exists():
+        print(f"⚠️  没有配置文件（{env_file()}）—— 联网相关检查会全挂")
 
     print("=" * 66)
     print("Sammy · M1 验收（PRD §7 的 P0 逐条）")
     print("=" * 66, "\n")
 
+    skipped: list[str] = []
     for name, fn in CHECKS.items():
         if args.only and args.only not in name:
+            continue
+        if name in DEFERRED and not os.environ.get("SAMMY_RUN_DEFERRED"):
+            print(f"⏸ {name}：按你的决定推迟（先完善功能，等做完再压测）\n")
+            skipped.append(name)
             continue
         try:
             fn()
@@ -309,9 +362,12 @@ def main() -> int:
 
     passed = sum(1 for _, ok, _ in results if ok)
     print("=" * 66)
-    print(f"结果：{passed}/{len(results)} 条通过")
+    tail = f"，{len(skipped)} 项推迟（{'、'.join(skipped)}）" if skipped else ""
+    print(f"结果：{passed}/{len(results)} 条通过{tail}")
     for name, ok, _ in results:
         print(f"  {'✅' if ok else '❌'} {name}")
+    for name in skipped:
+        print(f"  ⏸ {name}（推迟）")
     print("=" * 66)
     return 0 if passed == len(results) else 1
 
