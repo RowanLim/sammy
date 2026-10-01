@@ -45,4 +45,29 @@ if (cd "$PROJECT" && git remote get-url origin >/dev/null 2>&1); then
     fi
 fi
 
+# ── 记忆库推一份到 Nex（异地副本，Rowan 批准）─────────────
+# 为什么必须推：记忆库是**不可再生的**（聊天一天天累积出来的），
+# 而按隔离要求，备份和源现在在**同一块盘**上 —— 这块盘坏了就永远没了。
+#
+# 推的是 backup.py 用 SQLite backup API 取的**一致性快照**，不是直接拷正在写的库
+# （直接拷可能拷到半个事务）。
+#
+# 明确不推 .env：凭证不该再复制到第三处；key 丢了去 DeepSeek 后台重建即可。
+NEX="rowan@192.168.110.177"
+NEX_DIR="sammy-memory"
+SNAP="$DEST/$(date '+%Y-%m-%d')/sammy-memory.db"
+if [ -f "$SNAP" ]; then
+    if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+            "$NEX" "mkdir -p ~/$NEX_DIR" 2>/dev/null \
+        && scp -q -o BatchMode=yes -o ConnectTimeout=20 \
+            "$SNAP" "$NEX:~/$NEX_DIR/sammy-$(date '+%Y-%m-%d').db" 2>/dev/null; then
+        echo "$stamp  memory -> nex ($NEX_DIR/sammy-$(date '+%Y-%m-%d').db)" >> "$LOG"
+        # 留 30 天滚动
+        ssh -o BatchMode=yes -o ConnectTimeout=10 "$NEX" \
+            "find ~/$NEX_DIR -name 'sammy-*.db' -mtime +30 -delete" 2>/dev/null || true
+    else
+        echo "$stamp  memory 推送失败（Nex 离线？）—— 本地备份不受影响" >> "$LOG"
+    fi
+fi
+
 exit 0
