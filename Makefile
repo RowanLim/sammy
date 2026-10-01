@@ -4,11 +4,12 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key
+.PHONY: help check check-live fmt backup app run models memory set-key drives
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
 	@echo "make models     看各档位模型配置状态"
+	@echo "make drives     看它此刻的驱力（精力/无聊/亲近）"
 	@echo "make memory     看 Sammy 记得什么"
 	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
 	@echo "make check      本地跑一遍 CI 会跑的全部检查"

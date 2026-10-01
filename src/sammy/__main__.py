@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--memory", action="store_true", help="看看 Sammy 记得什么")
     parser.add_argument("--models", action="store_true", help="看各档位模型配置状态")
+    parser.add_argument("--drives", action="store_true", help="看它此刻的驱力（精力/无聊/亲近）")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
     args = parser.parse_args(argv)
@@ -35,6 +36,14 @@ def main(argv: list[str] | None = None) -> int:
         from .models import describe_all
 
         print(describe_all())
+        return 0
+
+    if args.drives:
+        from .drives import Drives, status_text
+
+        d = Drives.load().tick()
+        print(json.dumps(d.snapshot(), ensure_ascii=False, indent=2))
+        print(f"\n它现在的样子：{status_text(d)}")
         return 0
 
     if args.memory:

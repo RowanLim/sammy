@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import random
 import threading
+import time
 
 from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
 from . import faces
 from .brain import SammyBrain
+from .drives import Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
 from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
 
@@ -63,6 +65,7 @@ class SammyWindow(QWidget):
         self,
         brain: SammyBrain | None = None,
         memory: Memory | None = None,
+        drives: Drives | None = None,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -103,6 +106,13 @@ class SammyWindow(QWidget):
                 self.memory = Memory()
             except Exception as e:
                 print(f"  ⚠️ 记忆打不开（不影响对话）: {e}")
+
+        # 驱力（可注入）：精力 / 无聊 / 亲近，随时间漂移
+        # autoconnect=False 时不读也不写真实的状态文件（测试不该碰用户的数据）
+        self.drives = drives if drives is not None else (Drives.load() if autoconnect else Drives())
+        self._idle_face: int | None = None
+        self._last_interaction_at = 0.0
+        self._save_ticks = 0
 
         # 输入框
         self.input = QLineEdit(self)
@@ -150,6 +160,9 @@ class SammyWindow(QWidget):
         if self.thinking:
             return
         self.idle_seconds = 0
+        self.drives.on_interaction()
+        self._last_interaction_at = time.time()
+        self._idle_face = None
         self.set_expression(random.choice(POKE_FACES))
         self.sammy_line = random.choice(POKE_QUIPS)
         self.my_line = ""
@@ -162,6 +175,9 @@ class SammyWindow(QWidget):
             return
         self.input.clear()
         self.idle_seconds = 0
+        self.drives.on_interaction(greeted=True)
+        self._last_interaction_at = time.time()
+        self._idle_face = None
         self.my_line = text
 
         if self.brain is None:
@@ -249,13 +265,43 @@ class SammyWindow(QWidget):
         if self.thinking:
             return
         self.idle_seconds += 1
-        if self.idle_seconds == 120:
-            self.set_expression(27)  # 犯困
-        elif self.idle_seconds == 300:
-            self.set_expression(1)  # 睡着
-            self.status = "睡着了"
-        if self.idle_seconds in (120, 300):
-            self.update()
+        self.drives.tick()
+        self._refresh_idle_look()
+
+        # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
+        self._save_ticks += 1
+        if self._save_ticks >= 60:
+            self._save_ticks = 0
+            self._save_drives()
+
+    def _refresh_idle_look(self) -> None:
+        """按驱力决定表情和状态文字。
+
+        两道闸门都是为了**别抢戏**：
+        1. 只在"心境"真的变了时才动手 —— 否则每秒重设一次，会盖掉刚回复完的表情
+        2. 刚交互完的 5 秒内不动 —— 用户刚说完话，脸上不该立刻变回"无聊"
+        """
+        if time.time() - self._last_interaction_at < 5:
+            return
+        face = self.drives.expression()
+        if face == self._idle_face:
+            return
+        self._idle_face = face
+        self.set_expression(face)
+        if self.status_ok:
+            # 大脑没接通时保留那行错误提示，别用"在线"把它盖掉
+            self.status = status_text(self.drives)
+
+    def _save_drives(self) -> None:
+        try:
+            self.drives.save()
+        except OSError as e:
+            print(f"  ⚠️ 状态存不下来: {e}")
+
+    def closeEvent(self, event) -> None:
+        """退出前把状态存下来：否则重启就"满血复活"，人设是断的。"""
+        self._save_drives()
+        super().closeEvent(event)
 
     # ── 夜里整理（Sammy 睡着的时候干活） ────────────
 

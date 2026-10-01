@@ -5,6 +5,7 @@
 
 import pytest
 
+from sammy.expressions import EMOTIONS
 from sammy.pet import POKE_FACES, POKE_QUIPS, SammyWindow
 
 pytestmark = pytest.mark.usefixtures("qapp")
@@ -117,20 +118,56 @@ def test_poke_is_ignored_while_thinking(win):
     assert win.expression == 16
 
 
-# ── 空闲行为 ──────────────────────────────────────
+# ── 空闲行为（归驱力系统管，不再是硬编码定时器）──────
 
 
-def test_idle_progression_to_sleepy(win):
-    win.idle_seconds = 119
+def test_idle_when_tired_shows_sleepy_face(win):
+    win.drives.energy = 0.2
     win._tick()
-    assert win.expression == 27, "无交互 120 秒该犯困"
+    assert win.expression == EMOTIONS["sleepy"]
+    assert win.status == "有点困了"
 
 
-def test_idle_progression_to_sleep(win):
-    win.idle_seconds = 299
+def test_idle_when_exhausted_falls_asleep(win):
+    win.drives.energy = 0.05
     win._tick()
-    assert win.expression == 1
+    assert win.expression == EMOTIONS["sleep"]
     assert win.status == "睡着了"
+
+
+def test_idle_boredom_shows_on_its_face(win):
+    """无聊和犯困必须长得不一样 —— 否则"驱力系统"等于只做了一条。"""
+    win.drives.boredom = 0.8
+    win._tick()
+    bored = win.expression
+    assert bored == EMOTIONS["bored"]
+
+    win.drives.boredom = 0.05
+    win.drives.energy = 0.2
+    win._tick()
+    assert win.expression != bored
+
+
+def test_a_fresh_reply_is_not_stomped_by_the_idle_face(win):
+    """刚交互完的 5 秒内，驱力不该抢戏把表情换掉。"""
+    import time
+
+    win._last_interaction_at = time.time()
+    win.set_expression(EMOTIONS["love"])
+    win.drives.energy = 0.05  # 状态上"该睡了"
+    win._tick()
+    assert win.expression == EMOTIONS["love"], "用户刚说完话，脸不该立刻变"
+
+
+def test_idle_face_is_only_set_when_it_changes(win):
+    """心境没变就不该动手 —— 否则会在别处刚设好表情的一瞬间把它盖掉。"""
+    win.drives.energy = 0.2
+    win._tick()
+    assert win.expression == EMOTIONS["sleepy"]
+
+    win.set_expression(EMOTIONS["love"])  # 假装别处刚改过（比如刚回完话）
+    win._tick()  # 心境没变
+    assert win.expression == EMOTIONS["love"], "心境没变就该让别处的更新留着"
 
 
 def test_idle_does_not_advance_while_thinking(win):
@@ -138,6 +175,26 @@ def test_idle_does_not_advance_while_thinking(win):
     win.idle_seconds = 119
     win._tick()
     assert win.idle_seconds == 119, "思考中不该被当成空闲"
+
+
+# ── 交互会改驱力 ──────────────────────────────────
+
+
+def test_poke_relieves_boredom(win):
+    win.drives.boredom = 0.9
+    win.poke()
+    assert win.drives.boredom < 0.9
+
+
+def test_sending_a_message_counts_as_reaching_out(win):
+    """主动说话比随手戳一下更有分量。"""
+    win.drives.boredom = 0.9
+    win.drives.closeness = 0.3
+    before = win.drives.closeness
+    win.input.setText("在吗")
+    win.send()
+    assert win.drives.closeness > before
+    assert win.drives.boredom < 0.9
 
 
 # ── 对话接线 ──────────────────────────────────────
