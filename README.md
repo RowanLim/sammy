@@ -87,6 +87,22 @@ pre-commit run --all-files  # 手动跑一遍全部钩子
 
 三层测试：**离线单测**（确定性、可断言）→ **联网验收**（PRD 里带数字的标准）→ **真机自检**（`--selftest`，看截图）。
 
+## 版本与备份
+
+| 项 | 位置 |
+|:---|:---|
+| **主仓库** | 外置盘 `/Volumes/Mac mini/Max agent/Sammy` |
+| **远程仓库** | 内网 Gitea `ssh://git@192.168.110.177:2222/rowan/sammy.git`（Web: http://192.168.110.177:3000） |
+| **本地备份** | 内置盘 `~/Backups/Sammy/`（每日 03:00 自动，含 git bundle + 记忆库快照） |
+
+三重保障：**外置盘（工作副本）→ 内网 Gitea（远程）→ 内置盘（每日快照）**。任何一份都能独立恢复。
+
+```bash
+python3 scripts/audit_repo.py     # 全历史凭证审计（pre-push 也会自动跑）
+python3 scripts/backup.py         # 立即本地备份（每日 03:00 自动跑，含记忆库）
+git push origin main --tags       # 手动推远程
+```
+
 ## 铁律
 
 1. **PRD 是唯一事实来源** —— 想加功能，先改 PRD，再写代码。

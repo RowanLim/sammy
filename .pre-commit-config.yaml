@@ -18,9 +18,18 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: no-secrets
-        name: 禁止提交凭证
-        entry: bash -c 'git diff --cached --name-only | grep -qE "^\.env$" && { echo "❌ .env 不能被提交"; exit 1; }; exit 0'
+      # 推送前跑全历史审计 —— 比提交前更严格，因为一旦推出去就泄了
+      - id: audit-repo
+        name: 全历史凭证审计
+        entry: .venv/bin/python scripts/audit_repo.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: staged-secrets
+        name: 扫暂存区有没有凭证
+        entry: .venv/bin/python scripts/check_staged_secrets.py
         language: system
         pass_filenames: false
         always_run: true
