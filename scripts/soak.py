@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import statistics
 import subprocess
@@ -40,6 +41,20 @@ PROMPTS = [
     "帮我算一下 17 乘以 23",
     "你觉得广州的天气怎么样",
 ]
+
+
+def percentile(values: list[float], q: float) -> float:
+    """q 分位（0..1），向下取到实际存在的采样点。
+
+    ⚠️ 别用 `sorted(v)[int(n*q)-1]`：n=2 时它算到 sorted[0]，
+    于是报告里会出现 **p90 比 p50 还小** —— 一眼就不可信的数字，
+    还不如不报。用 ceil 才能保证 p90 ≥ p50。
+    """
+    if not values:
+        return 0.0
+    s = sorted(values)
+    idx = max(0, min(len(s) - 1, math.ceil(q * len(s)) - 1))
+    return s[idx]
 
 
 def rss_mb() -> float:
@@ -87,9 +102,7 @@ def main() -> int:
             rss_first_mb=round(rss_first, 1),
             rss_last_mb=round(rss_mb(), 1),
             latency_p50=round(statistics.median(latencies), 3) if latencies else 0,
-            latency_p90=(
-                round(sorted(latencies)[int(len(latencies) * 0.9) - 1], 3) if latencies else 0
-            ),
+            latency_p90=round(percentile(latencies, 0.9), 3),
             latency_max=round(max(latencies), 3) if latencies else 0,
             last_error=last_error,
             updated_at=time.strftime("%Y-%m-%d %H:%M:%S"),
