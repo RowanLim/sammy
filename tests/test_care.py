@@ -158,11 +158,12 @@ def test_corrupt_state_file_does_not_crash(tmp_path):
     assert Care.load(p) is not None
 
 
-def test_state_file_lives_on_the_internal_disk():
+def test_state_file_lives_inside_the_project():
+    """计时状态在项目文件夹里（Rowan 的隔离要求）—— 完整检查见 test_isolation.py。"""
     from sammy import care
+    from sammy.paths import project_root
 
-    assert "Application Support/Sammy" in str(care.STATE_FILE)
-    assert not str(care.STATE_FILE).startswith("/Volumes")
+    assert str(care.STATE_FILE).startswith(str(project_root()))
 
 
 def test_quiet_hours_definition_is_shared_not_duplicated():

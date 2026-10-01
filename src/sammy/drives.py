@@ -22,8 +22,11 @@ import time
 from dataclasses import asdict, dataclass, field
 
 from .expressions import EMOTIONS
+from .paths import data_dir
 
-APP_DIR = pathlib.Path.home() / "Library" / "Application Support" / "Sammy"
+# 数据全部在 <项目>/data/ 里 —— Rowan 的隔离要求（见 paths.py）。
+# 不在 ~/Library 里建东西：删掉项目文件夹 = 这个项目在你机器上彻底消失。
+APP_DIR = data_dir()
 STATE_FILE = APP_DIR / "drives.json"
 
 # 漂移速率（每小时）。数字本身不需要精确 —— 需要的是**方向对、量级合理**，

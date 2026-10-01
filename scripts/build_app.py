@@ -5,7 +5,7 @@
 
 1. **绝不把 `.env` 打进包。** 那等于把凭证复制到每一个副本里，
    而且 .app 是只读的，用户永远改不了。打包后的应用从
-   `~/Library/Application Support/Sammy/.env` 读配置（见 src/sammy/paths.py）。
+   `<项目>/data/.env` 读配置（见 src/sammy/paths.py）—— 数据在项目里，但不在包里。
 2. **表情素材必须 `--add-data` 进去。** 忘了这一步，程序能起、界面是白的 ——
    最容易被忽略的失败方式。
 3. **打完真的验一遍**：跑包内二进制的 `--models` 和 `--snapshot`，
@@ -139,8 +139,8 @@ def main() -> int:
     print("\n" + "=" * 60)
     print(f"完成：{APP}")
     print("双击即开，全程不需要终端。")
-    print("首次使用记得配凭证（打包版读的是这个文件）：")
-    print("  ~/Library/Application Support/Sammy/.env")
+    print("首次使用记得配凭证（就在项目里的这个文件）：")
+    print("  ./data/.env")
     print("=" * 60)
     return 0
 

@@ -266,10 +266,11 @@ def test_status_text_never_contradicts_the_face():
             )
 
 
-def test_default_state_file_is_under_application_support():
-    """状态在**内置盘**，不在外置盘 —— 拔盘时 Sammy 的记忆和状态不能丢。"""
-    assert "Application Support/Sammy" in str(drives.STATE_FILE)
-    assert not str(drives.STATE_FILE).startswith("/Volumes")
+def test_default_state_file_is_inside_the_project():
+    """状态在项目文件夹里（Rowan 的隔离要求）—— 完整的隔离检查见 test_isolation.py。"""
+    from sammy.paths import project_root
+
+    assert str(drives.STATE_FILE).startswith(str(project_root()))
 
 
 def test_fast_forward_refuses_two_modes_at_once():

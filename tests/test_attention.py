@@ -177,10 +177,11 @@ def test_corrupt_state_file_does_not_crash(tmp_path):
     assert Attention.load(p) is not None
 
 
-def test_state_file_lives_on_the_internal_disk():
-    """状态在**内置盘**：拔掉外置盘不该让它忘了"今天已经烦过你几次"。"""
-    assert "Application Support/Sammy" in str(attention.STATE_FILE)
-    assert not str(attention.STATE_FILE).startswith("/Volumes")
+def test_state_file_lives_inside_the_project():
+    """状态在项目文件夹里（Rowan 的隔离要求）—— 完整检查见 test_isolation.py。"""
+    from sammy.paths import project_root
+
+    assert str(attention.STATE_FILE).startswith(str(project_root()))
 
 
 # ── 说什么 ────────────────────────────────────────

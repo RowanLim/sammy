@@ -22,7 +22,10 @@ import sqlite3
 import time
 from datetime import date, datetime, timedelta
 
-APP_DIR = pathlib.Path.home() / "Library" / "Application Support" / "Sammy"
+from .paths import data_dir
+
+# 记忆库在 <项目>/data/ 里 —— Rowan 的隔离要求（见 paths.py）
+APP_DIR = data_dir()
 DB_FILE = APP_DIR / "sammy.db"
 
 SCHEMA = """

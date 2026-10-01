@@ -32,6 +32,8 @@ def main(argv: list[str] | None = None) -> int:
         "--attention", action="store_true", help="看它此刻会不会先开口、卡在哪一条闸门"
     )
     parser.add_argument("--care", action="store_true", help="看休息提醒的计时状态")
+    parser.add_argument("--say", metavar="TEXT", help="试听：把文本洗一遍再念出来")
+    parser.add_argument("--voice-name", help="配合 --say 指定声音（默认 Tingting）")
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -49,6 +51,21 @@ def main(argv: list[str] | None = None) -> int:
         d = Drives.load().tick()
         print(json.dumps(d.snapshot(), ensure_ascii=False, indent=2))
         print(f"\n它现在的样子：{status_text(d)}")
+        return 0
+
+    if args.say:
+        from .voice import DEFAULT_VOICE, MacSayBackend, prepare_speech
+
+        cleaned = prepare_speech(args.say)
+        print(f"原话：{args.say!r}")
+        print(f"念出来：{cleaned!r}")
+        if not cleaned:
+            print("（洗完之后没剩下能念的内容）")
+            return 0
+        backend = MacSayBackend(voice=args.voice_name or DEFAULT_VOICE)
+        print(f"声音：{backend.voice}")
+        backend.speak(cleaned)
+        print("念完了")
         return 0
 
     if args.care:

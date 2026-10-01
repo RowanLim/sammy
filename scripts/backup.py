@@ -24,8 +24,12 @@ from datetime import datetime
 
 PROJECT = pathlib.Path("/Volumes/Mac mini/Max agent/Sammy")
 OLD_PROJECT = pathlib.Path("/Volumes/Mac mini/Sammy")
-APP_DB = pathlib.Path.home() / "Library" / "Application Support" / "Sammy" / "sammy.db"
-DEST_ROOT = pathlib.Path.home() / "Backups" / "Sammy"
+APP_DB = PROJECT / "data" / "sammy.db"
+
+# 备份也放项目里（Rowan 的隔离要求：一切都在项目文件夹里）。
+# ⚠️ 代价必须写在这儿，免得以后忘了：备份和源现在在**同一块盘**上，
+#    这块盘坏了就两个都没了。唯一的异地副本是 Nex 上的 Gitea（**只有代码，没有记忆库**）。
+DEST_ROOT = PROJECT / "backups"
 
 EXCLUDE_DIRS = {"myenv", "node_modules", "__pycache__", ".venv", ".git"}
 EXCLUDE_NAMES = {".DS_Store", ".Spotlight-V100", ".fseventsd", ".Trashes", ".TemporaryItems"}
@@ -189,15 +193,17 @@ def main() -> int:
 
 ```bash
 # 恢复新仓库（完整历史）
-git clone ~/Backups/Sammy/{stamp}/Sammy.bundle Sammy-restored
+git clone <项目>/backups/{stamp}/Sammy.bundle Sammy-restored
 
 # 恢复旧项目
-mkdir -p /tmp/old-sammy && tar -xzf ~/Backups/Sammy/{stamp}/old-Sammy-code.tar.gz -C /tmp/old-sammy
+mkdir -p /tmp/old-sammy && tar -xzf <项目>/backups/_static/old-Sammy-code.tar.gz -C /tmp/old-sammy
 ```
 
 ## 注意
 
-- 备份在**内置盘** `~/Backups/Sammy/`，与源（外置盘）不同盘，拔盘不影响。
+- 备份在项目里的 `backups/`（外置盘），与项目同盘 —— 这是 Rowan 的隔离要求。
+  ⚠️ **同盘的代价**：这块盘坏了，源和备份一起没。异地副本只有 Nex 上的 Gitea（仅代码）。
+  想把记忆库也放到异地，需要你点头（那要动 Nex）。
 - 恢复后需要重建环境：`uv venv --python 3.11 .venv && uv pip install -r requirements.txt`
 - `.env`（API 凭证）**不在备份里**（已 gitignore），恢复后需重新配置。
 - 校验：`cd <克隆出来的目录> && git log --oneline | head`

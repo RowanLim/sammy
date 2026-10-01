@@ -30,6 +30,15 @@ logs/
 *.sqlite
 __history__/
 
+# ── 这个项目的一切都在项目文件夹里（Rowan 的隔离要求）──
+# data/    记忆库、驱力/心跳/休息状态、.env（凭证）
+# backups/ 本地备份产物
+# .tmp/    临时中间文件
+# 三个都**不进版本库**：里面是私人数据和凭证。
+data/
+backups/
+.tmp/
+
 # ── 测试与覆盖率产物 ──
 .coverage
 .coverage.*

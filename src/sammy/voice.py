@@ -1,0 +1,186 @@
+"""Sammy 的声音 —— 输出这一侧（PRD P1-3）。
+
+只做三件事：把要说的话**洗干净**、交给后端念出去、**绝不阻塞界面**。
+
+为什么"洗干净"要单独写一段逻辑：
+模型给的回复里会带表情符号和动作描写（"（歪头）"、"*笑*"）。
+直接念出来就是"左括号歪头右括号" —— PRD P1-3 明确要求"不念表情符号"。
+但清洗必须**保守**：宁可多念一个括号，也不能把用户真正想听的内容悄悄删掉。
+
+为什么必须异步：
+念一句话要好几秒。同步念的话，界面在这几秒里完全不能动 —— 那不是陪伴，是卡顿。
+
+后端是可换的：现在是 macOS 自带的 `say`（零依赖、离线）。
+将来上树莓派要换成 piper（离线、跨平台）—— 所以这里只依赖一个 `speak()` 接口。
+"""
+
+from __future__ import annotations
+
+import contextlib
+import os
+import queue
+import re
+import subprocess
+import threading
+
+# ── 参数 ──────────────────────────────────────────
+
+DEFAULT_VOICE = os.environ.get("SAMMY_VOICE_NAME", "Tingting")
+DEFAULT_RATE = 175  # 语速（`say` 默认约 180；陪伴场景稍慢一点更自然）
+
+# ── 清洗规则（保守优先）───────────────────────────
+
+# emoji 与各种符号区段
+_EMOJI = re.compile(
+    "["
+    "\U0001f300-\U0001faff"  # 各种表情/图形
+    "\U0001f000-\U0001f2ff"
+    "\u2600-\u27bf"  # 杂项符号
+    "\ufe0f\u200d"  # 变体选择符 / 零宽连接
+    "\U0001f1e6-\U0001f1ff"  # 区域指示符（国旗）
+    "]+"
+)
+
+# 动作描写：*笑* / （歪头）/ (小声) —— 只删**短的**、且不含句读的
+# 为什么要限制长度和标点：长括号里很可能是正经内容（比如"（其实是 3 月 14 号）"），
+# 删掉就是丢信息。宁可多念一个括号。
+_ACTION = re.compile(r"(?:\*[^*\n]{1,8}\*|[*]{1,2}(?=\S)[^*\n]{0,6}(?<=\S)[*]{1,2})")
+_PAREN_ACTION = re.compile(r"[（(][^（）()，。！？；：,.!?;:]{1,6}[）)]")
+
+# markdown 残留
+_MARKDOWN = re.compile(r"(\*\*|__|`|^#{1,6}\s)", re.MULTILINE)
+
+
+def prepare_speech(text: str) -> str:
+    """把回复文本变成"能听懂的话"。**不改变原回复，只用于念出来。**"""
+    if not text:
+        return ""
+    s = str(text)
+    s = _MARKDOWN.sub("", s)
+    s = _ACTION.sub("", s)
+    s = _PAREN_ACTION.sub("", s)
+    s = _EMOJI.sub("", s)
+    # 省略号、破折号会被念成"点点点"之类，换成停顿更自然
+    s = re.sub(r"[…]{2,}", "，", s)
+    s = re.sub(r"[—–]{2,}", "，", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    # 清洗完只剩标点就别念了
+    if not re.search(r"[\w\u4e00-\u9fff]", s):
+        return ""
+    return s
+
+
+# ── 后端 ──────────────────────────────────────────
+
+
+class NullBackend:
+    """不出声的后端 —— 测试用，也给"静音模式"用。"""
+
+    def __init__(self) -> None:
+        self.spoken: list[str] = []
+
+    def speak(self, text: str) -> None:
+        self.spoken.append(text)
+
+
+class MacSayBackend:
+    """macOS 自带的 `say`：零依赖、离线、装了系统就有。"""
+
+    def __init__(self, voice: str = DEFAULT_VOICE, rate: int = DEFAULT_RATE) -> None:
+        self.voice = voice
+        self.rate = rate
+
+    def speak(self, text: str) -> None:
+        subprocess.run(
+            ["say", "-v", self.voice, "-r", str(self.rate), text],
+            check=False,  # 念不出来不该影响对话
+            capture_output=True,
+            timeout=60,
+        )
+
+
+# ── 说话的人 ──────────────────────────────────────
+
+
+class Speaker:
+    """把要念的话排队念掉，**不阻塞调用方**。
+
+    "后说的把还没念的挤掉"：如果你连着发三条，它不该把前两条也慢慢念完 ——
+    那时候你已经聊到别处了。**念过时的回复，比不念还烦。**
+    """
+
+    def __init__(self, backend=None, enabled: bool = True):
+        self.backend = backend if backend is not None else MacSayBackend()
+        self.enabled = enabled
+        self._q: queue.Queue[str | None] = queue.Queue(maxsize=1)
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+        self.last_prepared: str = ""
+
+    def say(self, text: str) -> str:
+        """排一句。立刻返回 —— 界面不该为了等它念完而卡住。
+
+        返回**清洗后**的文本（没启用就返回空串），方便测试和排查。
+        """
+        prepared = prepare_speech(text)
+        self.last_prepared = prepared
+        if not self.enabled or not prepared:
+            return "" if not self.enabled else prepared
+
+        with self._lock:
+            # 挤掉还没念的那句（念过时的回复比不念更烦）
+            with contextlib.suppress(queue.Empty):
+                self._q.get_nowait()
+            with contextlib.suppress(queue.Full):
+                self._q.put_nowait(prepared)
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(target=self._run, daemon=True)
+                self._thread.start()
+        return prepared
+
+    def _run(self) -> None:
+        while True:
+            try:
+                item = self._q.get(timeout=30)
+            except queue.Empty:
+                return
+            if item is None:
+                return
+            try:
+                self.backend.speak(item)
+            except Exception as e:
+                print(f"  ⚠️ 念不出来（不影响对话）: {e}")
+
+    def wait(self, timeout: float = 5.0) -> None:
+        """测试用：等排队的都念完。"""
+        if self._thread is not None:
+            self._thread.join(timeout=timeout)
+
+    def stop(self) -> None:
+        """停下来。
+
+        ⚠️ 必须先腾出位置：队列满的时候，"停止"标记根本塞不进去 ——
+        那就等于停不下来（第一版就是这个毛病，被 ruff 的风格提示顺手撞出来的）。
+        """
+        with self._lock:
+            with contextlib.suppress(queue.Empty):
+                self._q.get_nowait()
+            with contextlib.suppress(queue.Full):
+                self._q.put_nowait(None)
+
+
+def enabled_from_env(env: dict | None = None) -> bool:
+    """`SAMMY_VOICE=off` 可以彻底静音（默认开）。"""
+    env = env if env is not None else os.environ
+    return str(env.get("SAMMY_VOICE", "on")).strip().lower() not in {"off", "0", "false", "no"}
+
+
+__all__ = [
+    "DEFAULT_RATE",
+    "DEFAULT_VOICE",
+    "MacSayBackend",
+    "NullBackend",
+    "Speaker",
+    "enabled_from_env",
+    "prepare_speech",
+]

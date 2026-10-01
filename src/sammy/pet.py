@@ -21,6 +21,7 @@ from .care import Care, care_prompt
 from .drives import Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
 from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
+from .voice import Speaker, enabled_from_env
 
 # ── 配色 ────────────────────────────────────────
 GREEN = QColor("#3ddc5a")
@@ -71,6 +72,7 @@ class SammyWindow(QWidget):
         drives: Drives | None = None,
         attention: Attention | None = None,
         care: Care | None = None,
+        speaker: Speaker | None = None,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -132,6 +134,13 @@ class SammyWindow(QWidget):
         # 休息提醒（可注入）：盯的是"你坐太久了"，和"它想不想聊"是两回事
         self.care = care if care is not None else (Care.load() if autoconnect else Care())
         self.last_care_gate = None
+
+        # 声音（可注入）：测试里注入 NullBackend，不然半夜跑测试会突然有人说话
+        self.speaker = (
+            speaker
+            if speaker is not None
+            else Speaker(enabled=enabled_from_env() if autoconnect else False)
+        )
 
         # 输入框
         self.input = QLineEdit(self)
@@ -275,6 +284,7 @@ class SammyWindow(QWidget):
         self.sammy_line = result.get("reply", "……")
         self.set_expression(result.get("expression", 2))
         self.status = f"在线 · {result.get('latency', 0):.1f}s"
+        self.speaker.say(self.sammy_line)  # 说出来（异步，不挡界面）
         self.status_ok = True
         self.update()
 
@@ -330,6 +340,7 @@ class SammyWindow(QWidget):
         self._save_drives()
         self._save_attention()
         self._save_care()
+        self.speaker.stop()  # 别再念了
         super().closeEvent(event)
 
     # ── 主动心跳（它先开口） ─────────────────────────
@@ -402,7 +413,7 @@ class SammyWindow(QWidget):
         self.my_line = ""
         self.sammy_line = result.get("reply", "……")
         self.set_expression(result.get("expression", 2))
-        # 真开口了才记账 —— 判断通过但生成失败，不该消耗今天的机会
+        self.speaker.say(self.sammy_line)  # 主动开口同样要出声
         if getattr(self, "_speak_kind", "chat") == "care":
             self.status = f"提醒你动一动了 · {result.get('latency', 0):.1f}s"
             self.care.note_reminded()

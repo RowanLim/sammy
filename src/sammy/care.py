@@ -21,7 +21,7 @@ import time
 from dataclasses import asdict, dataclass, field
 
 from .attention import QUIET_END, QUIET_START, Gate, in_quiet_hours
-from .paths import ensure_app_support
+from .paths import data_dir
 
 # ── 参数（调参只改这一段）─────────────────────────
 
@@ -29,7 +29,7 @@ REMIND_AFTER_MINUTES = 40  # 连续用这么久就提醒
 ACTIVE_WINDOW_MINUTES = 10  # 超过这么久没动静 = 你走了，重新计时
 SNOOZE_MINUTES = 30  # 推后多久
 
-STATE_FILE = ensure_app_support() / "care.json"
+STATE_FILE = data_dir() / "care.json"
 
 
 @dataclass

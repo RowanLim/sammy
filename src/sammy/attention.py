@@ -20,7 +20,7 @@ import pathlib
 import time
 from dataclasses import asdict, dataclass, field
 
-from .paths import ensure_app_support
+from .paths import data_dir
 
 # ── 闸门参数（全在这里，调参只改这一段）─────────────
 
@@ -33,7 +33,7 @@ MAX_PER_DAY = 3  # 每天最多主动几次
 STARTUP_GRACE_MINUTES = 5  # 刚启动别急着开口
 MIN_WANT = 0.55  # want_to_talk 的门槛（见 drives.py）
 
-STATE_FILE = ensure_app_support() / "attention.json"
+STATE_FILE = data_dir() / "attention.json"
 
 
 def in_quiet_hours(now: float) -> bool:
