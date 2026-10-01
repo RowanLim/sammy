@@ -10,6 +10,7 @@ help:
 	@echo "make run        跑起来（桌面浮窗）"
 	@echo "make models     看各档位模型配置状态"
 	@echo "make drives     看它此刻的驱力（精力/无聊/亲近）"
+	@echo "make attention  看它此刻会不会先开口、卡在哪一条闸门"
 	@echo "make memory     看 Sammy 记得什么"
 	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
 	@echo "make accept     跑 M1 验收（PRD P0 逐条，出数字）"
@@ -40,6 +41,9 @@ models:
 
 memory:
 	./run.sh --memory
+
+attention:
+	./run.sh --attention
 
 fmt:
 	$(VENV) -m ruff check --fix src tests scripts

@@ -28,6 +28,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--memory", action="store_true", help="看看 Sammy 记得什么")
     parser.add_argument("--models", action="store_true", help="看各档位模型配置状态")
     parser.add_argument("--drives", action="store_true", help="看它此刻的驱力（精力/无聊/亲近）")
+    parser.add_argument(
+        "--attention", action="store_true", help="看它此刻会不会先开口、卡在哪一条闸门"
+    )
+    parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
     args = parser.parse_args(argv)
@@ -44,6 +48,47 @@ def main(argv: list[str] | None = None) -> int:
         d = Drives.load().tick()
         print(json.dumps(d.snapshot(), ensure_ascii=False, indent=2))
         print(f"\n它现在的样子：{status_text(d)}")
+        return 0
+
+    if args.attention:
+        import time
+
+        from .attention import (
+            MAX_PER_DAY,
+            MIN_GAP_MINUTES,
+            MIN_WANT,
+            QUIET_END,
+            QUIET_START,
+            Attention,
+        )
+        from .attention import open_prompt as _op
+        from .drives import Drives, status_text
+
+        d = Drives.load().tick()
+        a = Attention.load()
+        silent = args.silent if args.silent is not None else 9999.0
+        gate = a.decide(want_to_talk=d.want_to_talk, silent_minutes=silent)
+
+        print(f"它现在的样子：{status_text(d)}")
+        print(
+            f"  精力 {d.energy:.2f} / 无聊 {d.boredom:.2f} / 亲近 {d.closeness:.2f}"
+            f" → 想开口 {d.want_to_talk:.2f}"
+        )
+        print(f"\n现在会不会先开口：{'会' if gate.ok else '不会'}")
+        print(f"  理由：{gate.reason}   ← **每次拒绝都能说出理由，才好调参**")
+        last = (
+            "从没开过口"
+            if not a.last_spoke
+            else time.strftime("%m-%d %H:%M", time.localtime(a.last_spoke))
+        )
+        print(f"\n今天额度：已用 {a.spoken_today}/{MAX_PER_DAY}；上次开口：{last}")
+        print(
+            f"闸门参数：免打扰 {QUIET_START}:00–{QUIET_END}:00 / 最小间隔 {MIN_GAP_MINUTES} 分钟"
+            f" / 想开口门槛 {MIN_WANT}"
+        )
+        print(
+            f"\n如果它现在开口，会拿到这个指令：\n  {_op(d.want_to_talk, d.closeness, d.boredom)}"
+        )
         return 0
 
     if args.memory:

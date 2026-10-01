@@ -207,8 +207,7 @@ class SammyBrain:
 
         self.history.append({"role": "user", "content": user_text})
         self.history.append({"role": "assistant", "content": reply})
-        if len(self.history) > self.history_turns * 2:
-            self.history = self.history[-self.history_turns * 2 :]
+        self._trim_history()
 
         return {
             "reply": reply,
@@ -218,7 +217,55 @@ class SammyBrain:
             "tools_used": used,
         }
 
+    def speak_first(self, instruction: str, memory_context: str = "") -> dict:
+        """主动开口 —— **这不是"用户在说话"**。
+
+        为什么必须单独一个入口、不能复用 chat()：
+        复用的话，那句指令会被当成 user 消息写进 history，于是它的记忆里
+        多了一句"用户说过的话" —— 而那句用户根本没说过。下一次对话它会以为
+        是自己被要求才开口的。**它自己说的话，要记成它自己说的。**
+
+        所以：指令只进这一次请求，history 里只落 assistant 那一侧。
+        """
+        started = time.time()
+        messages = [{"role": "system", "content": self._build_system(memory_context)}]
+        messages.extend(self.history)
+        # 指令放在请求末尾当作"触发"，但**不进 history**
+        messages.append({"role": "user", "content": instruction})
+
+        if self.use_tools:
+            raw, used = self._run_tools(messages)
+        else:
+            raw, used = self._post(messages, temperature=0.9), []
+        latency = time.time() - started
+        emotion, reply = self._parse(raw)
+
+        self.history.append({"role": "assistant", "content": reply})
+        self._trim_history()
+
+        return {
+            "reply": reply,
+            "emotion": emotion,
+            "expression": expression_for(emotion),
+            "latency": latency,
+            "tools_used": used,
+            "proactive": True,
+        }
+
     # ── 内部 ────────────────────────────────────────
+
+    def _build_system(self, memory_context: str = "", extra: str = "") -> str:
+        system = SYSTEM_PROMPT.format(emotions=" | ".join(EMOTION_KEYS))
+        if memory_context:
+            system += "\n\n以下是你记得的事，自然地用，别生硬地复述：\n" + memory_context
+        if extra:
+            system += "\n\n" + extra
+        return system
+
+    def _trim_history(self) -> None:
+        """history 只留最近 N 轮 —— 无限长下去每次请求都越来越慢、越来越贵。"""
+        if len(self.history) > self.history_turns * 2:
+            self.history = self.history[-self.history_turns * 2 :]
 
     def _call(
         self,
@@ -226,9 +273,7 @@ class SammyBrain:
         memory_context: str = "",
         on_event: Callable[[str], None] | None = None,
     ) -> tuple[str, list[str]]:
-        system = SYSTEM_PROMPT.format(emotions=" | ".join(EMOTION_KEYS))
-        if memory_context:
-            system += "\n\n以下是你记得的事，自然地用，别生硬地复述：\n" + memory_context
+        system = self._build_system(memory_context)
         messages = [{"role": "system", "content": system}]
         messages.extend(self.history)
         messages.append({"role": "user", "content": user_text})

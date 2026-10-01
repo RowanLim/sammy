@@ -11,12 +11,27 @@ from sammy.pet import POKE_FACES, POKE_QUIPS, SammyWindow
 pytestmark = pytest.mark.usefixtures("qapp")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_state(tmp_path, monkeypatch):
+    """本模块所有测试都不许碰**用户真实的状态文件**（驱力 / 心跳）。
+
+    默认路径在 ~/Library/Application Support/Sammy/ 下 —— 测试一旦写进去，
+    就是拿你的真实数据当实验品。（记忆库那边已经是用 tmp_path 注入的了，
+    驱力和心跳这两处是后加的，容易漏。）
+    """
+    from sammy import attention, drives
+
+    monkeypatch.setattr(attention, "STATE_FILE", tmp_path / "attention.json")
+    monkeypatch.setattr(drives, "STATE_FILE", tmp_path / "drives.json")
+
+
 class FakeBrain:
     """假大脑：记录被问过什么，返回可预测的结果。"""
 
     def __init__(self, fail: bool = False):
         self.fail = fail
         self.calls: list[tuple[str, str]] = []
+        self.spoke: list[tuple[str, str]] = []
         self.extracted: list[tuple[str, str]] = []
 
     def chat(self, text, memory_context="", on_event=None):
@@ -24,6 +39,19 @@ class FakeBrain:
         if self.fail:
             raise RuntimeError("网络炸了")
         return {"reply": "假的回复", "emotion": "happy", "expression": 4, "latency": 0.12}
+
+    def speak_first(self, instruction, memory_context=""):
+        """主动开口 —— 单独记，才能断言"是它自己开的口"而不是"回了谁的话"。"""
+        self.spoke.append((instruction, memory_context))
+        if self.fail:
+            raise RuntimeError("网络炸了")
+        return {
+            "reply": "我自己想说话",
+            "emotion": "expect",
+            "expression": 32,
+            "latency": 0.2,
+            "proactive": True,
+        }
 
     def extract_memories(self, user_text, reply, known_slots):
         self.extracted.append((user_text, reply))
@@ -195,6 +223,85 @@ def test_sending_a_message_counts_as_reaching_out(win):
     win.send()
     assert win.drives.closeness > before
     assert win.drives.boredom < 0.9
+
+
+# ── 主动心跳接线 ──────────────────────────────────
+
+
+@pytest.fixture
+def chatty(win, monkeypatch):
+    """把免打扰时段关掉，让这套测试**与现在几点无关**。
+
+    ⚠️ 不这么做的话，它们白天绿、半夜红 —— 而它们本来要验的是别的东西。
+    时间相关的测试必须自己控制时间，不能依赖"什么时候跑"。
+    """
+    from sammy import attention
+
+    monkeypatch.setattr(attention, "QUIET_START", 0)
+    monkeypatch.setattr(attention, "QUIET_END", 0)  # 0 <= hour < 0 恒假 = 没有免打扰
+    win.brain = FakeBrain()
+    win.drives.boredom = 1.0
+    win.drives.energy = 0.8
+    win.drives.closeness = 0.8
+    win._started_at = 0.0  # 早过了启动宽限
+    win._last_interaction_at = 0.0  # 从没交互过 = 很安静
+    return win
+
+
+def test_speaks_up_when_everything_allows(chatty):
+    """规则引擎必须**真的可能触发** —— 会挑刺的规则很多，会开口的才算功能。"""
+    chatty._heartbeat()
+    assert chatty.thinking, "什么都满足时该进入'想说话'状态"
+    assert chatty.last_gate and chatty.last_gate.ok
+    chatty._speak_up()  # 同步跑，免得等线程
+    assert chatty.brain.spoke, "应该走 speak_first 这条路，而不是 chat()"
+    assert not chatty.brain.calls, "主动开口不该被当成'回了谁的话'"
+
+
+def test_stays_quiet_when_it_does_not_feel_like_talking(chatty):
+    chatty.drives.boredom = 0.0
+    chatty.drives.closeness = 0.9
+    chatty._heartbeat()
+    assert not chatty.thinking, "它自己不想说话时不许说"
+    assert not chatty.last_gate.ok
+    assert "不想说" in chatty.last_gate.reason
+
+
+def test_stays_quiet_right_after_a_chat(chatty):
+    import time
+
+    chatty._last_interaction_at = time.time()
+    chatty._heartbeat()
+    assert not chatty.thinking
+
+
+def test_heartbeat_does_nothing_while_thinking(chatty):
+    chatty.thinking = True
+    chatty._heartbeat()
+    assert not chatty.brain.spoke
+
+
+def test_proactive_line_leaves_your_side_empty(chatty):
+    """它自己开的口，不是回给你的 —— 界面里"你"那一侧该是空的。"""
+    chatty.my_line = "我说过的话"
+    chatty._on_spoke_up(chatty.brain.speak_first("指令"))
+    assert chatty.my_line == ""
+    assert chatty.sammy_line == "我自己想说话"
+    assert chatty.expression == 32
+
+
+def test_speaking_costs_todays_quota(chatty):
+    assert chatty.attention.spoken_today == 0
+    chatty._on_spoke_up(chatty.brain.speak_first("指令"))
+    assert chatty.attention.spoken_today == 1
+
+
+def test_generation_failure_does_not_burn_quota(chatty):
+    """生成失败不该消耗今天的机会 —— 否则网络抖一下，今天就再也不会主动了。"""
+    chatty.brain.fail = True
+    chatty._heartbeat()
+    chatty._speak_up()
+    assert chatty.attention.spoken_today == 0
 
 
 # ── 对话接线 ──────────────────────────────────────

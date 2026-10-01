@@ -15,6 +15,7 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
 from . import faces
+from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .drives import Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
@@ -58,6 +59,7 @@ class Bridge(QObject):
     memoryTouched = Signal(dict)
     consolidated = Signal(dict)
     activity = Signal(str)  # 工具调用时通知界面："正在联网…"
+    spokeUp = Signal(dict)  # 它自己开口了（不是回谁的话）
 
 
 class SammyWindow(QWidget):
@@ -66,6 +68,7 @@ class SammyWindow(QWidget):
         brain: SammyBrain | None = None,
         memory: Memory | None = None,
         drives: Drives | None = None,
+        attention: Attention | None = None,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -113,6 +116,15 @@ class SammyWindow(QWidget):
         self._idle_face: int | None = None
         self._last_interaction_at = 0.0
         self._save_ticks = 0
+        self._started_at = time.time()
+
+        # 主动心跳（可注入）：决定"要不要先开口"。**默认不说话** —— 见 attention.py
+        self.attention = (
+            attention
+            if attention is not None
+            else (Attention.load() if autoconnect else Attention())
+        )
+        self.last_gate = None
 
         # 输入框
         self.input = QLineEdit(self)
@@ -136,11 +148,17 @@ class SammyWindow(QWidget):
         self.bridge.memoryTouched.connect(self._on_memory)
         self.bridge.consolidated.connect(self._on_consolidated)
         self.bridge.activity.connect(self._on_activity)
+        self.bridge.spokeUp.connect(self._on_spoke_up)
 
         # 空闲计时：会犯困、会睡着
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(1000)
+
+        # 主动心跳：每分钟问一次"要不要先开口"（默认不说话，见 attention.py）
+        self.heart = QTimer(self)
+        self.heart.timeout.connect(self._heartbeat)
+        self.heart.start(60 * 1000)
 
         # 「睡了一觉」：启动 8 秒后查一次，之后每半小时查一次
         self.night = QTimer(self)
@@ -301,7 +319,71 @@ class SammyWindow(QWidget):
     def closeEvent(self, event) -> None:
         """退出前把状态存下来：否则重启就"满血复活"，人设是断的。"""
         self._save_drives()
+        self._save_attention()
         super().closeEvent(event)
+
+    # ── 主动心跳（它先开口） ─────────────────────────
+
+    def _heartbeat(self) -> None:
+        """问一次"要不要先开口"。**默认不说话** —— 所有闸门见 attention.py。
+
+        这里刻意不写任何判断逻辑：判断全在 attention.py，因为那里能被单元测试
+        单独验、能单独调参、能单独关掉。混进窗口代码就调不动了。
+        """
+        if self.thinking or self.brain is None or self._drag is not None:
+            return
+        silent = (
+            (time.time() - self._last_interaction_at) / 60.0
+            if self._last_interaction_at
+            else 9999.0  # 从没交互过 = 很安静
+        )
+        gate = self.attention.decide(
+            want_to_talk=self.drives.want_to_talk,
+            silent_minutes=silent,
+            started_at=self._started_at,
+        )
+        self.last_gate = gate  # 留给 --attention 和排查用：**每次拒绝都要能说出理由**
+        if not gate.ok:
+            return
+
+        self.thinking = True
+        self.status = "想跟你说句话…"
+        self.set_expression(32)  # 期待脸
+        self.update()
+        threading.Thread(target=self._speak_up, daemon=True).start()
+
+    def _speak_up(self) -> None:
+        try:
+            instruction = open_prompt(
+                want_to_talk=self.drives.want_to_talk,
+                closeness=self.drives.closeness,
+                boredom=self.drives.boredom,
+            )
+            ctx = self.memory.context_block() if self.memory else ""
+            result = self.brain.speak_first(instruction, ctx)
+        except Exception as e:
+            self.bridge.failed.emit(str(e))
+            return
+        self.bridge.spokeUp.emit(result)
+
+    def _on_spoke_up(self, result: dict) -> None:
+        """它自己开口了 —— 注意你那一侧是**空的**：这句话不是回给谁的。"""
+        self.thinking = False
+        self.my_line = ""
+        self.sammy_line = result.get("reply", "……")
+        self.set_expression(result.get("expression", 2))
+        self.status = f"它自己开口了 · {result.get('latency', 0):.1f}s"
+        # 真开口了才记账 —— 判断通过但生成失败，不该消耗今天的机会
+        self.attention.note_spoke()
+        self._save_attention()
+        self._idle_face = None
+        self.update()
+
+    def _save_attention(self) -> None:
+        try:
+            self.attention.save()
+        except OSError as e:
+            print(f"  ⚠️ 心跳状态存不下来: {e}")
 
     # ── 夜里整理（Sammy 睡着的时候干活） ────────────
 
