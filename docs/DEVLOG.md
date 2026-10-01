@@ -240,6 +240,67 @@ Rowan：「就是个小监视器 我还没插 我打算插Linux上 mac没口了�
 第 5 步是**离屏渲染一张脸**：证明 Qt 装好了、资源读得到，
 不然等屏幕插上去才发现是白屏，就白折腾一趟。
 
+## 2026-10-01 · 真的装到 Linux 上了：两个坑，都是"没插屏就发现"的那种
+
+Rowan 批准：装到 Nex + 把现有 `.env` 复制过去（**他已被告知**那把 key 现在在两台机器上，吊销面变大了 —— 提过一次就够，不再呃嗦）。
+
+### 坑 1：Ubuntu 的 python 没带 ensurepip
+
+```
+The virtual environment was not created successfully because ensurepip is not available.
+apt install python3.12-venv
+```
+
+**不为此要 sudo 装系统包** —— 退回 `--without-pip` + 官方 `get-pip.py`，
+一切落在 `~/sammy/.venv` 里（也符合"别在他机器别处留东西"的约定）。→ pip 26.2.1 ✅
+
+顺带修了我自己脚本里的一个错：**必须钉死 `/usr/bin/python3`**。
+Nex 的 `PATH` 上那个 `python3` 是 **Hermes 自己的 3.11 venv**，拿它建 venv 会建歪，
+而且 pip 装的东西全落进 Hermes 的环境里。
+
+### 坑 2（**这个才是真庆幸提前发现的**）：Qt 6.5+ 在 X11 上要 libxcb-cursor0
+
+离屏渲染一切正常、脸也渲染出来了 —— 然后**开真窗口时直接核心转储**：
+
+```
+qt.qpa.plugin: From 6.5.0, xcb-cursor0 or libxcb-cursor0 is needed to load the Qt xcb platform plugin.
+Could not load the Qt platform plugin "xcb" in "" even though it was found.
+```
+
+**如果等小屏插上才发现，那就是"搬了半天、屏幕亮着黑屏"。**
+
+修法（零 sudo）：`apt-get download libxcb-cursor0` + `dpkg-deb -x` 解到项目自己的
+`vendor/lib/`，`run.sh` 自动把它加进 `LD_LIBRARY_PATH`。删掉 `vendor/` 就回到原状。
+先 `ldd libqxcb.so | grep "not found"` 查清**只缺这一个**（其余 xcb 库都在），补完再验一遍。
+
+→ 教训：**离屏渲染过了 ≠ 真窗口能开**。所以移植脚本的第 5 步现在是两段：
+先离屏渲一张脸，再**开一次真窗口自检** —— 缺原生库这类问题只有后者抓得到。
+
+### 坑 3：`rsync --delete` 会把我刚解出来的 `vendor/` 删掉
+
+重跑脚本时它又说"已解到 vendor/lib"，查出来是 rsync 把目标机上多余的 `vendor/`
+当垃圾删了（`vendor` 是**在目标机生成的**，该像 `.venv` 一样排除）。
+不修的话每跑一次就重下重解一遍。
+
+### 验收（三项，都是从 Mac 这边独立验的）
+
+| 项 | 结果 |
+|:---|:---|
+| 离屏渲染 | `--snapshot` → 25,978 B 的 PNG，**人眼看过**：绿像素脸完整、版式与 Mac 一致 |
+| 无头跑大脑 | `--ask` → 1.62s 回「当然记得，你是 Rowan 啊…」，`emotion=playful`；`--memory` 读到**带过去的 4 槽位 + 1 条日记** |
+| 真实窗口 | `DISPLAY=:1 --selftest` → 可见/无边框/置顶/透明全 True，**截图人眼看过**：渲染干净 |
+| 语音 | `spd-say` 退出码 0，`DBUS_SESSION_BUS_ADDRESS` 正常 → 那台上真能出声 |
+
+**这条也顺带验证了架构约束**：大脑/记忆/工具这些没界面的模块**能在 Linux 上无头跑通**，
+说明它们没有耦合到界面 —— 这正是当初定的"天然验收方式"。
+
+### 一个新发现：Nex 的屏是 **DPR 2.0**
+
+`HDMI-0` 报逻辑 960×540 / 物理 1920×1080。也就是说 GNOME 开了 200% 缩放。
+**这不影响 `screen.fit()` 的正确性**（Qt 的 `geometry()` 给的就是逻辑像素，窗口按逻辑尺寸开、
+系统再乘 DPR 渲染到物理像素）：小屏若报 800×480 逻辑 → 缩放 1.0；
+若报 400×240 逻辑（DPR 2）→ 缩放 0.5、物理仍是 800×480。**两种情况都铺满、都不拉伸。**
+
 ## 2026-10-01 · 小屏模式：把它推到那块屏上
 
 Rowan：「我回头会给你接一个小屏幕，我也要可视化的看到 Sammy。」

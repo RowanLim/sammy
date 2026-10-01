@@ -9,4 +9,17 @@ if [ ! -x ".venv/bin/python" ]; then
 fi
 
 export PYTHONPATH=src
+
+# 项目自带的原生库（vendor/lib）—— 给「系统缺 Qt 要的那几个 .so」兜底。
+# 为什么要有这一层：Ubuntu 精简装缺 libxcb-cursor0 时，Qt 6.5+ 的 xcb 插件直接核心转储
+# （报 Could not load the Qt platform plugin "xcb"），而装系统包要 sudo。
+# 所以把 .so 解到项目自己目录里 —— 零 sudo、删掉 vendor/ 就干净。
+# 只在 Linux 上生效（macOS 用 DYLD_LIBRARY_PATH，而且这目录在 Mac 上本来就不存在）。
+if [ -d vendor/lib ]; then
+    _libs=$(find "$PWD/vendor/lib" -name '*.so*' -printf '%h\n' 2>/dev/null | sort -u | paste -sd:)
+    if [ -n "$_libs" ]; then
+        export LD_LIBRARY_PATH="${_libs}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    fi
+fi
+
 exec .venv/bin/python -m sammy "$@"
