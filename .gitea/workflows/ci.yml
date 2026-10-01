@@ -1,0 +1,52 @@
+# Sammy 的持续集成 —— 每次 push 自动跑同一套检查
+#
+# 说明：Gitea Actions 用的是 GitHub Actions 的语法，所以这份文件也能直接给 GitHub 用。
+# 它需要先在服务器上注册一个 runner 才会真的跑起来（见 docs/开发流程.md）。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ⚠️ 必须是全历史：凭证审计要扫每一个快照。
+          # 浅克隆会让审计"扫了个寂寞" —— 而且它不会报错，只会说通过。
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: 代码检查
+        run: |
+          ruff check src tests scripts
+          ruff format --check src tests scripts
+
+      - name: 离线测试
+        run: python -m pytest -m "not live" -q
+
+      - name: 凭证审计（全历史）
+        run: python scripts/audit_repo.py
+
+      # 联网验收（延迟 / 记住你 / 联网搜索）只在有凭证时才跑。
+      # 凭证放仓库密钥里，不要写进这个文件。
+      - name: 联网验收
+        if: ${{ env.SAMMY_CHAT_API_KEY != '' }}
+        env:
+          SAMMY_CHAT_API_KEY: ${{ secrets.SAMMY_CHAT_API_KEY }}
+          SAMMY_CHAT_BASE_URL: ${{ vars.SAMMY_CHAT_BASE_URL }}
+          SAMMY_CHAT_MODEL: ${{ vars.SAMMY_CHAT_MODEL }}
+        run: python -m pytest -m live -q

@@ -1,0 +1,47 @@
+# Sammy 常用任务 —— make <目标>
+#
+# 原则：**本地检查与 CI 跑同一套命令**，避免"本地过了、CI 挂了"。
+
+VENV := .venv/bin/python
+
+.PHONY: help check check-live fmt backup app run models memory
+
+help:
+	@echo "make run        跑起来（桌面浮窗）"
+	@echo "make models     看各档位模型配置状态"
+	@echo "make memory     看 Sammy 记得什么"
+	@echo "make check      本地跑一遍 CI 会跑的全部检查"
+	@echo "make check-live 联网验收（要凭证，慢）"
+	@echo "make fmt        格式化 + 自动修"
+	@echo "make backup     立即备份（git bundle + 记忆库）并推远程"
+	@echo "make app        打包成 .app（P0-4，还没做）"
+
+run:
+	./run.sh
+
+models:
+	./run.sh --models
+
+memory:
+	./run.sh --memory
+
+fmt:
+	$(VENV) -m ruff check --fix src tests scripts
+	$(VENV) -m ruff format src tests scripts
+
+# 与 .gitea/workflows/ci.yml 保持一致
+check:
+	$(VENV) -m pytest -m "not live" -q
+	$(VENV) -m ruff check src tests scripts
+	$(VENV) -m ruff format --check src tests scripts
+	python3 scripts/audit_repo.py
+
+check-live:
+	$(VENV) -m pytest -m live -q
+
+backup:
+	python3 scripts/backup.py
+	git push origin main --tags
+
+app:
+	@echo "还没做：P0-4，用 PyInstaller 打包成双击即开的 .app"
