@@ -20,7 +20,9 @@ import contextlib
 import os
 import queue
 import re
+import shutil
 import subprocess
+import sys
 import threading
 
 # ── 参数 ──────────────────────────────────────────
@@ -99,6 +101,48 @@ class MacSayBackend:
         )
 
 
+def linux_command(text: str, rate: int = DEFAULT_RATE, engine: str = "spd-say") -> list[str]:
+    """Linux 上怎么念 —— 纯函数，方便测（不依赖那台机器上有没有装）。
+
+    ⚠️ **别把 macOS 那套参数照抄过来**：
+    - `say -r` 收的是"词/分钟"；`spd-say -r` 收的是 -100..100 的相对值，**两回事**。
+    - `espeak-ng -s` 收的才是词/分钟。
+    参数语义不同还硬套，结果就是语速要么飞快要么慢得听不清。
+    """
+    if engine == "espeak-ng":
+        return ["espeak-ng", "-s", str(rate), "--", text]
+    # spd-say：默认语速，等它念完（-w）—— 不 wait 的话进程立刻退出、话被截断
+    return ["spd-say", "-w", text]
+
+
+class LinuxSayBackend:
+    """Linux 上的朗读：优先 `spd-say`（走 speech-dispatcher，音色好），退回 `espeak-ng`。
+
+    实测 Nex（Ubuntu）上 speech-dispatcher 是 active、两个命令都在。
+    """
+
+    def __init__(self, rate: int = DEFAULT_RATE) -> None:
+        self.rate = rate
+        self.engine = "spd-say" if shutil.which("spd-say") else "espeak-ng"
+
+    def speak(self, text: str) -> None:
+        subprocess.run(
+            linux_command(text, self.rate, self.engine),
+            check=False,
+            capture_output=True,
+            timeout=60,
+        )
+
+
+def default_backend():
+    """按平台挑默认后端 —— 上层不需要知道自己在哪台机器上。"""
+    if sys.platform == "darwin":
+        return MacSayBackend()
+    if sys.platform.startswith("linux"):
+        return LinuxSayBackend()
+    return NullBackend()
+
+
 # ── 说话的人 ──────────────────────────────────────
 
 
@@ -110,7 +154,8 @@ class Speaker:
     """
 
     def __init__(self, backend=None, enabled: bool = True):
-        self.backend = backend if backend is not None else MacSayBackend()
+        # 默认后端按平台挑（macOS: say / Linux: spd-say）—— 见 default_backend
+        self.backend = backend if backend is not None else default_backend()
         self.enabled = enabled
         self._q: queue.Queue[str | None] = queue.Queue(maxsize=1)
         self._thread: threading.Thread | None = None
@@ -178,9 +223,12 @@ def enabled_from_env(env: dict | None = None) -> bool:
 __all__ = [
     "DEFAULT_RATE",
     "DEFAULT_VOICE",
+    "LinuxSayBackend",
     "MacSayBackend",
     "NullBackend",
     "Speaker",
+    "default_backend",
     "enabled_from_env",
+    "linux_command",
     "prepare_speech",
 ]

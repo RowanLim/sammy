@@ -19,6 +19,7 @@ from sammy.voice import (
     NullBackend,
     Speaker,
     enabled_from_env,
+    linux_command,
     prepare_speech,
 )
 
@@ -172,6 +173,47 @@ def test_stop_actually_stops_even_when_the_queue_is_full():
     speaker._q.put_nowait("占位：让队列处于满的状态")
     speaker.stop()
     assert speaker._q.get_nowait() is None, "停止标记该被塞进去（先腾位置再放）"
+
+
+def test_linux_uses_spd_say_and_waits():
+    """spd-say 必须带 -w：不等它念完，进程立刻退出、话会被截断。"""
+    cmd = linux_command("你好")
+    assert cmd[0] == "spd-say"
+    assert "-w" in cmd
+    assert cmd[-1] == "你好"
+
+
+def test_linux_espeak_rate_is_words_per_minute():
+    """两家的语速参数**语义不同** —— 照抄会念成外星语速度。
+
+    `say -r` / `espeak-ng -s` 收的是词/分钟；`spd-say -r` 收的是 -100..100 的相对值。
+    """
+    cmd = linux_command("你好", rate=175, engine="espeak-ng")
+    assert cmd[0] == "espeak-ng"
+    assert cmd[cmd.index("-s") + 1] == "175"
+
+
+def test_linux_backend_falls_back_to_espeak(monkeypatch):
+    """没装 speech-dispatcher 的机器上要能退回 espeak-ng，而不是直接哑掉。"""
+    from sammy import voice
+
+    monkeypatch.setattr(voice.shutil, "which", lambda name: None)
+    assert voice.LinuxSayBackend().engine == "espeak-ng"
+
+
+def test_default_backend_matches_the_platform(monkeypatch):
+    """上层不该知道自己在哪台机器上 —— 由这里按平台挑。"""
+    from sammy import voice
+
+    monkeypatch.setattr(voice.sys, "platform", "darwin")
+    assert isinstance(voice.default_backend(), voice.MacSayBackend)
+
+    monkeypatch.setattr(voice.sys, "platform", "linux")
+    monkeypatch.setattr(voice.shutil, "which", lambda n: f"/usr/bin/{n}")
+    assert isinstance(voice.default_backend(), voice.LinuxSayBackend)
+
+    monkeypatch.setattr(voice.sys, "platform", "win32")
+    assert isinstance(voice.default_backend(), voice.NullBackend)
 
 
 # ── 开关 ─────────────────────────────────────────
