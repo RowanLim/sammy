@@ -79,7 +79,9 @@ class Memory:
     # ── 槽位：结构化事实 ────────────────────────────
 
     def set_slot(self, key: str, value: str, source: str = "") -> None:
-        key = (key or "").strip()
+        # 在**唯一的写入点**做归一化：上层不管传中文、大小写还是同义词，落库都是规范名。
+        # （原来只 strip 一下，于是同一种事实能以不同 key 存进去 → 记忆越长越乱。）
+        key = canonical_key(key)
         value = (value or "").strip()
         if not key or not value:
             return
@@ -211,6 +213,15 @@ CONSOLIDATE_PROMPT = """你在整理 Sammy 一天里记下的事，压成一段�
 - 顺手把新发现的**稳定事实**提取成槽位；已知的要修正就覆盖
 - 只输出 JSON，不要任何其他文字
 
+键**只能从下面这张表里挑**（挑最贴切的一个）：
+name / nickname / age / city / residence / occupation / company /
+current_project / machine / tools / hobbies / interests /
+coffee_preference / diet / schedule / health / family / pets / language
+
+表里实在没有合适的，才用 other_主题 的写法。
+**不要自创同义词** —— 同一个事实换个键名，对你来说就是"又多了一件事"，会让记忆越长越乱。
+值用简短名词短语，不要整句。
+
 格式：
 {{"digest": "一段摘要", "slots": {{"键": "值"}}}}
 
@@ -250,14 +261,77 @@ def _extract_json(raw: str) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+# 槽位 key 的规范名。
+#
+# 为什么必须有这个：key 不稳定 = 记忆不可靠。
+# 实测过同一种事实，一次跑出来是 `name`、另一次是 `名字` —— 那么"更新一条事实"
+# 就变成了"新增一条"，几个月后记忆里全是重复和自相矛盾。
+# 这是和「情绪只能从固定表里挑」同一个套路：**把输出空间收窄，收敛才有保证。**
+KEY_SYNONYMS: dict[str, str] = {
+    # 名字
+    "名字": "name",
+    "姓名": "name",
+    "user_name": "name",
+    "full_name": "name",
+    "称呼": "nickname",
+    "昵称": "nickname",
+    "小名": "nickname",
+    # 机器 / 环境
+    "电脑": "machine",
+    "电脑型号": "machine",
+    "设备": "machine",
+    "主机": "machine",
+    "机器": "machine",
+    "computer": "machine",
+    "device": "machine",
+    # 项目 / 工作
+    "项目": "current_project",
+    "正在开发的项目": "current_project",
+    "项目名称": "current_project",
+    "project": "current_project",
+    "project_name": "current_project",
+    "职业": "occupation",
+    "工作": "occupation",
+    "job": "occupation",
+    # 住
+    "居住地": "residence",
+    "住址": "residence",
+    "城市": "city",
+    "所在城市": "city",
+    # 偏好
+    "咖啡偏好": "coffee_preference",
+    "饮食": "diet",
+    "饮食偏好": "diet",
+    "爱好": "hobbies",
+    "兴趣": "hobbies",
+    "interest": "hobbies",
+    "宠物": "pets",
+    "家人": "family",
+}
+
+
+def canonical_key(key: str) -> str:
+    """把槽位 key 归一化：转小写、全角转半角、空白转下划线、中文同义词映射到规范名。
+
+    未知的 key **原样保留（只做格式归一）**，不丢弃 ——
+    宁可多一条不常见的槽位，也不能把用户说过的事悄悄丢掉。
+    """
+    k = str(key).strip().lower()
+    k = k.translate(str.maketrans("．　－", "._-"))  # 全角 → 半角
+    k = re.sub(r"[^\w]+", "_", k).strip("_")
+    k = re.sub(r"_+", "_", k)
+    return KEY_SYNONYMS.get(k, k)
+
+
 def _clean_slots(slots) -> dict[str, str]:
     if not isinstance(slots, dict):
         return {}
-    return {
-        str(k).strip(): str(v).strip()
-        for k, v in slots.items()
-        if str(k).strip() and str(v).strip()
-    }
+    out: dict[str, str] = {}
+    for k, v in slots.items():
+        key, val = canonical_key(k), str(v).strip()
+        if key and val:
+            out[key] = val  # 归一化后撞车的：后写的覆盖先写的
+    return out
 
 
 def parse_extraction(raw: str) -> dict:

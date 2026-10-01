@@ -44,9 +44,11 @@ def test_parse_extraction_drops_non_list_journal():
 
 
 def test_parse_digest():
+    # 注意键被归一化了（项目 → current_project）—— 这是**行为改好了**，
+    # 老测试钉的是"不做归一化"的旧行为，所以要跟着改。
     assert parse_digest('{"digest":"今天聊了项目","slots":{"项目":"Sammy"}}') == {
         "digest": "今天聊了项目",
-        "slots": {"项目": "Sammy"},
+        "slots": {"current_project": "Sammy"},
     }
     assert parse_digest("胡说") == {"digest": "", "slots": {}}
 
@@ -120,6 +122,48 @@ def test_digest_not_counted_as_event(memory):
 
 
 # ── 持久化（PRD P0-5：重启后仍在） ─────────────────
+
+
+def test_slot_keys_are_canonicalised():
+    """key 必须归一化 —— 否则同一个事实会被当成「又多了一件事」重复记录。
+
+    实测过：同一种事实，一次跑出来是 `name`、另一次是 `名字`。
+    """
+    from sammy.memory import canonical_key
+
+    assert canonical_key("名字") == "name"
+    assert canonical_key(" Name ") == "name"
+    assert canonical_key("NAME") == "name"
+    assert canonical_key("user_name") == "name"
+    assert canonical_key("电脑型号") == "machine"
+    assert canonical_key("正在开发的项目") == "current_project"
+
+
+def test_unknown_keys_are_normalised_not_dropped():
+    """未知 key 只做格式归一、不丢弃 —— 宁可多一条不常见的槽位，
+    也不能把用户说过的事悄悄丢掉。"""
+    from sammy.memory import canonical_key
+
+    assert canonical_key("咖啡豆产地") == "咖啡豆产地"
+    assert canonical_key("my  weird key") == "my_weird_key"
+    assert canonical_key("  ") == ""
+
+
+def test_synonyms_merge_on_write():
+    """中文键和英文键指向同一件事时，应该合成一条，而不是两条。"""
+    from sammy.memory import _clean_slots
+
+    out = _clean_slots({"名字": "Rowan", "name": "Rowan", "昵称": "老罗"})
+    assert out == {"name": "Rowan", "nickname": "老罗"}
+
+
+def test_set_slot_is_the_single_place_that_canonicalises(tmp_path):
+    """不管上层传什么写法，落库都该是规范名 —— 归一化只在一个地方做。"""
+    mem = Memory(tmp_path / "m.db")
+    mem.set_slot("名字", "Rowan")
+    mem.set_slot("user_name", "Rowan")
+    mem.set_slot("NAME", "Rowan")
+    assert list(mem.slots().keys()) == ["name"]
 
 
 def test_survives_reopen(tmp_path):

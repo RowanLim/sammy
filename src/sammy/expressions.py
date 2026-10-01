@@ -5,6 +5,8 @@
 
 from pathlib import Path
 
+from .paths import assets_dir
+
 # 表情编号 → 中文名
 EXPR_NAMES: dict[int, str] = {
     1: "睡眠",
@@ -112,7 +114,8 @@ EMOTIONS: dict[str, int] = {
 
 EMOTION_KEYS = tuple(EMOTIONS.keys())
 
-ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "expressions"
+# 表情素材：源码运行看仓库 assets/，打包后看包内资源（见 paths.py）
+ASSETS_DIR = assets_dir()
 
 
 def expr_path(index: int) -> Path:

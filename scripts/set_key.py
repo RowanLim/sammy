@@ -28,7 +28,13 @@ import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_ENV = ROOT / ".env"
+sys.path.insert(0, str(ROOT / "src"))
+
+from sammy.paths import env_file
+
+# 配置统一放在 ~/Library/Application Support/Sammy/.env（见 src/sammy/paths.py）——
+# 开发版和双击版读同一份，凭证也不住在代码仓库里。
+DEFAULT_ENV = env_file()
 
 
 def read_key(args) -> str:
@@ -113,7 +119,10 @@ def _verify(env_path: pathlib.Path) -> int:
         "model": model,
         "messages": [{"role": "user", "content": "只回两个字：在的"}],
         "temperature": 0.1,
-        "max_tokens": 20,
+        # ⚠️ 别给太小。会思考的模型会先把预算花在 reasoning 上，
+        # max_tokens=20 时它"想"完就没了，content 直接是空的 —— 而我第一版居然
+        # 把这判成"✅ 通了"。**报了通过却没有输出，就是假验收。**
+        "max_tokens": 400,
     }
     req = urllib.request.Request(
         f"{base}/chat/completions",
@@ -140,6 +149,13 @@ def _verify(env_path: pathlib.Path) -> int:
     elapsed = time.time() - started
     reply = (body["choices"][0]["message"].get("content") or "").strip()
     usage = body.get("usage", {})
+    if not reply:
+        # 曾经在这里报过"✅ 通了"而回复是空的 —— 这不算通过。
+        print("❌ 连上了，但**回复是空的** —— 这不算通过。")
+        print(f"   用量：{usage}")
+        print("   若 token 几乎全在 reasoning_tokens 上，说明这是个会思考的模型：")
+        print("   把 max_tokens 调大（本脚本已设 400），或换一个非推理型号。")
+        return 1
     print(f"✅ 通了　延迟 {elapsed:.2f}s　回复：{reply[:40]}")
     print(f"   用量：{usage}")
     return 0

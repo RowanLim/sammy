@@ -15,8 +15,12 @@ import os
 import pathlib
 from dataclasses import dataclass, field
 
+from .paths import env_file
+
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-ENV_FILE = PROJECT_ROOT / ".env"
+# 配置文件位置：源码运行看仓库里的 .env，打包后看 ~/Library/Application Support/Sammy/.env。
+# 打出来的 .app 不该依赖源码目录，更不该把凭证打进包里（见 paths.py）。
+ENV_FILE = env_file()
 
 # 档位定义：环境变量前缀 → (用途说明, 默认供应商)
 TIERS: dict[str, dict] = {

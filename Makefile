@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -12,11 +12,22 @@ help:
 	@echo "make drives     看它此刻的驱力（精力/无聊/亲近）"
 	@echo "make memory     看 Sammy 记得什么"
 	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
+	@echo "make accept     跑 M1 验收（PRD P0 逐条，出数字）"
+	@echo "make app        打包成双击即开的 .app"
+	@echo "make soak       八小时稳定性压测（后台，可放心跑一夜）"
 	@echo "make check      本地跑一遍 CI 会跑的全部检查"
 	@echo "make check-live 联网验收（要凭证，慢）"
 	@echo "make fmt        格式化 + 自动修"
 	@echo "make backup     立即备份（git bundle + 记忆库）并推远程"
-	@echo "make app        打包成 .app（P0-4，还没做）"
+
+accept:
+	$(VENV) scripts/accept_m1.py
+
+app:
+	$(VENV) scripts/build_app.py
+
+soak:
+	$(VENV) scripts/soak.py --hours 8
 
 set-key:
 	$(VENV) scripts/set_key.py --verify

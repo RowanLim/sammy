@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -118,6 +119,15 @@ def _canon_emotion(candidate: str) -> str | None:
     return None
 
 
+def _history_turns_from_env(default: int = 10) -> int:
+    """上下文窗口大小。下限 2 —— 设成 1 或 0 等于没有记忆，多半是写错了。"""
+    raw = os.environ.get("SAMMY_HISTORY_TURNS", "")
+    try:
+        return max(2, int(raw))
+    except ValueError:
+        return default
+
+
 class SammyBrain:
     """独立大脑：一次调用拿到 回复 + 情绪。"""
 
@@ -125,7 +135,7 @@ class SammyBrain:
         self,
         config: ModelConfig | None = None,
         timeout: int = 60,
-        history_turns: int = 6,
+        history_turns: int | None = None,
         thinking: str | None = None,
         use_tools: bool = True,
     ):
@@ -136,7 +146,11 @@ class SammyBrain:
         self.base_url = self.config.base_url.rstrip("/")
         self.model = self.config.model
         self.timeout = timeout
-        self.history_turns = history_turns
+        # 上下文窗口。PRD P0-1 的验收标准是「连续 10 轮不丢上下文」，
+        # 而原来是 6 轮 —— 第 1 轮说的话到第 10 轮早滑出窗口了，**标准写在文档里、实现做不到**。
+        # 默认 10 轮（可用 SAMMY_HISTORY_TURNS 调）；桌面陪伴场景 token 很便宜，
+        # 用一点上下文换"它真的记得"，值得。
+        self.history_turns: int = history_turns or _history_turns_from_env()
         # 有些模型默认「先想再答」，一次对话多花 3-5 秒。桌面陪伴要快，默认关掉；
         # 需要它认真想的时候把 SAMMY_THINKING 设成 on 开回来。
         self.thinking = thinking if thinking is not None else self.config.thinking
@@ -295,7 +309,10 @@ class SammyBrain:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = json.load(resp)
         except urllib.error.HTTPError as e:
-            detail = e.read().decode(errors="ignore")[:300]
+            detail = e.read().decode(errors="ignore")[:300].strip()
+            if not detail:
+                # 空响应体最没用 —— 给一句人能照着做的
+                detail = "（响应体是空的，多半是代理或网关拦下了）"
             raise RuntimeError(f"大模型返回 HTTP {e.code}: {detail}") from e
         except Exception as e:
             raise RuntimeError(f"连不上大模型: {type(e).__name__}: {e}") from e

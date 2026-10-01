@@ -97,8 +97,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.ask:
         from .brain import SammyBrain
 
-        brain = SammyBrain()
-        result = brain.chat(args.ask)
+        try:
+            brain = SammyBrain()
+            result = brain.chat(args.ask)
+        except RuntimeError as e:
+            # PRD P0-1「断网给友好提示不崩」：别把 Python 回溯砸到用户脸上。
+            print(f"😵 我连不上大模型：{e}")
+            print("   检查一下网络，或用 ./run.sh --models 看凭证配置。")
+            return 3
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
 
