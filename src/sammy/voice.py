@@ -24,11 +24,35 @@ import shutil
 import subprocess
 import sys
 import threading
+from pathlib import Path
+
+from .paths import data_dir
 
 # ── 参数 ──────────────────────────────────────────
 
 DEFAULT_VOICE = os.environ.get("SAMMY_VOICE_NAME", "Tingting")
 DEFAULT_RATE = 175  # 语速（`say` 默认约 180；陪伴场景稍慢一点更自然）
+# edge-tts 的默认音色：晓晓（微软神经网络中文女声，实测最自然的一档）
+DEFAULT_EDGE_VOICE = "zh-CN-XiaoxiaoNeural"
+
+
+def config(key: str, default: str = "") -> str:
+    """读一项配置：**进程环境变量优先，其次项目 .env**。
+
+    为什么不能只看 `os.environ`：`.env` 才是项目的配置入口（凭证也在里面），
+    而 `models.load_env()` 只把 API key 那几项并进环境变量。
+    所以如果这里直接读 `os.environ`，写在 `.env` 里的 `SAMMY_TTS=edge`
+    **会被静默忽略** —— "配置写了却不生效"是最难查的一类问题。
+    """
+    if os.environ.get(key):
+        return os.environ[key]
+    try:
+        from .models import load_env
+
+        return load_env().get(key, default)
+    except Exception:  # .env 不在、格式坏了都不该让念不出声
+        return default
+
 
 # ── 清洗规则（保守优先）───────────────────────────
 
@@ -134,8 +158,90 @@ class LinuxSayBackend:
         )
 
 
+def edge_args(text: str, voice: str = "", rate: str = "") -> dict:
+    """edge-tts 的参数（纯函数，方便测）。
+
+    ⚠️ 它的语速参数是**百分比字符串**（`-10%`），既不是 `say` 的词/分钟，
+    也不是 `spd-say` 的 -100..100 —— 三家语义各不相同，照抄必错。
+    """
+    args: dict = {"text": text, "voice": voice or DEFAULT_EDGE_VOICE}
+    if rate:
+        args["rate"] = rate
+    return args
+
+
+def player_command(path: str) -> list[str]:
+    """用什么放音频（按平台挑，纯函数）。"""
+    if sys.platform == "darwin":
+        return ["afplay", path]
+    if shutil.which("paplay"):
+        return ["paplay", path]
+    if shutil.which("aplay"):
+        return ["aplay", "-q", path]
+    return ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path]
+
+
+class EdgeTTSBackend:
+    """微软 edge-tts 的神经网络中文音色（免费、不需要 key）。
+
+    **为什么需要它**：Rowan 的原话是「这个语音好难听」。查下来 Mac 自带的
+    中文嗓音按语言过滤只有一个（Meijia，台湾腔），Tingting 是老引擎 ——
+    这不是调参能救的，是引擎差一代。
+
+    **代价必须说清楚**：文本会经过微软的服务器（不能离线）。
+    对陪聊场景这不算小事 —— 它说出口的话会经过第三方。
+    所以要"最好听"选它，要"全离线"就退回 `say` / `spd-say`。
+    """
+
+    def __init__(self, voice: str = "", rate: str = "") -> None:
+        self.voice = voice or config("SAMMY_TTS_VOICE", DEFAULT_EDGE_VOICE)
+        self.rate = rate or config("SAMMY_TTS_RATE", "")
+
+    def synth(self, text: str) -> Path:
+        """合成到项目自己的 data/tts/ 里（不往机器别处写东西）。"""
+        import asyncio
+
+        import edge_tts
+
+        out_dir = data_dir() / "tts"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / "last.mp3"
+
+        async def run() -> None:
+            comm = edge_tts.Communicate(**edge_args(text, self.voice, self.rate))
+            with out.open("wb") as f:
+                async for chunk in comm.stream():
+                    if chunk["type"] == "audio":
+                        f.write(chunk["data"])
+
+        asyncio.run(run())
+        return out
+
+    def speak(self, text: str) -> None:
+        try:
+            path = self.synth(text)
+        except Exception as e:
+            # 念不出来不该影响对话；但也别装没事 —— 打一行日志比静默强
+            print(f"  ⚠️ edge-tts 合成失败（{type(e).__name__}: {e}），这次不念了")
+            return
+        subprocess.run(player_command(str(path)), check=False, capture_output=True, timeout=120)
+
+
 def default_backend():
-    """按平台挑默认后端 —— 上层不需要知道自己在哪台机器上。"""
+    """按 `SAMMY_TTS` 挑后端，没设就按平台。
+
+    可选值：`edge`（最好听，需联网）/ `say`（macOS 离线）/ `spd`（Linux 离线）/
+    `off`（不念）。**默认不说网络** —— 要不要把说的话送出去，该由用户明确决定。
+    """
+    engine = (config("SAMMY_TTS") or "").strip().lower()
+    if engine in {"off", "none", "null"}:
+        return NullBackend()
+    if engine == "edge":
+        return EdgeTTSBackend()
+    if engine == "say":
+        return MacSayBackend()
+    if engine == "spd":
+        return LinuxSayBackend()
     if sys.platform == "darwin":
         return MacSayBackend()
     if sys.platform.startswith("linux"):
@@ -216,19 +322,24 @@ class Speaker:
 
 def enabled_from_env(env: dict | None = None) -> bool:
     """`SAMMY_VOICE=off` 可以彻底静音（默认开）。"""
-    env = env if env is not None else os.environ
-    return str(env.get("SAMMY_VOICE", "on")).strip().lower() not in {"off", "0", "false", "no"}
+    raw = (env or {}).get("SAMMY_VOICE") if env is not None else config("SAMMY_VOICE", "on")
+    return str(raw or "on").strip().lower() not in {"off", "0", "false", "no"}
 
 
 __all__ = [
+    "DEFAULT_EDGE_VOICE",
     "DEFAULT_RATE",
     "DEFAULT_VOICE",
+    "EdgeTTSBackend",
     "LinuxSayBackend",
     "MacSayBackend",
     "NullBackend",
     "Speaker",
+    "config",
     "default_backend",
+    "edge_args",
     "enabled_from_env",
     "linux_command",
+    "player_command",
     "prepare_speech",
 ]

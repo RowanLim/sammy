@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.say:
-        from .voice import DEFAULT_VOICE, MacSayBackend, prepare_speech
+        from .voice import default_backend, prepare_speech
 
         cleaned = prepare_speech(args.say)
         print(f"原话：{args.say!r}")
@@ -149,8 +149,18 @@ def main(argv: list[str] | None = None) -> int:
         if not cleaned:
             print("（洗完之后没剩下能念的内容）")
             return 0
-        backend = MacSayBackend(voice=args.voice_name or DEFAULT_VOICE)
-        print(f"声音：{backend.voice}")
+        # 必须走 default_backend()：否则 `SAMMY_TTS=edge` 这类开关在这条路径上不起作用，
+        # 而 `--say` 正是用来试听、用来定声音的地方 —— 试听用的和后端用的不是同一个，
+        # 那这个试听就是假的（实测踩过一次）。
+        backend = default_backend()
+        if args.voice_name:
+            if hasattr(backend, "voice"):
+                backend.voice = args.voice_name
+            else:
+                from .voice import MacSayBackend
+
+                backend = MacSayBackend(voice=args.voice_name)
+        print(f"声音：{getattr(backend, 'voice', type(backend).__name__)}")
         backend.speak(cleaned)
         print("念完了")
         return 0

@@ -18,6 +18,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 from sammy.voice import (
     NullBackend,
     Speaker,
+    edge_args,
     enabled_from_env,
     linux_command,
     prepare_speech,
@@ -202,8 +203,15 @@ def test_linux_backend_falls_back_to_espeak(monkeypatch):
 
 
 def test_default_backend_matches_the_platform(monkeypatch):
-    """上层不该知道自己在哪台机器上 —— 由这里按平台挑。"""
+    """上层不该知道自己在哪台机器上 —— 由这里按平台挑。
+
+    ⚠️ 必须把 `config` 屏蔽掉：它现在会读项目 `.env`，而 .env 里**已经**写了
+    `SAMMY_TTS=edge`（Rowan 定的音色）。不屏蔽的话测的就不是"平台默认"了 ——
+    这类"测试被真实配置污染"的坑，和测试写死时间一样隐蔽。
+    """
     from sammy import voice
+
+    monkeypatch.setattr(voice, "config", lambda k, d="": d)  # 假装 .env 里什么都没有
 
     monkeypatch.setattr(voice.sys, "platform", "darwin")
     assert isinstance(voice.default_backend(), voice.MacSayBackend)
@@ -214,6 +222,87 @@ def test_default_backend_matches_the_platform(monkeypatch):
 
     monkeypatch.setattr(voice.sys, "platform", "win32")
     assert isinstance(voice.default_backend(), voice.NullBackend)
+
+
+# ── edge-tts（神经网络音色）──────────────────────
+
+
+def test_edge_args_use_a_percent_rate():
+    """edge-tts 的语速是**百分比字符串**。
+
+    三家语义完全不同：`say -r` / `espeak-ng -s` 是词/分钟，`spd-say -r` 是 -100..100，
+    edge 是 `-10%`。照抄必错，所以这里钉死。
+    """
+    a = edge_args("你好", "zh-CN-XiaoxiaoNeural", "-10%")
+    assert a == {"text": "你好", "voice": "zh-CN-XiaoxiaoNeural", "rate": "-10%"}
+    assert "rate" not in edge_args("你好")  # 没指定就别传
+
+
+def test_edge_defaults_to_a_chinese_voice():
+    from sammy import voice
+
+    assert "zh-CN" in voice.edge_args("你好")["voice"]
+
+
+def test_player_command_matches_platform(monkeypatch):
+    from sammy import voice
+
+    monkeypatch.setattr(voice.sys, "platform", "darwin")
+    assert voice.player_command("/x.mp3")[0] == "afplay"
+
+    monkeypatch.setattr(voice.sys, "platform", "linux")
+    monkeypatch.setattr(voice.shutil, "which", lambda n: f"/usr/bin/{n}")
+    assert voice.player_command("/x.mp3")[0] == "paplay"
+
+    monkeypatch.setattr(voice.shutil, "which", lambda n: None)
+    assert voice.player_command("/x.mp3")[0] == "ffplay"
+
+
+def test_backend_can_be_chosen_by_env(monkeypatch):
+    from sammy import voice
+
+    monkeypatch.setenv("SAMMY_TTS", "edge")
+    assert isinstance(voice.default_backend(), voice.EdgeTTSBackend)
+    monkeypatch.setenv("SAMMY_TTS", "spd")
+    assert isinstance(voice.default_backend(), voice.LinuxSayBackend)
+    monkeypatch.setenv("SAMMY_TTS", "off")
+    assert isinstance(voice.default_backend(), voice.NullBackend)
+
+
+def test_default_stays_offline(monkeypatch):
+    """没明确要求时**不该**把人说的话送上网络 —— 这事该由用户决定，不该默认。"""
+    from sammy import voice
+
+    monkeypatch.setattr(voice, "config", lambda k, d="": d)  # 屏蔽 .env
+    monkeypatch.setattr(voice.sys, "platform", "darwin")
+    assert isinstance(voice.default_backend(), voice.MacSayBackend)
+
+
+def test_edge_speak_does_not_raise_on_network_failure(monkeypatch):
+    """念不出来不该把对话带崩 —— 但也别装没事（会打一行日志）。"""
+    from sammy import voice
+
+    b = voice.EdgeTTSBackend(voice="zh-CN-XiaoxiaoNeural")
+    monkeypatch.setattr(b, "synth", lambda text: (_ for _ in ()).throw(OSError("断网了")))
+    b.speak("你好")  # 不抛异常就算过
+
+
+def test_config_reads_env_first_then_dotenv(monkeypatch):
+    """`.env` 里写了却读不到 = **配置静默失效**（踩过一次）。
+
+    `.env` 是项目的配置入口，但 `models.load_env()` 只把 API key 那几项并进
+    `os.environ`。所以读配置必须走 `config()`，不能直接读 `os.environ`。
+    """
+    from sammy import models, voice
+
+    monkeypatch.delenv("SAMMY_TTS", raising=False)
+    monkeypatch.setattr(models, "load_env", lambda: {"SAMMY_TTS": "edge"})
+    assert voice.config("SAMMY_TTS") == "edge"
+
+    monkeypatch.setenv("SAMMY_TTS", "spd")
+    assert voice.config("SAMMY_TTS") == "spd"  # 进程环境变量优先（方便临时覆盖）
+
+    assert voice.config("没有这个键", "兜底") == "兜底"
 
 
 # ── 开关 ─────────────────────────────────────────

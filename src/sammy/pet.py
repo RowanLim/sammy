@@ -91,6 +91,7 @@ class SammyWindow(QWidget):
         self.scale = DEFAULT_SCALE
         self.target_screen: dict | None = None
         self._kiosk_geom: screen.Fit | None = None
+        self._offset: tuple[int, int] = (0, 0)  # 居中留边的偏移（见 paintEvent）
         if kiosk:
             self.target_screen = screen.resolve_screen(display)
             self._kiosk_geom = screen.fit(
@@ -100,6 +101,9 @@ class SammyWindow(QWidget):
                 self.target_screen["height"],
             )
             self.scale = self._kiosk_geom.scale
+            # 全屏窗口比内容大时，内容要**居中**：偏移量必须画进画布里。
+            # （之前忘了这一步，内容贴在左上角、右边多出一条 —— Rowan 一眼就看出来了）
+            self._offset = (self._kiosk_geom.x, self._kiosk_geom.y)
             self._bind_to_screen(self.target_screen["name"])
 
         self.setWindowTitle("Sammy")
@@ -348,8 +352,8 @@ class SammyWindow(QWidget):
             f" color: #cfead6; padding-left: 18px; font-size: {int(30 * self.scale)}px; }}"
         )
         self.input.setGeometry(
-            int(INPUT_BOX.x() * self.scale),
-            int(INPUT_BOX.y() * self.scale),
+            int(INPUT_BOX.x() * self.scale) + self._offset[0],
+            int(INPUT_BOX.y() * self.scale) + self._offset[1],
             int(INPUT_BOX.width() * self.scale),
             int(INPUT_BOX.height() * self.scale),
         )
@@ -364,9 +368,10 @@ class SammyWindow(QWidget):
         super().resizeEvent(event)
         if self._kiosk_geom is None:
             return  # 桌面浮窗：尺寸是我自己定的，不用跟
-        new_scale = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height()).scale
-        if abs(new_scale - self.scale) > 1e-3:
-            self.scale = new_scale
+        f = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height())
+        if abs(f.scale - self.scale) > 1e-3 or (f.x, f.y) != self._offset:
+            self.scale = f.scale
+            self._offset = (f.x, f.y)
             self._layout_input()
             self.update()
 
@@ -546,6 +551,7 @@ class SammyWindow(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
+        p.translate(*self._offset)  # 居中留边：先缩放再平移，量是设备坐标
 
         # 屏幕玻璃
         p.setPen(QPen(GREEN_DIM, 3))
