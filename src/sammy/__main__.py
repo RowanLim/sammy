@@ -335,7 +335,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"已保存: {args.snapshot}")
         return 0
 
-    win.show()
+    if args.kiosk:
+        # 小屏模式：由窗管铺满**绑定的那块屏**。
+        # 不用 show()+move()：多显示器下 move() 会被窗管摆走（实测被摆到屏外虚空）。
+        win.showFullScreen()
+    else:
+        win.show()
     if args.selftest:
         return _selftest(app, win, args.selftest)
     return app.exec()

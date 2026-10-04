@@ -100,6 +100,7 @@ class SammyWindow(QWidget):
                 self.target_screen["height"],
             )
             self.scale = self._kiosk_geom.scale
+            self._bind_to_screen(self.target_screen["name"])
 
         self.setWindowTitle("Sammy")
         # 小屏模式不加 Qt.Tool：Tool 窗口在某些显示器上不会被显示出来
@@ -175,17 +176,7 @@ class SammyWindow(QWidget):
         self.input = QLineEdit(self)
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
         self.input.returnPressed.connect(self.send)
-        self.input.setStyleSheet(
-            f"QLineEdit {{ background: rgba(18,42,26,190);"
-            f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
-            f" color: #cfead6; padding-left: 18px; font-size: {int(30 * self.scale)}px; }}"
-        )
-        self.input.setGeometry(
-            int(INPUT_BOX.x() * self.scale),
-            int(INPUT_BOX.y() * self.scale),
-            int(INPUT_BOX.width() * self.scale),
-            int(INPUT_BOX.height() * self.scale),
-        )
+        self._layout_input()
 
         self.bridge = Bridge()
         self.bridge.replyReady.connect(self._on_reply)
@@ -326,6 +317,58 @@ class SammyWindow(QWidget):
         self.update()
 
     # ── 空闲行为 ────────────────────────────────
+
+    def _bind_to_screen(self, name: str) -> None:
+        """把窗口**绑**到指定那块屏上。
+
+        为什么光靠 move() 不够（实测）：多显示器下 move() 请求会被窗管重新摆，
+        在 Nex 上窗口被摆到了 x=3840 —— 两块屏之外的虚空，**两块屏都看不见**，
+        而且窗口列表里查得到、看着像"投上去了"。
+
+        Qt 6 的 `setScreen()` 是唯一靠谱的做法：窗管明确知道这个窗口属于哪块屏，
+        之后再 `showFullScreen()` 就只会铺满那一块。
+        """
+        from PySide6.QtWidgets import QApplication
+
+        for qs in QApplication.screens():
+            if qs.name() == name:
+                self.setScreen(qs)
+                return
+
+    def _layout_input(self) -> None:
+        """按当前缩放摆输入框。
+
+        单独成方法是因为**窗口尺寸会被别人改**：小屏模式下实测窗管按"可用区域"
+        动了我的窗口（我要 1800×1080，它给 1920×1044 —— 差的就是 GNOME 顶栏那 36px）。
+        字体和输入框都得跟着走，不然大字小框看着就是坏的。
+        """
+        self.input.setStyleSheet(
+            f"QLineEdit {{ background: rgba(18,42,26,190);"
+            f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
+            f" color: #cfead6; padding-left: 18px; font-size: {int(30 * self.scale)}px; }}"
+        )
+        self.input.setGeometry(
+            int(INPUT_BOX.x() * self.scale),
+            int(INPUT_BOX.y() * self.scale),
+            int(INPUT_BOX.width() * self.scale),
+            int(INPUT_BOX.height() * self.scale),
+        )
+
+    def resizeEvent(self, event) -> None:
+        """窗口尺寸变了就按**实际**尺寸重算缩放。
+
+        不做这件事会出这种局面（实测）：我按 1800×1080 画，窗管给我 1920×1044 ——
+        宽度多 120、高度少 36，内容**恰好**因为底部留白够才没被切掉。
+        那是运气，换块屏（或换个窗管/缩放）就露馅。所以这里跟着实际尺寸走。
+        """
+        super().resizeEvent(event)
+        if self._kiosk_geom is None:
+            return  # 桌面浮窗：尺寸是我自己定的，不用跟
+        new_scale = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height()).scale
+        if abs(new_scale - self.scale) > 1e-3:
+            self.scale = new_scale
+            self._layout_input()
+            self.update()
 
     def _tick(self) -> None:
         if self.thinking:
