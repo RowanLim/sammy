@@ -3,7 +3,7 @@
 这里最重要的一条不变式：**事实要被改写，事件只能追加。**
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -226,11 +226,43 @@ def test_needs_nightly_picks_unconsolidated_past_day(memory):
     assert needs_nightly(memory) == d2
 
 
-def test_needs_nightly_skips_today(memory):
-    """今天的记录在深夜之前不该被整理 ——
+def _clock_at(hour: int):
+    """把 memory 模块里的「表」换成固定时刻。
+
+    这条测试原来直接看真实时间：白天跑绿，**一过 23 点必挂**（第一次撞上是 23:51）。
+    规则本身是故意的（深夜顺手把今天也整理掉），所以该修的是**测试**，不是产品 ——
+    而"只在白天成立"的测试等于没测：它在最需要它守夜的那个时段是坏的。
+    """
+
+    class _Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 6, 1, hour, 0, 0, tzinfo=tz)
+
+    return _Clock
+
+
+def test_needs_nightly_skips_today_before_23(memory, monkeypatch):
+    """深夜之前，今天的记录不该被整理 ——
     否则当天刚整理完，之后新增的记录就永远轮不到（踩过的 bug）。"""
+    from sammy import memory as mem_mod
+
+    monkeypatch.setattr(mem_mod, "datetime", _clock_at(12))
     memory.add("今天刚发生的事")
     assert needs_nightly(memory) is None
+
+
+def test_needs_nightly_takes_today_after_23(memory, monkeypatch):
+    """23 点之后顺手把今天也整理掉 —— **这是故意的，别当 bug 修掉**。
+
+    两条合起来才算把这条规则钉住：只验一边的话，
+    把阈值删掉（永远整理今天）或改错（永远不整理今天）都能混过去。
+    """
+    from sammy import memory as mem_mod
+
+    monkeypatch.setattr(mem_mod, "datetime", _clock_at(23))
+    memory.add("今天刚发生的事")
+    assert needs_nightly(memory) == date.today().isoformat()
 
 
 def test_stats(memory):
