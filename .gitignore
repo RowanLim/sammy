@@ -39,6 +39,12 @@ data/
 backups/
 .tmp/
 
+# ── 模型（几百 MB，不进版本库；用 scripts/fetch_models.sh 重新下）──
+# 唤醒词（中/英文）、语音识别（paraformer）、VAD
+models/
+.tmp/kws-*.tar.bz2
+.tmp/asr.tar.bz2
+
 # ── 测试与覆盖率产物 ──
 .coverage
 .coverage.*

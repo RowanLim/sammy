@@ -1,0 +1,23 @@
+# 语音功能（唤醒词 / 语音识别）的依赖 —— **单独一份，不并进 requirements.txt**
+#
+# 为什么不并进去：这一份会让打包出来的 .app 多约 150MB（sherpa-onnx 的 C++ 运行库 +
+# numpy），而**主功能（对话/表情/记忆/语音输出）根本不需要它们** ——
+# 而且唤醒词真正落地是在树莓派/小屏那台机器上，不是这个 Mac 的 .app。
+# 所以：开发时想用语音功能就装这一份；打包保持精简。
+#
+#   uv pip install --python .venv/bin/python --index-url https://pypi.tuna.tsinghua.edu.cn/simple -r requirements-voice.txt
+#   ./scripts/fetch_models.sh      # 还要下模型（几百 MB，见 models/）
+#   ./run.sh --wake                # 看唤醒词状态
+#   ./run.sh --voice-demo tests/audio/wake-zh-3.wav
+#
+# ⚠️ 装包走清华镜像：这台机器直连 PyPI 会间歇性 `tls handshake eof`（实测），
+#    走镜像一次过。
+
+# 唤醒词（KWS）+ 语音识别 + VAD，一个库全包了（离线，不联网）
+sherpa-onnx>=1.10
+
+# 音频数组运算（模型接口要 float32 [-1,1]）
+numpy>=1.24
+
+# 麦克风采集（没有麦克风时用不到，但不影响导入）
+sounddevice>=0.4

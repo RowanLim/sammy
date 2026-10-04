@@ -13,6 +13,9 @@ help:
 	@echo "make attention  看它此刻会不会先开口、卡在哪一条闸门"
 	@echo "make screens    列出所有屏幕，以及铺满后的结果"
 	@echo "make kiosk      小屏模式：无边框铺满指定屏幕（接小屏后用这个）"
+	@echo "make wake       看唤醒词状态（会认哪些说法）"
+	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
+	@echo "make fetch-models 下语音模型（唤醒词/识别/VAD，几百 MB）"
 	@echo "make memory     看 Sammy 记得什么"
 	@echo "make set-key    把 API key 安全写进 .env（不回显、不进日志）"
 	@echo "make accept     跑 M1 验收（PRD P0 逐条，出数字）"
@@ -49,6 +52,17 @@ attention:
 
 screens:
 	./run.sh --screens
+
+wake:
+	./run.sh --wake
+
+# 语音闭环演示（没有麦克风时用音频文件代替，链路完全一样）
+voice-demo:
+	./run.sh --voice-demo tests/audio/wake-zh-3.wav
+
+# 下语音模型（唤醒词 / 识别 / VAD，几百 MB，不进仓库）
+fetch-models:
+	./scripts/fetch_models.sh
 
 # 小屏模式：铺满记住的那块屏（没记住就用主屏）
 # 指定屏：./run.sh --kiosk --display 1

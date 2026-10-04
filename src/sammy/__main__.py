@@ -15,6 +15,87 @@ import os
 import sys
 
 
+def voice_demo(wav_path: str) -> int:
+    """语音闭环演示：一段音频 → 听见名字 → 听懂 → 回答 → 说出声。
+
+    用音频文件代替麦克风（这台机器上没话筒），**链路完全一样** ——
+    等话筒到位，把 WavSource 换成 MicSource 就是真机。
+    这也是 Rowan 说的"没有麦克风没关系，你先找东西代替"。
+    """
+    import time as _time
+    from pathlib import Path as _Path
+
+    from .audio import list_input_devices, pad_for_context, read_wav
+    from .brain import SammyBrain
+    from .ears import Ears
+    from .voice import Speaker, prepare_speech
+    from .wake import WakeWord, strip_wake
+
+    path = _Path(wav_path)
+    if not path.is_file():
+        print(f"❌ 找不到音频：{path}")
+        return 2
+
+    samples = read_wav(path)
+    secs = len(samples) / 16000
+
+    def stage(n: str, title: str, detail: str, cost: float | None = None) -> None:
+        print(f"{n} {title:<12} {detail}" + (f"   ({cost:.2f}s)" if cost is not None else ""))
+
+    print("=== Sammy 语音闭环演示 ===")
+    print(f"音频：{path.name}（{secs:.1f}s）")
+    devs = list_input_devices()
+    if devs:
+        print(f"输入：这台机器有 {len(devs)} 个录音设备（{devs[0]['name']}）")
+    else:
+        print("输入：**没有麦克风 → 用音频文件代替**（同一套链路，换 MicSource 即真机）")
+    print()
+
+    # ① 唤醒
+    t0 = _time.perf_counter()
+    hits = WakeWord().load().detect(pad_for_context(samples))
+    if not hits:
+        stage("①", "听唤醒词", "❌ 没听到「嗨萨米 / Hi Sammy」", _time.perf_counter() - t0)
+        print("\n（没被叫名字就不该答应 —— 这是对的。）")
+        return 1
+    stage("①", "听唤醒词", f"✅ 听到「{hits[0]}」", _time.perf_counter() - t0)
+
+    # ② 听懂
+    t0 = _time.perf_counter()
+    heard = Ears().load().transcribe(samples)
+    stage("②", "听懂你说什么", f"“{heard}”", _time.perf_counter() - t0)
+    ask = strip_wake(heard) or heard
+    if ask != heard:
+        print(f"{'':<15}去掉唤醒词 → “{ask}”")
+
+    # ③ 回答
+    t0 = _time.perf_counter()
+    try:
+        result = SammyBrain().chat(ask)
+    except RuntimeError as e:
+        stage("③", "想怎么回", f"❌ 连不上大模型：{e}")
+        return 3
+    stage(
+        "③",
+        "想怎么回",
+        f"“{result['reply']}”  emotion={result.get('emotion')}",
+        _time.perf_counter() - t0,
+    )
+
+    # ④ 说出来
+    # 这里直接调后端（同步）—— 界面上走的是异步 Speaker，同一个后端；
+    # 同步调用让"念了多久"能算准，也避免演示脚本抢在声音前面结束。
+    speaker = Speaker()
+    text = prepare_speech(result["reply"])
+    t0 = _time.perf_counter()
+    speaker.backend.speak(text)
+    stage("④", "说出来", f"{type(speaker.backend).__name__}：{text}", _time.perf_counter() - t0)
+
+    print()
+    print(f"✅ 全链路通了：{secs:.1f}s 的音频 → 听见名字 → 听懂 → 回答 → 说出声")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sammy", description="Sammy —— 桌面上的小家伙")
     parser.add_argument("--ask", metavar="TEXT", help="无界面测试大脑")
@@ -34,7 +115,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--care", action="store_true", help="看休息提醒的计时状态")
     parser.add_argument("--say", metavar="TEXT", help="试听：把文本洗一遍再念出来")
     parser.add_argument("--voice-name", help="配合 --say 指定声音（默认 Tingting）")
+    parser.add_argument("--wake", action="store_true", help="看唤醒词状态（模型、会认哪些说法）")
     parser.add_argument("--screens", action="store_true", help="列出所有屏幕，以及铺满后的结果")
+    parser.add_argument("--ears", action="store_true", help="看耳朵状态（VAD / 语音识别模型）")
+    parser.add_argument("--voice-demo", metavar="WAV", help="语音闭环演示：唤醒→听懂→回答→说出来")
     parser.add_argument("--kiosk", action="store_true", help="小屏模式：无边框铺满指定屏幕")
     parser.add_argument("--display", help="配合 --kiosk：屏幕序号或名字（不给就用记住的/主屏）")
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
@@ -193,6 +277,21 @@ def main(argv: list[str] | None = None) -> int:
             return 3
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+
+    if args.wake:
+        from .wake import WakeWord
+
+        print(WakeWord().load().describe())
+        return 0
+
+    if args.ears:
+        from .ears import Ears
+
+        print(Ears().describe())
+        return 0
+
+    if args.voice_demo:
+        return voice_demo(args.voice_demo)
 
     if args.screens:
         from .faces import DEV_H, DEV_W

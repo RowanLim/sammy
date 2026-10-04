@@ -53,11 +53,16 @@ def test_p0_1_latency_budget(brain):
 
 
 def test_reply_has_no_format_leak(brain):
-    """情绪标签绝不能漏进正文（踩过的坑）。"""
+    """情绪标签绝不能漏进正文（踩过的坑）。
+
+    这条**偶发失败过一次**（3 次连跑里挂 1 次），所以判据补了两处：
+    - 中文写法也算漏（模型是中文人设，漏出来更可能是「开心」而不是 happy）
+    - 失败时把**完整回复**打出来 —— 上一次只看得到截断的片段，白丢了一条证据
+    """
     result = brain.chat("你好")
     reply = result["reply"].strip()
     first_word = reply.split(maxsplit=1)[0].strip("`*_-:：").lower()
-    assert first_word not in {
+    labels = {
         "normal",
         "happy",
         "smile",
@@ -66,7 +71,20 @@ def test_reply_has_no_format_leak(brain):
         "sad",
         "surprised",
         "wink",
-    }, f"正文里漏出了情绪标签: {reply[:40]!r}"
+        # 中文写法
+        "普通",
+        "正常",
+        "开心",
+        "微笑",
+        "思考",
+        "好奇",
+        "难过",
+        "惊讶",
+        "眨眼",
+    }
+    assert first_word not in labels, (
+        f"正文里漏出了情绪标签: {reply!r}\n（解析出来的首词 = {first_word!r}；完整结果 = {result}）"
+    )
 
 
 def test_p0_5_memory_survives_restart(brain, tmp_path):
