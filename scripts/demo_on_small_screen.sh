@@ -50,7 +50,8 @@ if [ -s .tmp/kiosk.log ]; then echo "日志: $(tail -3 .tmp/kiosk.log | tr '\n' 
 echo "窗口位置: $(xdotool search --name Sammy getwindowgeometry %@ 2>/dev/null | grep -E 'Position|Geometry' | tr '\n' ' ')"
 
 echo "录制 ${SECONDS_TO_REC}s…"
-ffmpeg -hide_banner -loglevel error -f x11grab -video_size "$SIZE" -framerate 8 \
+# 15fps：眨眼只有 110ms，8fps 会直接跳过去 —— 录出来看不到动
+ffmpeg -hide_banner -loglevel error -f x11grab -video_size "$SIZE" -framerate 15 \
     -i "${DISPLAY_NUM}.0${OFFSET}" -t "$SECONDS_TO_REC" \
     -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p \
     -y .tmp/demo-smallscreen.mp4 &

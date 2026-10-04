@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import faces, screen
+from . import anim, faces, screen
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .care import Care, care_prompt
@@ -52,6 +52,20 @@ POKE_QUIPS = [
     "嘿嘿，就喜欢你戳我。",
 ]
 POKE_FACES = [4, 8, 21, 29, 7]
+
+# 睡着时的表情编号（1=睡眠）。这个状态下动画要收敛：睡着还晃来晃去就不像睡着了
+SLEEP_EXPR = 1
+
+
+def anim_enabled(env: dict | None = None) -> bool:
+    """脸部动画开关（`SAMMY_ANIM=off` 关掉 —— 省电、或排障时用）。"""
+    if env is not None:
+        raw = env.get("SAMMY_ANIM", "on")
+    else:
+        from .voice import config
+
+        raw = config("SAMMY_ANIM", "on")
+    return str(raw or "on").strip().lower() not in {"off", "0", "false", "no"}
 
 
 class Bridge(QObject):
@@ -195,6 +209,15 @@ class SammyWindow(QWidget):
         self.timer.timeout.connect(self._tick)
         self.timer.start(1000)
 
+        # 脸的动画：眨眼 / 呼吸 / 微动 —— 让它像个活的，而不是一张贴图。
+        # 纯数学在 anim.py（可测），这里只负责推进时间和重画那一小块。
+        self.anim = anim.Animator()
+        self.anim_t = 0.0
+        self.anim_timer = QTimer(self)
+        self.anim_timer.timeout.connect(self._anim_tick)
+        if anim_enabled():
+            self.anim_timer.start(int(anim.ANIM_DT * 1000))
+
         # 主动心跳：每分钟问一次"要不要先开口"（默认不说话，见 attention.py）
         self.heart = QTimer(self)
         self.heart.timeout.connect(self._heartbeat)
@@ -210,6 +233,8 @@ class SammyWindow(QWidget):
 
     def set_expression(self, index: int) -> None:
         if index in EXPR_NAMES:
+            if index != self.expression:
+                self.anim.pop(self.anim_t)  # 换表情时弹一下，别"啪"地切开
             self.expression = index
             self.update()
 
@@ -338,6 +363,27 @@ class SammyWindow(QWidget):
             if qs.name() == name:
                 self.setScreen(qs)
                 return
+
+    def _face_region(self) -> QRect:
+        """脸在窗口里的像素区域（向外留余量，盖住呼吸位移和弹的那一下）。"""
+        b = faces.face_box()
+        m = 12
+        r = QRect(b.x() - m, b.y() - m, b.width() + 2 * m, b.height() + 2 * m)
+        s = self.scale
+        return QRect(
+            int(r.x() * s) + self._offset[0],
+            int(r.y() * s) + self._offset[1],
+            int(r.width() * s) + 2,
+            int(r.height() * s) + 2,
+        )
+
+    def _anim_tick(self) -> None:
+        """推进动画时间，**只重画脸那一小块**。
+
+        整窗重画在 1920×1080 上 30fps 太浪费，而且脸以外的东西根本没变。
+        """
+        self.anim_t += anim.ANIM_DT
+        self.update(self._face_region())
 
     def _layout_input(self) -> None:
         """按当前缩放摆输入框。
@@ -558,11 +604,19 @@ class SammyWindow(QWidget):
         p.setBrush(BEZEL)
         p.drawRoundedRect(QRect(2, 2, faces.DEV_W - 4, faces.DEV_H - 4), 32, 32)
 
-        # 脸
+        # 脸（带动画：眨眼压扁 / 呼吸浮动 / 微动 / 换表情弹一下）
         box = faces.face_box()
+        fr = self.anim.frame_at(self.anim_t, calm=self.expression == SLEEP_EXPR)
+        p.save()
+        if not fr.idle:
+            # 形变以**脸中心**为轴：这样压扁读起来是"闭眼"，不是"沉下去"
+            p.translate(box.center().x() + fr.dx, box.center().y() + fr.dy)
+            p.scale(fr.pop, fr.pop * fr.squash)
+            p.translate(-box.center().x(), -box.center().y())
         p.drawPixmap(
             box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
         )
+        p.restore()
 
         # 状态行：表情名 · 状态灯 ~~~~ 状态文字
         label = f"{emoji_of(self.expression)} {name_of(self.expression)}"
