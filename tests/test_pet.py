@@ -359,26 +359,33 @@ def test_snooze_from_the_menu_is_reachable(chatty):
     assert "推后" in chatty.status or "半小时" in chatty.status
 
 
-def test_kiosk_mode_fits_the_screen_and_does_not_stretch(win):
-    """小屏模式：按那块屏的真实尺寸等比铺满（不是写死的 0.55）。
+def test_kiosk_mode_fills_the_screen_without_stretching(win):
+    """小屏模式：窗口**铺满整屏**、**内容自适应**（画布跟着屏变宽/变高），但脸绝不拉伸。
 
-    这条要真建一个窗口来验 —— 缩放算错只会在"上真屏"那一刻暴露，
-    而那时候人已经坐在屏前面等着看 Sammy 了。
+    判据在 2026-10-05 改过：以前是"窗口 = 等比内容（1800×1080）+ 居中黑边"，
+    现在是"窗口铺满 + 版面自己铺开"。原因是 16:9 屏上等比居中会在右侧白留一条，
+    而回复文字最缺的正是宽度。这条测试原来钉的是旧行为，所以一起改。
     """
     import pytest
 
     from sammy import screen
-    from sammy.faces import DEV_H, DEV_W
+    from sammy.faces import DEV_H, DEV_W, face_box
     from sammy.pet import SammyWindow
 
     s = screen.list_screens()[0]
-    expected = screen.fit(DEV_W, DEV_H, s["width"], s["height"])
-
     k = SammyWindow(kiosk=True, display=s["index"], autoconnect=False)
-    assert k.scale == pytest.approx(expected.scale), "缩放没按屏算"
-    assert (k.width(), k.height()) == (expected.width, expected.height)
-    # 不拉伸：宽高比必须还是设备坐标系的 5:3
-    assert k.width() / k.height() == pytest.approx(DEV_W / DEV_H, rel=1e-2)
+    assert k.scale == pytest.approx(min(s["width"] / DEV_W, s["height"] / DEV_H)), "缩放没按屏算"
+    assert (k.width(), k.height()) == (s["width"], s["height"]), "没铺满整块屏"
+    # 内容自适应：画布 = 窗口 ÷ 缩放，且不小于设计基准
+    assert k.lay.canvas_w == pytest.approx(k.width() / k.scale, rel=1e-2)
+    assert k.lay.canvas_w >= DEV_W and k.lay.canvas_h >= DEV_H
+    # 不拉伸：脸的宽高比还是设计比例
+    fb = face_box()
+    assert k.lay.face.width() / k.lay.face.height() == pytest.approx(
+        fb.width() / fb.height(), rel=0.06
+    )
+    # 偏移必须是 0：窗口已经贴边，再平移一次会把内容推出窗口（右边被吃掉）
+    assert k._offset == (0, 0)
 
 
 def test_desktop_mode_still_uses_the_default_scale(win):

@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from PySide6.QtCore import QRect, QSize, Qt
-from PySide6.QtGui import QColor, QImage, QPainter, QPixmap
+from PySide6.QtGui import QColor, QImage, QImageReader, QPainter, QPixmap
 
 from .expressions import ASSETS_DIR, EXPR_NAMES
 
@@ -120,6 +120,70 @@ def debug_frames() -> str:
         b = boxes[index]
         lines.append(f"  {index:>3} 自身 {b.width():>3}×{b.height():<3} @({b.x()},{b.y()})")
     return "\n".join(lines)
+
+
+def motion(index: int) -> tuple[tuple[QImage, int], ...] | None:
+    """动图表情的帧：`((透明底 QImage, 该帧毫秒), ...)`；没有动图就 None。
+
+    为什么用 GIF：要的就是"动图表情"，而 Qt **自带** GIF 解码
+    （`QImageReader` 能逐帧读、并给出 `nextImageDelay()`），
+    所以运行时**不依赖 Pillow** —— Pillow 只在生成动图时用
+    （见 `scripts/make_anim_gifs.py`）。少一个运行时依赖，打包也小。
+
+    帧时长交给 GIF 自己声明：这样"哪张动得快一点"是美术选择，不用改代码。
+    """
+    path = ASSETS_DIR / "anim" / f"{index}.gif"
+    if not path.is_file():
+        return None
+    reader = QImageReader(str(path))
+    if not reader.canRead():
+        return None
+
+    frames: list[tuple[QImage, int]] = []
+    # 遍历动图要**反复 read()**（顺序取下一帧）。
+    # 别用 jumpToImage(0)：实测它对第 0 帧返回 False，于是整个动图被当成"读不出来"，
+    # 静默退回了静态脸 —— 这类失败没有报错，只能靠测试发现。
+    for _ in range(240):  # 上限：别让坏文件转不出来
+        img = reader.read()
+        if img.isNull():
+            break
+        delay = reader.nextImageDelay() or 80
+        frames.append((img.convertToFormat(QImage.Format_ARGB32), int(delay)))
+    return tuple(frames) or None
+
+
+# 动图帧的缓存（磁盘读数次，之后只查内存）
+_MOTION_CACHE: dict[int, tuple[tuple[QImage, int], ...] | None] = {}
+
+
+def motion_cached(index: int):
+    """带缓存的 `motion()` —— 每帧都读盘会卡。"""
+    if index not in _MOTION_CACHE:
+        _MOTION_CACHE[index] = motion(index)
+    return _MOTION_CACHE[index]
+
+
+def motion_frame(index: int, t: float) -> QImage | None:
+    """按时间取动图当前该显示的一帧。没有动图返回 None（调用方退回落单张）。"""
+    frames = motion_cached(index)
+    if not frames:
+        return None
+    total = sum(d for _, d in frames) / 1000.0
+    if total <= 0:
+        return frames[0][0]
+    x = t % total
+    acc = 0.0
+    for img, delay in frames:
+        acc += delay / 1000.0
+        if x < acc:
+            return img
+    return frames[-1][0]
+
+
+def motion_count() -> int:
+    """有多少个表情配了动图（`--voices` 之类的地方可以用）。"""
+    d = ASSETS_DIR / "anim"
+    return len(list(d.glob("*.gif"))) if d.is_dir() else 0
 
 
 @lru_cache(maxsize=64)

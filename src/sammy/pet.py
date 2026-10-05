@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, faces, screen
+from . import anim, faces, layout, screen
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .care import Care, care_prompt
@@ -35,14 +35,9 @@ WARN = QColor("#e8c05a")
 DEFAULT_SCALE = 0.55  # 桌面浮窗的默认缩放；小屏模式由 screen.fit() 按屏算
 SCALE = DEFAULT_SCALE  # 兼容旧引用 —— 窗口内部一律用 self.scale
 
-# ── 800×480 设备坐标系下的版面 ──
-CLOSE_C = QPoint(752, 34)
-CLOSE_R = 20
-STATUS_Y = 242
-DIVIDER_Y = 284
-MY_LINE_BOX = QRect(46, 290, 708, 30)
-REPLY_BOX = QRect(46, 324, 708, 70)
-INPUT_BOX = QRect(46, 400, 708, 50)
+# ── 版面：设计值现已集中在 layout.py（单一来源），这里不再留副本 ──
+# （曾经这里写着一组 800×480 的常量，接线后删掉：两份会各自漂移，
+#   屏幕自适应要的正是"一份设计值铺满任意屏"。）
 
 POKE_QUIPS = [
     "哎哟！戳哪儿呢～",
@@ -115,9 +110,11 @@ class SammyWindow(QWidget):
                 self.target_screen["height"],
             )
             self.scale = self._kiosk_geom.scale
-            # 全屏窗口比内容大时，内容要**居中**：偏移量必须画进画布里。
-            # （之前忘了这一步，内容贴在左上角、右边多出一条 —— Rowan 一眼就看出来了）
-            self._offset = (self._kiosk_geom.x, self._kiosk_geom.y)
+            # 版面是**自适应**的（画布 = 窗口 ÷ 缩放），内容自己就铺满整窗 ——
+            # 所以不能再叠加"居中留边"那一层偏移：窗口本身已经贴边，
+            # 再平移一次就把右边推出去（实测：状态行的"在线"和页码被吃掉）。
+            # 居中的活现在由 layout 干：元素按画布宽度铺开、脸在画布内居中。
+            self._offset = (0, 0)
             self._bind_to_screen(self.target_screen["name"])
 
         self.setWindowTitle("Sammy")
@@ -128,11 +125,12 @@ class SammyWindow(QWidget):
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WA_TranslucentBackground)
         if self._kiosk_geom is not None:
-            f = self._kiosk_geom
-            self.resize(f.width, f.height)
-            self.move(self.target_screen["x"] + f.x, self.target_screen["y"] + f.y)
+            # 铺满整块屏（窗管实际给多少就以 resizeEvent 为准 —— 顶栏可能吃掉几十像素）
+            self.resize(self.target_screen["width"], self.target_screen["height"])
+            self.move(self.target_screen["x"], self.target_screen["y"])
         else:
             self.resize(int(faces.DEV_W * self.scale), int(faces.DEV_H * self.scale))
+        self._relayout()
 
         self.expression = 3  # 微笑开场
         self.my_line = ""
@@ -195,6 +193,11 @@ class SammyWindow(QWidget):
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
         self.input.returnPressed.connect(self.send)
         self._layout_input()
+
+        # 回复排版缓存（每帧都算二分查找太浪费；键变了才重算）
+        self._fit_cache = None
+        self._fit_key = None
+        self._reply_t0 = 0.0  # 这条回复是第几秒出现的（翻页从第一页开始）
 
         self.bridge = Bridge()
         self.bridge.replyReady.connect(self._on_reply)
@@ -385,6 +388,19 @@ class SammyWindow(QWidget):
         self.anim_t += anim.ANIM_DT
         self.update(self._face_region())
 
+    def _reply_fit(self) -> layout.ReplyFit:
+        """当前回复的排版结论（带缓存）。
+
+        翻页从**这条回复出现的那一刻**开始算，所以换一条回复总是从第 1 页显示，
+        而不是接着上一条的页码继续翻。
+        """
+        key = (self.sammy_line, self.lay.reply.width(), self.lay.reply.height())
+        if self._fit_key != key:
+            self._fit_cache = layout.fit_reply(self.sammy_line, self.lay.reply)
+            self._fit_key = key
+            self._reply_t0 = self.anim_t
+        return self._fit_cache
+
     def _layout_input(self) -> None:
         """按当前缩放摆输入框。
 
@@ -395,13 +411,14 @@ class SammyWindow(QWidget):
         self.input.setStyleSheet(
             f"QLineEdit {{ background: rgba(18,42,26,190);"
             f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
-            f" color: #cfead6; padding-left: 18px; font-size: {int(30 * self.scale)}px; }}"
+            f" color: #cfead6; padding-left: 18px;"
+            f" font-size: {int(self.lay.font_input * self.scale)}px; }}"
         )
         self.input.setGeometry(
-            int(INPUT_BOX.x() * self.scale) + self._offset[0],
-            int(INPUT_BOX.y() * self.scale) + self._offset[1],
-            int(INPUT_BOX.width() * self.scale),
-            int(INPUT_BOX.height() * self.scale),
+            int(self.lay.input.x() * self.scale) + self._offset[0],
+            int(self.lay.input.y() * self.scale) + self._offset[1],
+            int(self.lay.input.width() * self.scale),
+            int(self.lay.input.height() * self.scale),
         )
 
     def resizeEvent(self, event) -> None:
@@ -412,14 +429,29 @@ class SammyWindow(QWidget):
         那是运气，换块屏（或换个窗管/缩放）就露馅。所以这里跟着实际尺寸走。
         """
         super().resizeEvent(event)
+        self._relayout()
         if self._kiosk_geom is None:
-            return  # 桌面浮窗：尺寸是我自己定的，不用跟
-        f = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height())
-        if abs(f.scale - self.scale) > 1e-3 or (f.x, f.y) != self._offset:
-            self.scale = f.scale
-            self._offset = (f.x, f.y)
             self._layout_input()
             self.update()
+            return  # 桌面浮窗：缩放是我自己定的，不跟着窗口尺寸走
+        f = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height())
+        if abs(f.scale - self.scale) > 1e-3:
+            self.scale = f.scale
+            self._layout_input()
+            self.update()
+
+    def _relayout(self) -> None:
+        """重算版面（**设备单位**）。
+
+        桌面浮窗：按 self.scale 反推 —— 画布恒为 800×480，和设计稿一模一样（行为不变）。
+        小屏模式：按**实际**窗口尺寸算 —— 16:9 的屏上画布会变成 853×480，
+        元素因此能横向铺满，而不是在右边白白空一条。
+        """
+        w, h = self.width(), self.height()
+        if self._kiosk_geom is None:
+            w, h = round(faces.DEV_W * self.scale), round(faces.DEV_H * self.scale)
+        if w > 0 and h > 0:
+            self.lay = layout.layout_dev(w, h)
 
     def _tick(self) -> None:
         if self.thinking:
@@ -599,12 +631,13 @@ class SammyWindow(QWidget):
         p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
         p.translate(*self._offset)  # 居中留边：先缩放再平移，量是设备坐标
 
-        # 屏幕玻璃
+        # 屏幕玻璃（版面来自 layout：换屏只换尺寸，不改这里的画法）
+        L = self.lay
         p.setPen(QPen(GREEN_DIM, 3))
         p.setBrush(BEZEL)
-        p.drawRoundedRect(QRect(2, 2, faces.DEV_W - 4, faces.DEV_H - 4), 32, 32)
+        p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
 
-        # 脸（带动画：眨眼压扁 / 呼吸浮动 / 微动 / 换表情弹一下）
+        # 脸：有动图就播动图，没有就退回落单张（外加眨眼/呼吸/微动的形变）
         box = faces.face_box()
         fr = self.anim.frame_at(self.anim_t, calm=self.expression == SLEEP_EXPR)
         p.save()
@@ -613,65 +646,79 @@ class SammyWindow(QWidget):
             p.translate(box.center().x() + fr.dx, box.center().y() + fr.dy)
             p.scale(fr.pop, fr.pop * fr.squash)
             p.translate(-box.center().x(), -box.center().y())
-        p.drawPixmap(
-            box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
-        )
+        moving = faces.motion_frame(self.expression, self.anim_t)
+        if moving is not None:
+            p.drawImage(box, moving)
+        else:
+            p.drawPixmap(
+                box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
+            )
         p.restore()
 
         # 状态行：表情名 · 状态灯 ~~~~ 状态文字
         label = f"{emoji_of(self.expression)} {name_of(self.expression)}"
-        p.setFont(QFont("PingFang SC", 26))
+        p.setFont(QFont(layout.FAMILY, L.font_label))
         p.setPen(GREEN)
-        p.drawText(QRect(46, STATUS_Y, 500, 36), Qt.AlignLeft | Qt.AlignVCenter, label)
-        dot_x = 46 + QFontMetrics(p.font()).horizontalAdvance(label) + 18
-        p.setFont(QFont("PingFang SC", 22))
+        p.drawText(
+            QRect(L.status.x(), L.status.y(), L.status.width() * 7 // 10, L.status.height()),
+            Qt.AlignLeft | Qt.AlignVCenter,
+            label,
+        )
+        dot_x = L.status.x() + QFontMetrics(p.font()).horizontalAdvance(label) + 18
+        p.setFont(QFont(layout.FAMILY, L.font_status))
         p.setPen(TEXT if self.status_ok else WARN)
         p.drawText(
-            QRect(dot_x + 20, STATUS_Y, 754 - dot_x - 20, 36),
+            QRect(dot_x + 20, L.status.y(), L.status.right() + 1 - dot_x - 20, L.status.height()),
             Qt.AlignRight | Qt.AlignVCenter,
             self.status,
         )
         p.setBrush(GREEN if self.status_ok else WARN)
         p.setPen(Qt.NoPen)
-        p.drawEllipse(QPoint(dot_x, STATUS_Y + 18), 7, 7)
+        p.drawEllipse(QPoint(dot_x, L.status.y() + L.status.height() // 2), 7, 7)
 
         # 分隔线
         p.setPen(QPen(GREEN_DIM, 2))
-        p.drawLine(46, DIVIDER_Y, 754, DIVIDER_Y)
+        p.drawLine(L.my_line.x(), L.divider_y, L.my_line.x() + L.my_line.width(), L.divider_y)
 
         # 对话区
         if self.my_line:
-            p.setFont(QFont("PingFang SC", 20))
+            p.setFont(QFont(layout.FAMILY, L.font_my))
             p.setPen(TEXT_DIM)
             p.drawText(
-                MY_LINE_BOX,
+                L.my_line,
                 Qt.AlignLeft | Qt.AlignVCenter,
                 QFontMetrics(p.font()).elidedText(
-                    f"你：{self.my_line}", Qt.ElideRight, MY_LINE_BOX.width()
+                    f"你：{self.my_line}", Qt.ElideRight, L.my_line.width()
                 ),
             )
 
-        # 回复文字：自适应字号，宁可缩小也不许被切掉
-        flags = Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap
-        font = QFont("PingFang SC", 26)
-        for size in (26, 24, 22, 20, 18):
-            font = QFont("PingFang SC", size)
-            if (
-                QFontMetrics(font).boundingRect(REPLY_BOX, flags, self.sammy_line).height()
-                <= REPLY_BOX.height()
-            ):
-                break
-        p.setFont(font)
+        # 回复文字：大字一页放得下就一页；放不下缩小；还放不下就翻页（绝不裁字）
+        fit = self._reply_fit()
+        p.setFont(QFont(layout.FAMILY, fit.size))
         p.setPen(TEXT)
-        p.drawText(REPLY_BOX, flags, self.sammy_line)
+        p.drawText(L.reply, layout.REPLY_FLAGS, fit.page_at(self.anim_t - self._reply_t0))
+        if fit.paged:
+            # 翻页提示：让人知道"后面还有"，别以为话说到一半就没了
+            p.setFont(QFont(layout.FAMILY, max(12, L.font_my - 2)))
+            p.setPen(TEXT_DIM)
+            p.drawText(
+                L.reply,
+                Qt.AlignRight | Qt.AlignBottom,
+                f"{fit.index_at(self.anim_t - self._reply_t0) + 1}/{len(fit.pages)}",
+            )
 
         # 关闭按钮
         p.setPen(QPen(GREEN_DIM, 2))
         p.setBrush(Qt.NoBrush)
-        p.drawEllipse(CLOSE_C, CLOSE_R, CLOSE_R)
+        p.drawEllipse(L.close_c, L.close_r, L.close_r)
         p.setPen(GREEN)
         p.drawText(
-            QRect(CLOSE_C.x() - CLOSE_R, CLOSE_C.y() - CLOSE_R, CLOSE_R * 2, CLOSE_R * 2),
+            QRect(
+                L.close_c.x() - L.close_r,
+                L.close_c.y() - L.close_r,
+                L.close_r * 2,
+                L.close_r * 2,
+            ),
             Qt.AlignCenter,
             "✕",
         )
@@ -681,7 +728,7 @@ class SammyWindow(QWidget):
 
     def mousePressEvent(self, event) -> None:
         pos = event.position() / self.scale
-        if (pos - CLOSE_C).manhattanLength() < CLOSE_R * 1.6:
+        if (pos - self.lay.close_c).manhattanLength() < self.lay.close_r * 1.6:
             QApplication.quit()
             return
         if event.button() == Qt.LeftButton:

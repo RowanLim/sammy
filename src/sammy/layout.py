@@ -22,7 +22,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPoint, QRect
+from PySide6.QtCore import QPoint, QRect, Qt
+from PySide6.QtGui import QFont, QFontMetrics
 
 from .faces import DEV_H, DEV_W, face_box
 
@@ -47,6 +48,94 @@ FONT_STATUS = 22
 FONT_MY = 20
 FONT_REPLY = 26
 FONT_INPUT = 30
+
+FAMILY = "PingFang SC"  # 中文优先；Linux 上找不到会回落到系统默认无衬线（有中文字形）
+
+# ── 回复区排版 ──────────────────────────────
+# 从大到小试。都放不下就**翻页**，绝不硬画到框外（硬画的后果是句子被悄悄切掉，
+# 实测用户第一眼看到的就是"话说到一半没了"）。
+REPLY_SIZES = (26, 24, 22, 20, 18)
+PAGE_SECONDS = 3.6  # 翻页间隔：够读完一页，又不至于让人等
+REPLY_FLAGS = Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap
+_BREAKS = "。！？；，、…—!?;,. \n"  # 优先在这些地方断开，别把词从中间劈开
+
+
+@dataclass(frozen=True)
+class ReplyFit:
+    """回复区排版的结论：用多大字、分几页、要不要翻。"""
+
+    size: int
+    pages: tuple[str, ...]
+    paged: bool  # True = 一次放不下，正在翻页
+
+    def page_at(self, t: float) -> str:
+        """第 t 秒该显示哪一页。"""
+        if len(self.pages) <= 1:
+            return self.pages[0]
+        return self.pages[int(t / PAGE_SECONDS) % len(self.pages)]
+
+    def index_at(self, t: float) -> int:
+        if len(self.pages) <= 1:
+            return 0
+        return int(t / PAGE_SECONDS) % len(self.pages)
+
+
+def _reply_flags():
+    return REPLY_FLAGS
+
+
+def _fits(text: str, rect: QRect, font: QFont) -> bool:
+    return QFontMetrics(font).boundingRect(rect, _reply_flags(), text).height() <= rect.height()
+
+
+def _nice_cut(text: str, limit: int) -> int:
+    """在 limit 附近找个"体面"的断点（标点/空格），宁可短一点也不劈开词。"""
+    if limit >= len(text):
+        return len(text)
+    window = text[:limit]
+    for i in range(len(window) - 1, max(0, len(window) - 14), -1):
+        if window[i] in _BREAKS:
+            return i + 1
+    return limit
+
+
+def _split_pages(text: str, rect: QRect, font: QFont) -> tuple[str, ...]:
+    """把文本切成"每页都放得下"的若干页。"""
+    pages: list[str] = []
+    rest = text
+    while rest:
+        if _fits(rest, rect, font):
+            pages.append(rest)
+            break
+        lo, hi = 1, len(rest)  # 二分找最长能放下的前缀
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if _fits(rest[:mid], rect, font):
+                lo = mid
+            else:
+                hi = mid - 1
+        cut = _nice_cut(rest, lo)
+        if cut <= 0:  # 一个字都放不下（区域太小）—— 至少塞一个字，别死循环
+            cut = 1
+        pages.append(rest[:cut])
+        rest = rest[cut:].lstrip()
+    return tuple(pages) or ("",)
+
+
+def fit_reply(text: str, rect: QRect, sizes: tuple[int, ...] = REPLY_SIZES) -> ReplyFit:
+    """在 rect 里放下 text：优先用大字一页放完；放不下就缩小；还放不下就翻页。
+
+    **不许出现"画到框外"**：这是函数存在的唯一理由。
+    旧代码从 26 试到 18，全放不下时照样用 18 硬画 → 句子被裁掉且毫无提示。
+    """
+    if not text:
+        return ReplyFit(sizes[0], ("",), False)
+    for size in sizes:
+        font = QFont(FAMILY, size)
+        if _fits(text, rect, font):
+            return ReplyFit(size, (text,), False)
+    size = sizes[-1]  # 最小的字号都放不下 → 翻页，绝不裁字
+    return ReplyFit(size, _split_pages(text, rect, QFont(FAMILY, size)), True)
 
 
 @dataclass(frozen=True)
@@ -81,8 +170,13 @@ class Layout:
         )
 
 
-def layout_for(win_w: int, win_h: int) -> Layout:
-    """按窗口像素尺寸算出整套版面。"""
+def _layout(win_w: int, win_h: int, *, device: bool) -> Layout:
+    """算整套版面。
+
+    `device=True` 返回**设备单位**（配合绘制层的"先 p.scale() 再画"）；
+    `device=False` 返回**像素**（画的时候不用再缩放）。
+    两种口径来自同一份设计值，所以不会各算各的、互相漂移。
+    """
     if win_w <= 0 or win_h <= 0:
         raise ValueError(f"窗口尺寸必须为正：{win_w}×{win_h}")
 
@@ -91,27 +185,22 @@ def layout_for(win_w: int, win_h: int) -> Layout:
     cw = win_w / scale  # 画布宽（设备单位）
     ch = win_h / scale
 
-    def px(v: float) -> int:
-        """设备单位 → 像素。"""
-        return round(v * scale)
+    def u(v: float) -> int:
+        """设备单位 → 输出单位。"""
+        return round(v) if device else round(v * scale)
 
-    m = px(MARGIN)
-    inner_w = max(1, px(cw) - 2 * m)
+    W = round(cw) if device else win_w
+    H = round(ch) if device else win_h
+
+    m = u(MARGIN)
+    inner_w = max(1, W - 2 * m)
+    input_h = u(INPUT_H)
+    input_y = H - input_h - u(BOTTOM)  # 输入框贴底
+    reply_y = u(REPLY_Y)
+    # 回复区从设计位置一直伸到输入框上方 —— 高屏就把多出来的高度给它
+    reply_h = max(u(40), input_y - u(REPLY_GAP) - reply_y)
 
     fb = face_box()  # 设计里的脸位置
-    face = QRect(
-        (px(cw) - px(fb.width())) // 2,  # **横向居中**（不跟宽度拉伸，免得脸变形）
-        px(fb.y()),
-        px(fb.width()),
-        px(fb.height()),
-    )
-
-    input_h = px(INPUT_H)
-    input_y = px(ch) - input_h - px(BOTTOM)  # 输入框贴底
-    reply_y = px(REPLY_Y)
-    # 回复区从设计位置一直伸到输入框上方 —— 高屏就把多出来的高度给它
-    reply_h = max(px(40), input_y - px(REPLY_GAP) - reply_y)
-
     return Layout(
         win_w=win_w,
         win_h=win_h,
@@ -119,26 +208,40 @@ def layout_for(win_w: int, win_h: int) -> Layout:
         canvas_w=cw,
         canvas_h=ch,
         panel=QRect(
-            px(PANEL_INSET),
-            px(PANEL_INSET),
-            px(cw) - 2 * px(PANEL_INSET),
-            px(ch) - 2 * px(PANEL_INSET),
+            u(PANEL_INSET),
+            u(PANEL_INSET),
+            W - 2 * u(PANEL_INSET),
+            H - 2 * u(PANEL_INSET),
         ),
-        panel_radius=px(PANEL_RADIUS),
-        face=face,
-        close_c=QPoint(px(cw) - px(DEV_W - CLOSE_CX), px(CLOSE_CY)),
-        close_r=px(CLOSE_R),
-        status=QRect(m, px(STATUS_Y), inner_w, px(36)),
-        divider_y=px(DIVIDER_Y),
-        my_line=QRect(m, px(MY_Y), inner_w, px(MY_H)),
+        panel_radius=u(PANEL_RADIUS),
+        # 脸**横向居中**（不跟宽度拉伸，免得脸变形）
+        face=QRect((W - u(fb.width())) // 2, u(fb.y()), u(fb.width()), u(fb.height())),
+        close_c=QPoint(W - u(DEV_W - CLOSE_CX), u(CLOSE_CY)),
+        close_r=u(CLOSE_R),
+        status=QRect(m, u(STATUS_Y), inner_w, u(36)),
+        divider_y=u(DIVIDER_Y),
+        my_line=QRect(m, u(MY_Y), inner_w, u(MY_H)),
         reply=QRect(m, reply_y, inner_w, reply_h),
         input=QRect(m, input_y, inner_w, input_h),
-        font_label=px(FONT_LABEL),
-        font_status=px(FONT_STATUS),
-        font_my=px(FONT_MY),
-        font_reply=px(FONT_REPLY),
-        font_input=px(FONT_INPUT),
+        font_label=u(FONT_LABEL),
+        font_status=u(FONT_STATUS),
+        font_my=u(FONT_MY),
+        font_reply=u(FONT_REPLY),
+        font_input=u(FONT_INPUT),
     )
 
 
-__all__ = ["BOTTOM", "MARGIN", "Layout", "layout_for"]
+def layout_for(win_w: int, win_h: int) -> Layout:
+    """**像素**版版面（画的时候不用再缩放）。"""
+    return _layout(win_w, win_h, device=False)
+
+
+def layout_dev(win_w: int, win_h: int) -> Layout:
+    """**设备单位**版版面（配合绘制层"先 p.scale() 再画"）。
+
+    在 800×480 上逐像素等价于原来的写死常量 —— 接线不该改变设计尺寸上的样子。
+    """
+    return _layout(win_w, win_h, device=True)
+
+
+__all__ = ["BOTTOM", "MARGIN", "Layout", "ReplyFit", "fit_reply", "layout_dev", "layout_for"]
