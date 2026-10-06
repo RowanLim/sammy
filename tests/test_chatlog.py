@@ -112,6 +112,21 @@ def test_format_when_empty(log):
     assert "还没有对话记录" in chatlog.format_recent()
 
 
+def test_tests_do_not_write_to_the_real_log():
+    """**别把测试夹具写进用户真看的流水里。**
+
+    踩过一次：窗口层的 send()/_on_reply() 会往 data/chat.jsonl 追加，
+    跑一轮测试就塞进去 48 条假记录（"假的回复"这种）——
+    用户 `make history` 会看到这些。这条钉的是 conftest 里的 autouse 隔离装置。
+    """
+    from sammy import chatlog
+    from sammy.paths import data_dir
+
+    assert not str(chatlog.LOG_FILE).startswith(str(data_dir())), (
+        "测试没被隔离，会污染真实的 data/chat.jsonl"
+    )
+
+
 def test_records_are_jsonl_lines(log):
     """格式必须是"一行一条 JSON" —— 追加写才不会互相踩。"""
     chatlog.append("user", "第一句")

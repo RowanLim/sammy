@@ -24,6 +24,21 @@ def qapp():
     yield app
 
 
+@pytest.fixture(autouse=True)
+def isolate_chatlog(tmp_path, monkeypatch):
+    """**每个用例都别碰真的对话记录。**
+
+    踩过的坑：窗口层的 `send()` / `_on_reply()` 会往 `data/chat.jsonl` 追加，
+    于是一跑测试就把**测试夹具**（"假的回复"这种）写进真实的流水里 ——
+    用户 `make history` 会看到一堆测试数据，那是数据污染，不是小事。
+    隔离要放在**根上**（autouse），而不是指望每个用例自觉。
+    """
+    from sammy import chatlog
+
+    monkeypatch.setattr(chatlog, "LOG_FILE", tmp_path / "chat.jsonl")
+    monkeypatch.setattr(chatlog, "ROTATED", tmp_path / "chat.jsonl.1")
+
+
 @pytest.fixture
 def memory(tmp_path):
     """每个用例一个干净的记忆库。"""
