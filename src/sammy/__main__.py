@@ -124,6 +124,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
+    parser.add_argument(
+        "--history",
+        nargs="?",
+        type=int,
+        const=20,
+        metavar="N",
+        help="看最近的对话记录（默认 20 条）",
+    )
+    parser.add_argument(
+        "--clear-history", action="store_true", help="清空对话记录（**不动记忆** —— 那是另一件事）"
+    )
     args = parser.parse_args(argv)
 
     if args.models:
@@ -224,6 +235,20 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\n如果它现在开口，会拿到这个指令：\n  {_op(d.want_to_talk, d.closeness, d.boredom)}"
         )
+        return 0
+
+    if args.history is not None:
+        from . import chatlog
+
+        print(f"── 最近的对话记录 ──\n{chatlog.format_recent(args.history)}")
+        return 0
+
+    if args.clear_history:
+        from . import chatlog
+
+        n = chatlog.clear()
+        print(f"  已清空对话记录：{n} 条")
+        print("  （记忆没动 —— 槽位/日记在 sammy.db 里，那是 Sammy「记住的事」。）")
         return 0
 
     if args.memory:

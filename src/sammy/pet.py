@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, faces, layout, screen
+from . import anim, chatlog, faces, layout, screen
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .care import Care, care_prompt
@@ -286,6 +286,7 @@ class SammyWindow(QWidget):
         self._last_interaction_at = time.time()
         self._idle_face = None
         self.my_line = text
+        chatlog.append("user", text)  # 先记你说的（哪怕它答不上来，流水也该有你那句）
 
         if self.brain is None:
             self.sammy_line = "我脑子还没接通 —— 检查一下 .env 里的凭证。"
@@ -356,6 +357,7 @@ class SammyWindow(QWidget):
         self.set_expression(result.get("expression", 2))
         self.status = f"在线 · {result.get('latency', 0):.1f}s"
         self.speaker.say(self.sammy_line)  # 说出来（异步，不挡界面）
+        chatlog.append("assistant", self.sammy_line)  # 流水（P1-11）
         self.status_ok = True
         self.update()
 
@@ -588,6 +590,7 @@ class SammyWindow(QWidget):
         self.sammy_line = result.get("reply", "……")
         self.set_expression(result.get("expression", 2))
         self.speaker.say(self.sammy_line)  # 主动开口同样要出声
+        chatlog.append("assistant", self.sammy_line, kind="proactive")  # 标出来是它先说的
         if getattr(self, "_speak_kind", "chat") == "care":
             self.status = f"提醒你动一动了 · {result.get('latency', 0):.1f}s"
             self.care.note_reminded()

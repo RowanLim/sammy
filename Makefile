@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -89,3 +89,9 @@ backup:
 
 app:
 	@echo "还没做：P0-4，用 PyInstaller 打包成双击即开的 .app"
+
+history:
+	./run.sh --history
+
+clear-history:
+	./run.sh --clear-history
