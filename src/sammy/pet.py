@@ -98,11 +98,30 @@ class SammyWindow(QWidget):
         # 800×480 是"设备坐标系"（树莓派的 5 寸屏），画脸的逻辑只认它。
         # 这里唯一负责的是：映射到真实像素 —— 换屏不动任何画脸的代码。
         self.scale = DEFAULT_SCALE
+        # 兜底版面：窗口尺寸还没定（或报 0×0）时也不至于没有版面可用
+        self.lay = layout.layout_dev(faces.DEV_W, faces.DEV_H)
         self.target_screen: dict | None = None
         self._kiosk_geom: screen.Fit | None = None
         self._offset: tuple[int, int] = (0, 0)  # 居中留边的偏移（见 paintEvent）
         if kiosk:
             self.target_screen = screen.resolve_screen(display)
+            if self.target_screen["width"] <= 0 or self.target_screen["height"] <= 0:
+                # 屏没接 / 没信号时，Qt 会报 0×0。
+                # **这里绝不能崩** —— 崩了的表现是"插上屏 Sammy 也不见了"，
+                # 而人会以为是自己弄坏的（实测：小屏断开时 kiosk 启动直接 ValueError）。
+                # 先按设计尺寸把窗建出来，屏一恢复 resizeEvent 会自动重算。
+                print(
+                    f"  ⚠️ 屏 {self.target_screen['name']!r} 报不出尺寸"
+                    f"（{self.target_screen['width']}×{self.target_screen['height']}，多半是没接/没信号），"
+                    f"先按设计尺寸 {faces.DEV_W}×{faces.DEV_H} 起窗"
+                )
+                self.target_screen = {
+                    **self.target_screen,
+                    "x": 0,
+                    "y": 0,
+                    "width": faces.DEV_W,
+                    "height": faces.DEV_H,
+                }
             self._kiosk_geom = screen.fit(
                 faces.DEV_W,
                 faces.DEV_H,

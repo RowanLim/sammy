@@ -388,6 +388,34 @@ def test_kiosk_mode_fills_the_screen_without_stretching(win):
     assert k._offset == (0, 0)
 
 
+def test_kiosk_does_not_crash_when_the_screen_reports_0x0(win, monkeypatch):
+    """显示器没接 / 没信号时 Qt 会报 0×0 —— 这里**不许崩**。
+
+    实测踩到：小屏断开时 kiosk 启动直接 `ValueError` 退出，
+    人看到的表现是"插上屏 Sammy 也不见了"，还会以为是自己弄坏的。
+    正确做法是先按设计尺寸把窗建出来（屏一恢复 resizeEvent 会自动重算）。
+    """
+    from sammy import screen as screen_mod
+    from sammy.pet import SammyWindow
+
+    monkeypatch.setattr(
+        screen_mod,
+        "resolve_screen",
+        lambda want=None: {
+            "index": 1,
+            "name": "HDMI-0",
+            "x": 0,
+            "y": 0,
+            "width": 0,
+            "height": 0,
+            "primary": False,
+        },
+    )
+    k = SammyWindow(kiosk=True, display="HDMI-0", autoconnect=False)
+    assert k.width() > 0 and k.height() > 0, "窗口尺寸还是 0（等于起不来）"
+    assert k.lay.canvas_w >= 800 and k.lay.canvas_h >= 480, "没有兜底版面"
+
+
 def test_desktop_mode_still_uses_the_default_scale(win):
     """不指定小屏模式时行为不变（桌面浮窗照旧）。"""
     from sammy.faces import DEV_H, DEV_W
