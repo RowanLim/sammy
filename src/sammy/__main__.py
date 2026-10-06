@@ -135,6 +135,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--clear-history", action="store_true", help="清空对话记录（**不动记忆** —— 那是另一件事）"
     )
+    parser.add_argument(
+        "--home", action="store_true", help="智能家居普查：发现设备 + 说清每种还缺什么才能控制"
+    )
+    parser.add_argument("--lamp", metavar="IP", help="对某盏 Yeelight 操作（默认只读状态）")
+    parser.add_argument("--on", action="store_true", help="配合 --lamp：开灯")
+    parser.add_argument("--off", action="store_true", help="配合 --lamp：关灯")
+    parser.add_argument("--bright", type=int, metavar="N", help="配合 --lamp：亮度 1~100")
+    parser.add_argument("--temp", type=int, metavar="K", help="配合 --lamp：色温 1700~6500K")
     args = parser.parse_args(argv)
 
     if args.models:
@@ -235,6 +243,48 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\n如果它现在开口，会拿到这个指令：\n  {_op(d.want_to_talk, d.closeness, d.boredom)}"
         )
+        return 0
+
+    if args.home:
+        from . import smarthome as sh
+
+        print("── ① Yeelight 发现（开放协议，不需要账号）──")
+        bulbs = sh.discover(timeout=4.0)
+        if bulbs:
+            for b in bulbs:
+                print("  " + b.describe())
+        else:
+            print("  没发现。多半是设备上没开「局域网控制」——")
+            print("  Yeelight App 里**每盏灯单独**开这个开关（默认关），开完再跑一次。")
+
+        print("\n── ② 局域网普查（只探端口开不开，不碰设备）──")
+        hosts = sh.scan()
+        for ip, ports in sorted(hosts.items(), key=lambda kv: int(kv[0].split(".")[-1])):
+            print(sh.describe_host(ip, ports))
+        print(
+            f"\n  共 {len(hosts)} 台主机。需要 key/token 的那几类，得先从手机 App 的云账号里导出。"
+        )
+        return 0
+
+    if args.lamp:
+        from . import smarthome as sh
+
+        lamp = sh.Yeelight(args.lamp)
+        acted = False
+        for value, call, label in (
+            (args.on, lambda: lamp.set_power(True), "开灯"),
+            (args.off, lambda: lamp.set_power(False), "关灯"),
+            (args.bright, lambda: lamp.set_bright(args.bright), f"亮度 {args.bright}%"),
+            (args.temp, lambda: lamp.set_temp(args.temp), f"色温 {args.temp}K"),
+        ):
+            if value is None or value is False:
+                continue
+            acted = True
+            ok, res = call()
+            print(f"  {'✅' if ok else '❌'} {label}: {res}")
+        if not acted:  # 什么都没指定 → 只读状态（默认不碰设备）
+            ok, res = lamp.state()
+            print(f"  {'✅' if ok else '❌'} {args.lamp} 状态: {res}")
         return 0
 
     if args.history is not None:
