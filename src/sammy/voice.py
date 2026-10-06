@@ -96,6 +96,60 @@ def prepare_speech(text: str) -> str:
     return s
 
 
+# ── 念多长：陪伴场景"说太久"比"说少一点"更糟 ──────────
+
+DEFAULT_VOICE_MAX = 28  # 念出来的字数上限（实测中文约 5 字/秒 → 28 字 ≈ 5 秒）
+
+# 句末标点（中英）。用它切句，切完**保留标点** ——
+# 这样拼回去等于原文的前缀（测试会钉这条，防止"念出来的不是原话"）。
+_SENT_END = "。！？；!?;…"
+_SENT_SPLIT = re.compile(rf"(?<=[{_SENT_END}])")
+_CLAUSE = "，,、 "  # 第一句就超长时，退而求其次在这些地方断
+
+
+def _cut_at_clause(text: str, limit: int) -> str:
+    """在 limit 附近找个从句断点（逗号/顿号/空格），别把词从中间劈开。
+
+    从后往前找**最近的一个**断点；实在没有才硬切到 limit。
+    """
+    window = text[: limit + 8]
+    for i in range(len(window) - 1, 0, -1):
+        if window[i] in _CLAUSE:
+            return window[: i + 1]
+    return text[:limit]
+
+
+def abridge(text: str, max_chars: int = DEFAULT_VOICE_MAX, max_sentences: int = 1) -> str:
+    """念出来的部分：最多 `max_sentences` 句，且总长尽量不超过 `max_chars`。
+
+    为什么要截：实测中文语音约 **5 字/秒** —— 一条 107 字的回复要念 **22 秒**，
+    而大脑只想 1.4 秒。**屏幕上有全文，耳朵只需要听到重点。**
+    一直念下去不是陪伴，是背景噪音。
+
+    默认"一句 / 28 字"是量出来的：约 3~6 秒，刚够说清楚一句话。
+    `max_chars <= 0` 表示不截（念全文）—— 留这个口子是因为"念多长"是口味问题。
+
+    保证：返回值**一定是原文的前缀**（不会改词、不会加词），空输入返回空。
+    """
+    if not text or max_chars <= 0:
+        return text
+    parts = [p for p in _SENT_SPLIT.split(text) if p.strip()]
+    out = ""
+    for i, p in enumerate(parts):
+        if i >= max_sentences:
+            break
+        if i > 0 and len(out) + len(p) > max_chars:
+            break
+        out += p
+        if len(out) >= max_chars:
+            break
+    if len(out) > max_chars:
+        # 连第一句都超长（中间没有句末标点）→ 退到从句处断。
+        # ⚠️ 这一步不能省：少了它，长句会被**整句念完**，上限等于没设。
+        out = _cut_at_clause(out, max_chars)
+    return out.strip()
+
+
 # ── 后端 ──────────────────────────────────────────
 
 
@@ -108,8 +162,43 @@ class NullBackend:
     def speak(self, text: str) -> None:
         self.spoken.append(text)
 
+    def stop(self) -> None:
+        """不出声的后端没什么可停的（但接口要在，调用方不用判断）。"""
 
-class MacSayBackend:
+
+class _RunningProc:
+    """会念一会儿的后端：**记着正在放的那条进程**。
+
+    为什么要记：新的一句来了要能把还在念的那句**掐掉**。
+    不然连着发两条，它会把上一条慢慢念完 —— 那时候你已经聊到别处了。
+    （队列那一层只能挤掉"还没开始念的"，念到一半的得靠这个。）
+    """
+
+    _proc: subprocess.Popen | None = None
+
+    def _run(self, cmd: list[str], timeout: int) -> None:
+        try:
+            self._proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:  # 念不出来不该影响对话
+            print(f"  ⚠️ 念不出来（{type(e).__name__}: {e}）")
+            return
+        try:
+            self._proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+        except Exception:
+            pass
+        finally:
+            self._proc = None
+
+    def stop(self) -> None:
+        p = self._proc
+        if p is not None and p.poll() is None:
+            with contextlib.suppress(Exception):
+                p.terminate()
+
+
+class MacSayBackend(_RunningProc):
     """macOS 自带的 `say`：零依赖、离线、装了系统就有。"""
 
     def __init__(self, voice: str = DEFAULT_VOICE, rate: int = DEFAULT_RATE) -> None:
@@ -117,12 +206,7 @@ class MacSayBackend:
         self.rate = rate
 
     def speak(self, text: str) -> None:
-        subprocess.run(
-            ["say", "-v", self.voice, "-r", str(self.rate), text],
-            check=False,  # 念不出来不该影响对话
-            capture_output=True,
-            timeout=60,
-        )
+        self._run(["say", "-v", self.voice, "-r", str(self.rate), text], timeout=60)
 
 
 def linux_command(text: str, rate: int = DEFAULT_RATE, engine: str = "spd-say") -> list[str]:
@@ -139,7 +223,7 @@ def linux_command(text: str, rate: int = DEFAULT_RATE, engine: str = "spd-say") 
     return ["spd-say", "-w", text]
 
 
-class LinuxSayBackend:
+class LinuxSayBackend(_RunningProc):
     """Linux 上的朗读：优先 `spd-say`（走 speech-dispatcher，音色好），退回 `espeak-ng`。
 
     实测 Nex（Ubuntu）上 speech-dispatcher 是 active、两个命令都在。
@@ -150,12 +234,7 @@ class LinuxSayBackend:
         self.engine = "spd-say" if shutil.which("spd-say") else "espeak-ng"
 
     def speak(self, text: str) -> None:
-        subprocess.run(
-            linux_command(text, self.rate, self.engine),
-            check=False,
-            capture_output=True,
-            timeout=60,
-        )
+        self._run(linux_command(text, self.rate, self.engine), timeout=60)
 
 
 def edge_args(text: str, voice: str = "", rate: str = "") -> dict:
@@ -181,7 +260,7 @@ def player_command(path: str) -> list[str]:
     return ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path]
 
 
-class EdgeTTSBackend:
+class EdgeTTSBackend(_RunningProc):
     """微软 edge-tts 的神经网络中文音色（免费、不需要 key）。
 
     **为什么需要它**：Rowan 的原话是「这个语音好难听」。查下来 Mac 自带的
@@ -224,7 +303,7 @@ class EdgeTTSBackend:
             # 念不出来不该影响对话；但也别装没事 —— 打一行日志比静默强
             print(f"  ⚠️ edge-tts 合成失败（{type(e).__name__}: {e}），这次不念了")
             return
-        subprocess.run(player_command(str(path)), check=False, capture_output=True, timeout=120)
+        self._run(player_command(str(path)), timeout=120)
 
 
 def default_backend():
@@ -252,42 +331,65 @@ def default_backend():
 # ── 说话的人 ──────────────────────────────────────
 
 
+def voice_max_from_env() -> int:
+    """`SAMMY_VOICE_MAX`：念出来的字数上限。写 0 就是念全文。
+
+    坏值不该让语音整个坏掉 —— 退回默认值，并且**说明**（静默回退最坑）。
+    """
+    raw = config("SAMMY_VOICE_MAX", str(DEFAULT_VOICE_MAX)) or str(DEFAULT_VOICE_MAX)
+    try:
+        return max(0, int(str(raw).strip()))
+    except (TypeError, ValueError):
+        print(f"  ⚠️ SAMMY_VOICE_MAX 不是数字（{raw!r}），用默认 {DEFAULT_VOICE_MAX}")
+        return DEFAULT_VOICE_MAX
+
+
 class Speaker:
     """把要念的话排队念掉，**不阻塞调用方**。
 
     "后说的把还没念的挤掉"：如果你连着发三条，它不该把前两条也慢慢念完 ——
     那时候你已经聊到别处了。**念过时的回复，比不念还烦。**
+    念到一半的那句也掐掉（`backend.stop()`）—— 队列只能挤掉还没开口的。
     """
 
-    def __init__(self, backend=None, enabled: bool = True):
+    def __init__(self, backend=None, enabled: bool = True, max_chars: int | None = None):
         # 默认后端按平台挑（macOS: say / Linux: spd-say）—— 见 default_backend
         self.backend = backend if backend is not None else default_backend()
         self.enabled = enabled
+        self.max_chars = voice_max_from_env() if max_chars is None else max_chars
         self._q: queue.Queue[str | None] = queue.Queue(maxsize=1)
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
-        self.last_prepared: str = ""
+        self.last_prepared: str = ""  # 清洗后的全文
+        self.last_spoken: str = ""  # 真正念出去的部分（截短后）
 
     def say(self, text: str) -> str:
         """排一句。立刻返回 —— 界面不该为了等它念完而卡住。
 
-        返回**清洗后**的文本（没启用就返回空串），方便测试和排查。
+        返回**真正要念的**文本（已清洗、已截短）；没启用就返回空串。
         """
         prepared = prepare_speech(text)
         self.last_prepared = prepared
         if not self.enabled or not prepared:
             return "" if not self.enabled else prepared
 
+        spoken = abridge(prepared, max_chars=self.max_chars)
+        self.last_spoken = spoken
+
+        # 新的一句来了：先把还在念的那句掐掉
+        with contextlib.suppress(Exception):
+            self.backend.stop()
+
         with self._lock:
             # 挤掉还没念的那句（念过时的回复比不念更烦）
             with contextlib.suppress(queue.Empty):
                 self._q.get_nowait()
             with contextlib.suppress(queue.Full):
-                self._q.put_nowait(prepared)
+                self._q.put_nowait(spoken)
             if self._thread is None or not self._thread.is_alive():
                 self._thread = threading.Thread(target=self._run, daemon=True)
                 self._thread.start()
-        return prepared
+        return spoken
 
     def _run(self) -> None:
         while True:
@@ -330,11 +432,13 @@ __all__ = [
     "DEFAULT_EDGE_VOICE",
     "DEFAULT_RATE",
     "DEFAULT_VOICE",
+    "DEFAULT_VOICE_MAX",
     "EdgeTTSBackend",
     "LinuxSayBackend",
     "MacSayBackend",
     "NullBackend",
     "Speaker",
+    "abridge",
     "config",
     "default_backend",
     "edge_args",
@@ -342,4 +446,5 @@ __all__ = [
     "linux_command",
     "player_command",
     "prepare_speech",
+    "voice_max_from_env",
 ]
