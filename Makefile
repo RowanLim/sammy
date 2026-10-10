@@ -19,6 +19,8 @@ help:
 	@echo "make watchdog-status 看门狗状态：在不在盯着、崩过几次"
 	@echo "make mcp        看 MCP 工具层：配了哪些外挂服务（data/mcp.json）"
 	@echo "make mcp-demo   MCP 全链路演示：假 server + 自家工具挂服务 + 挂进工具表（离线）"
+	@echo "make report-media 重生成 8 小时报告素材（截图+视频，进 docs/8h/）"
+	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
 	@echo "make fetch-models 下语音模型（唤醒词/识别/VAD，几百 MB）"
@@ -93,9 +95,6 @@ backup:
 	python3 scripts/backup.py
 	git push origin main --tags
 
-app:
-	@echo "还没做：P0-4，用 PyInstaller 打包成双击即开的 .app"
-
 history:
 	./run.sh --history
 
@@ -131,3 +130,13 @@ mcp:
 # MCP 全链路演示：三条链路全离线，还都是真子进程
 mcp-demo:
 	$(VENV) scripts/mcp_demo.py
+
+# 8 小时报告的素材：截图 + 脸谱 + 短视频（进 docs/8h/，可随时重生成）
+report-media:
+	$(VENV) scripts/report_8h_media.py
+
+# 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
+watchdog-demo:
+	$(VENV) scripts/watchdog_demo.py
+
+.PHONY: report-media watchdog-demo
