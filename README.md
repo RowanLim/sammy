@@ -137,7 +137,7 @@ Sammy 的外挂工具走 MCP（生态标准，不自研协议）。两代协议�
 
 - 配置文件：`data/mcp.json`（不存在 = 没配任何服务，一切照常）
 - 查看状态：`make mcp` —— 逐个连一下，列出对面给的每个工具
-- 全链路演示：`make mcp-demo` —— 离线、真子进程；假 server + 自家工具挂服务 + 挂进工具表
+- 全链路演示：`make mcp-demo` —— 离线、真子进程；假 server + 自家工具挂服务 + 挂进工具表 + 换目录无 PYTHONPATH 启动
 - 反方向：把自己的工具挂成 MCP 服务，别的程序也能调 ——
   `.venv/bin/python -m sammy.mcp_server --tools current_time,web_search`
 
@@ -149,6 +149,10 @@ Sammy 的外挂工具走 MCP（生态标准，不自研协议）。两代协议�
 
 挂上的工具名字带 `mcp__服务名__工具名` 前缀（模型看得见、能调）；外挂服务起不来只打一行警告，
 **不挡 Sammy 启动**。
+
+配置里的相对路径（比如 `.venv/bin/python`）按**项目根**解析，子进程的 PYTHONPATH
+默认带上项目 src —— 源码模式与打包后的 .app 同一份配置（冻结版真机验过：从「/」
+启动、没有 PYTHONPATH 也照通）。
 
 ## 铁律
 
