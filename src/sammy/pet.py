@@ -15,12 +15,14 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
 from . import anim, chatlog, faces, layout, screen
+from . import mood as mood_mod
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
 from .care import Care, care_prompt
-from .drives import Drives, status_text
+from .drives import EMOTIONS, Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
 from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
+from .mood import MoodTracker
 from .voice import Speaker, enabled_from_env
 
 # ── 配色 ────────────────────────────────────────
@@ -207,6 +209,9 @@ class SammyWindow(QWidget):
             else Speaker(enabled=enabled_from_env() if autoconnect else False)
         )
 
+        # 心情（底色）：驱力管"困不困"，心情管"乐不乐" —— 两者合起来才是完整的它
+        self.mood = MoodTracker()
+
         # 输入框
         self.input = QLineEdit(self)
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
@@ -262,6 +267,8 @@ class SammyWindow(QWidget):
 
     def poke(self) -> None:
         """戳一下。"""
+        self.mood.poke()  # 有人来逗它，底色总会好一点
+        self.mood.save()
         if self.thinking:
             return
         self.idle_seconds = 0
@@ -304,6 +311,9 @@ class SammyWindow(QWidget):
         # 否则一条记忆没写进去，就会把用户已经拿到的回复覆盖成"我卡住了"。
         try:
             ctx = self.memory.context_block() if self.memory else ""
+            # 把"它此刻的心情"并进上下文 —— 语气要跟着底色走（提示词里也就这一处）
+            self.mood.tick(hours_alone=self._hours_alone())
+            ctx = "\n".join([p for p in (ctx, self.mood.prompt()) if p])
             result = self.brain.chat(
                 text, ctx, on_event=lambda name: self.bridge.activity.emit(name)
             )
@@ -355,6 +365,8 @@ class SammyWindow(QWidget):
         self.idle_seconds = 0
         self.sammy_line = result.get("reply", "……")
         self.set_expression(result.get("expression", 2))
+        self.mood.nudge(int(result.get("expression", 2) or 2))  # 这一轮的情绪推一把底色
+        self.mood.save()
         self.status = f"在线 · {result.get('latency', 0):.1f}s"
         self.speaker.say(self.sammy_line)  # 说出来（异步，不挡界面）
         chatlog.append("assistant", self.sammy_line)  # 流水（P1-11）
@@ -486,6 +498,33 @@ class SammyWindow(QWidget):
         if self._save_ticks >= 60:
             self._save_ticks = 0
             self._save_drives()
+            self.mood.save()
+        else:
+            # 心情每分钟都回归一点（不落盘，落盘按上面的节奏）
+            self.mood.tick(hours_alone=self._hours_alone())
+
+    def _hours_alone(self) -> float:
+        """多久没人说话了。**启动那一刻算 0**（不是从 1970 年算起）。
+
+        踩过的坑：`_last_interaction_at` 的初值是 `0.0`（表示"还没交互过"），
+        直接拿它算小时数会得到 **49 万小时**，一下子把心情砸到下限 ——
+        表现是"刚启动它就很蔫"。所以：没交互过 → 0；并且**封顶 24 小时**
+        （睡一觉回来不该被算成"失踪一星期"）。
+        """
+        if not self._last_interaction_at:
+            return 0.0
+        return min(24.0, max(0.0, (time.time() - self._last_interaction_at) / 3600.0))
+
+    def _idle_face_for(self) -> int:
+        """空闲时摆哪张脸。
+
+        **驱力管"困不困"，心情管"乐不乐"**：驱力已经明确（困了/无聊/想你）就听驱力的 ——
+        累成那样还笑嘻嘻很假；驱力说"没什么特别"时，才由心情决定底色表情。
+        """
+        face = self.drives.expression()
+        if face == EMOTIONS["normal"]:
+            return mood_mod.idle_expression(self.mood.mood.valence)
+        return face
 
     def _refresh_idle_look(self) -> None:
         """按驱力决定表情和状态文字。
@@ -496,7 +535,7 @@ class SammyWindow(QWidget):
         """
         if time.time() - self._last_interaction_at < 5:
             return
-        face = self.drives.expression()
+        face = self._idle_face_for()
         if face == self._idle_face:
             return
         self._idle_face = face

@@ -34,9 +34,12 @@ def isolate_chatlog(tmp_path, monkeypatch):
     隔离要放在**根上**（autouse），而不是指望每个用例自觉。
     """
     from sammy import chatlog
+    from sammy import mood as mood_mod
 
     monkeypatch.setattr(chatlog, "LOG_FILE", tmp_path / "chat.jsonl")
     monkeypatch.setattr(chatlog, "ROTATED", tmp_path / "chat.jsonl.1")
+    # 心情也一样：窗口会自己写 data/mood.json，别让测试把真实心情改掉
+    monkeypatch.setattr(mood_mod, "STATE_FILE", tmp_path / "mood.json")
 
 
 @pytest.fixture

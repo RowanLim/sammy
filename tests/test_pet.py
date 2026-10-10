@@ -440,13 +440,67 @@ def test_reply_updates_face_and_status(win):
 
 
 def test_memory_context_is_passed_to_brain(win):
-    """记忆必须真的塞进提示词 —— 否则"记得你"是假的。"""
+    """记忆必须真的塞进提示词 —— 否则"记得你"是假的。
+
+    2026-10-11 起上下文里**还多一行心情**（语气要跟着底色走），
+    所以判据从"等于记忆块"改成"包含记忆块" —— 顺带也钉住心情那行确实进去了。
+    """
     brain = FakeBrain()
     win.brain = brain
     win.memory = FakeMemory("【你记得关于 Rowan 的事】\n- preferred_name：Rowan")
     win._call_brain("我叫什么")
-    assert brain.calls == [("我叫什么", win.memory._block)]
-    assert "Rowan" in brain.calls[0][1]
+    sent = brain.calls[0][1]
+    assert win.memory._block in sent, "记忆没进上下文"
+    assert "Rowan" in sent
+    assert "心情" in sent, "心情那行没进上下文（语气就不会跟着底色走）"
+
+
+def test_a_warm_reply_lifts_the_mood(win):
+    """回复的情绪要真的推动**底色** —— 不是只换一张脸就完事。"""
+    win.brain = FakeBrain()  # 它的回复带 expression=4（开心）
+    before = win.mood.mood.valence
+    win._call_brain("你今天怎么样")
+    assert win.mood.mood.valence > before, "开心的回复没有推动心情"
+
+
+def test_poking_lifts_the_mood(win):
+    """有人来逗它，底色总会好一点。"""
+    before = win.mood.mood.valence
+    win.poke()
+    assert win.mood.mood.valence > before
+
+
+def test_hours_alone_does_not_explode_before_the_first_interaction(win):
+    """启动那一刻不该被算成"没人理 49 万小时"。
+
+    踩过：`_last_interaction_at` 初值是 0.0，直接减 time.time() 会得到天文数字，
+    于是"刚启动它就很蔫"。所以没交互过算 0，且封顶 24 小时。
+    """
+    import time as _t
+
+    assert win._hours_alone() == 0.0, "还没交互过，应当算 0"
+    win._last_interaction_at = _t.time() - 100 * 3600
+    assert win._hours_alone() == 24.0, "睡一觉回来不该被算成失踪一星期"
+
+
+def test_idle_face_follows_the_mood_when_drives_are_neutral(win):
+    """驱力说"没什么特别"时，空闲的脸由心情决定。"""
+    from sammy import mood as mood_mod
+
+    win.mood.mood.valence = 0.9  # 心情很好
+    assert win._idle_face_for() == mood_mod.idle_expression(0.9)
+    win.mood.mood.valence = -0.4  # 心情低落
+    assert win._idle_face_for() == mood_mod.idle_expression(-0.4)
+    assert win._idle_face_for() != mood_mod.idle_expression(0.9)
+
+
+def test_drives_win_when_it_is_sleepy(win):
+    """累到睡着时，心情再好也得摆睡脸 —— 累成那样还笑嘻嘻很假。"""
+    from sammy.drives import EMOTIONS
+
+    win.mood.mood.valence = 1.0
+    win.drives.asleep = True
+    assert win._idle_face_for() == EMOTIONS["sleep"]
 
 
 def test_extraction_runs_after_reply(win):

@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -98,3 +98,6 @@ clear-history:
 
 home:
 	./run.sh --home
+
+mood:
+	./run.sh --mood

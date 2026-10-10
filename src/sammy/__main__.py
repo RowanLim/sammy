@@ -109,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--memory", action="store_true", help="看看 Sammy 记得什么")
     parser.add_argument("--models", action="store_true", help="看各档位模型配置状态")
     parser.add_argument("--drives", action="store_true", help="看它此刻的驱力（精力/无聊/亲近）")
+    parser.add_argument("--mood", action="store_true", help="看它此刻的心情（底色）")
     parser.add_argument(
         "--attention", action="store_true", help="看它此刻会不会先开口、卡在哪一条闸门"
     )
@@ -149,6 +150,13 @@ def main(argv: list[str] | None = None) -> int:
         from .models import describe_all
 
         print(describe_all())
+        return 0
+
+    if args.mood:
+        from .mood import MoodTracker
+
+        print("── 它此刻的心情（底色）──")
+        print(MoodTracker().describe())
         return 0
 
     if args.drives:
