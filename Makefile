@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall face-only
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -14,6 +14,7 @@ help:
 	@echo "make recall     看它会不会想起旧事（候选池/闸门/额度）"
 	@echo "make screens    列出所有屏幕，以及铺满后的结果"
 	@echo "make kiosk      小屏模式：无边框铺满指定屏幕（接小屏后用这个）"
+	@echo "make face-only  face-only 形态：只有一张脸 + 一行状态（复古壳那种小屏用）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
 	@echo "make fetch-models 下语音模型（唤醒词/识别/VAD，几百 MB）"
@@ -105,3 +106,8 @@ mood:
 
 recall:
 	./run.sh --recall
+
+# face-only：只有一张脸 + 一行状态（复古壳那台 4:3 小屏用这个）
+# 指定屏：./run.sh --kiosk --face-only --display 1
+face-only:
+	./run.sh --kiosk --face-only

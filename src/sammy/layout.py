@@ -244,4 +244,90 @@ def layout_dev(win_w: int, win_h: int) -> Layout:
     return _layout(win_w, win_h, device=True)
 
 
-__all__ = ["BOTTOM", "MARGIN", "Layout", "ReplyFit", "fit_reply", "layout_dev", "layout_for"]
+# ── face-only 形态（小屏：只留一张脸 + 一行状态）────────────────
+# 给"只够看清一张脸"的小屏用（复古壳那台是 4:3）：回复区 / 输入框 / 我的话
+# 全部不要，脸放到最大（同一块屏上约是完整版的 1.5 倍），底下只留一行文字。
+# 结构上就"没有"那些元素 —— FaceOnlyLayout 里根本没有 reply / input / my_line
+# 这些字段，"只留"是类型层面保证的，不靠绘制代码自觉。
+FO_STATUS_H = 72  # 状态行的高度（40 号字 + 上下留白，只放一行）
+FO_GAP = 24  # 脸与状态行之间的缝
+FO_TOP = 16  # 脸离顶的最小距离（和设备基准的脸框一致）
+FO_FONT_STATUS = 40  # 状态行字号（完整版是 22 —— 这里要"字号加大"）
+FO_CLOSE_CLEAR = 140  # 脸宽必须 ≤ 画布宽 - 这个数（再宽就蹭到右上角的 ✕）
+
+
+@dataclass(frozen=True)
+class FaceOnlyLayout:
+    """face-only 版面：面板 + 一张大脸 + 一行状态 + 关闭按钮。"""
+
+    win_w: int
+    win_h: int
+    scale: float
+    canvas_w: float
+    canvas_h: float
+    panel: QRect
+    panel_radius: int
+    face: QRect
+    status: QRect
+    close_c: QPoint
+    close_r: int
+    font_status: int
+
+
+def faceonly_layout(win_w: int, win_h: int) -> FaceOnlyLayout:
+    """算 face-only 版面（**设备单位**）—— 缩放规则与 `layout_dev` 同一套。
+
+    脸的取法：在"面板去掉顶底留白和状态行"的区域里取放得下的最大等比脸框，
+    再把整组（脸 + 缝 + 状态行）在画布内竖直居中。两条规矩有测试钉住：
+    **脸不许蹭右上角的 ✕**（宽 ≤ 画布宽 - 140）、**脸永远比完整版大**。
+    """
+    if win_w <= 0 or win_h <= 0:
+        raise ValueError(f"窗口尺寸必须为正：{win_w}×{win_h}")
+
+    scale = min(win_w / DEV_W, win_h / DEV_H)
+    cw = win_w / scale  # 画布宽（设备单位）
+    ch = win_h / scale
+    W = round(cw)
+
+    fb = face_box()
+    ar = fb.width() / fb.height()
+
+    max_w = cw - FO_CLOSE_CLEAR
+    max_h = ch - FO_TOP - FO_GAP - FO_STATUS_H - BOTTOM
+    w = int(min(max_w, max_h * ar))
+    h = round(w / ar)  # 浮点：660/2.0370… 会算成 323.999…，直接 int() 会少一像素
+    if h > max_h:  # 兜底：宁可矮一格，不许越界
+        h -= 1
+
+    group_h = h + FO_GAP + FO_STATUS_H
+    top = max(FO_TOP, round((ch - group_h) / 2))  # 整组竖直居中；高屏上下都留白
+
+    return FaceOnlyLayout(
+        win_w=win_w,
+        win_h=win_h,
+        scale=scale,
+        canvas_w=cw,
+        canvas_h=ch,
+        panel=QRect(PANEL_INSET, PANEL_INSET, W - 2 * PANEL_INSET, round(ch) - 2 * PANEL_INSET),
+        panel_radius=PANEL_RADIUS,
+        face=QRect(round((cw - w) / 2), top, w, h),
+        status=QRect(MARGIN, top + h + FO_GAP, W - 2 * MARGIN, FO_STATUS_H),
+        close_c=QPoint(W - (DEV_W - CLOSE_CX), CLOSE_CY),
+        close_r=CLOSE_R,
+        font_status=FO_FONT_STATUS,
+    )
+
+
+__all__ = [
+    "BOTTOM",
+    "FO_GAP",
+    "FO_STATUS_H",
+    "MARGIN",
+    "FaceOnlyLayout",
+    "Layout",
+    "ReplyFit",
+    "faceonly_layout",
+    "fit_reply",
+    "layout_dev",
+    "layout_for",
+]

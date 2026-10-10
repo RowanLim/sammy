@@ -680,3 +680,138 @@ def test_recall_shows_a_distinct_status(chatty):
     chatty._on_spoke_up(chatty.brain.speak_first("x"))
     assert chatty.my_line == "", "它自己开的口，你那一侧是空的"
     assert "想起" in chatty.status
+
+
+# ── face-only 形态（T3：小屏上只留一张脸 + 一行状态）──────────
+
+
+def test_faceonly_window_hides_the_input_and_uses_the_big_face(win):
+    """face-only：输入框藏起来，版面换成"一张更大的脸"那套。"""
+    from sammy import layout as layout_mod
+    from sammy.pet import SammyWindow
+
+    fo = SammyWindow(face_only=True, autoconnect=False)
+    try:
+        assert isinstance(fo.lay, layout_mod.FaceOnlyLayout)
+        assert fo.input.isHidden(), "face-only 里输入框还露着"
+        assert not win.input.isHidden(), "完整版里输入框不该被藏"
+        assert fo.lay.face.width() > win.lay.face.width() * 1.4, "脸没换成大的"
+    finally:
+        fo.close()
+
+
+def test_faceonly_line_prefers_what_it_just_said(win):
+    """那一行的显示次序：**它刚说的话**（20 秒内）> 状态。"""
+    import time as _t
+
+    from sammy.pet import FACEONLY_LINE_HOLD, SammyWindow
+
+    fo = SammyWindow(face_only=True, autoconnect=False)
+    try:
+        fo.status = "在线 · 0.5s"
+        assert fo.face_line() == ("在线 · 0.5s", False), "没话说时该显示状态"
+
+        fo.sammy_line = "刚说完的一句"
+        fo._hold_line()
+        text, fresh = fo.face_line()
+        assert text == "刚说完的一句" and fresh is True
+        # 停留时长就是设计值（±1 秒容差）
+        assert abs((fo._line_until - _t.time()) - FACEONLY_LINE_HOLD) < 1.0
+
+        # 时间过去后回到状态行 —— 它刚说的话不该永远赖着不走
+        fo._line_until = _t.time() - 1
+        assert fo.face_line() == ("在线 · 0.5s", False)
+    finally:
+        fo.close()
+
+
+def test_faceonly_reply_lands_on_the_single_line(win):
+    """真实回复路径：回完话，那一行必须换成它说的话（不是还挂着状态）。"""
+    from sammy.pet import SammyWindow
+
+    fo = SammyWindow(face_only=True, autoconnect=False)
+    try:
+        fo.brain = FakeBrain()
+        fo._call_brain("你好")
+        text, fresh = fo.face_line()
+        assert text == "假的回复" and fresh is True
+    finally:
+        fo.close()
+
+
+def test_faceonly_new_message_clears_the_old_reply_from_the_line(win):
+    """你刚说了话：那一行该回到"思考中…"，别停在它上一条回复上。"""
+    from sammy.pet import SammyWindow
+
+    fo = SammyWindow(face_only=True, autoconnect=False)
+    try:
+        fo.sammy_line = "上一条回复"
+        fo._hold_line()
+        fo.brain = FakeBrain()
+        fo.input.setText("在吗")
+        fo.send()
+        assert fo.face_line() == ("思考中…", False)
+    finally:
+        fo.close()
+
+
+def test_faceonly_renders_without_crashing(win):
+    """渲染路径要走得通：很长的一句话（必须省略号收尾）+ grab 不崩。"""
+    from sammy.pet import SammyWindow
+
+    fo = SammyWindow(face_only=True, autoconnect=False)
+    try:
+        fo.sammy_line = "这是一句非常长的话" * 12
+        fo._hold_line()
+        fo.update()
+        img = fo.grab()
+        assert not img.isNull()
+        assert (img.width(), img.height()) == (fo.width(), fo.height())
+    finally:
+        fo.close()
+
+
+def test_face_region_covers_the_real_face_in_every_mode(win):
+    """动画的局部刷新区域必须真的盖住那张脸 —— 否则脸动画只刷一小块（脸会花）。
+
+    踩到过：老代码按**设计位**的脸框算区域；face-only 下脸不在那儿（面积差一大截），
+    kiosk 上画布变宽后脸被重新居中过、也偏着 —— 都靠"用版面里的脸"一并修掉。
+    """
+    from PySide6.QtCore import QRect
+
+    from sammy import screen
+    from sammy.pet import SammyWindow
+
+    s = screen.list_screens()[0]
+    windows = [win, SammyWindow(face_only=True, autoconnect=False)]
+    windows.append(SammyWindow(kiosk=True, display=s["index"], autoconnect=False))
+    try:
+        for w in windows:
+            L = w.lay
+            px = QRect(
+                round(L.face.x() * w.scale),
+                round(L.face.y() * w.scale),
+                round(L.face.width() * w.scale),
+                round(L.face.height() * w.scale),
+            )
+            assert w._face_region().contains(px), f"脸没被刷新区盖住（face_only={w.face_only}）"
+    finally:
+        for w in windows[1:]:
+            w.close()
+
+
+def test_faceonly_kiosk_fills_the_screen_with_the_big_face(win):
+    """face-only + kiosk：铺满整屏，脸还是大的（真机上就是这么跑的）。"""
+    from sammy import layout as layout_mod
+    from sammy import screen
+    from sammy.pet import SammyWindow
+
+    s = screen.list_screens()[0]
+    k = SammyWindow(kiosk=True, face_only=True, display=s["index"], autoconnect=False)
+    try:
+        assert isinstance(k.lay, layout_mod.FaceOnlyLayout)
+        assert (k.width(), k.height()) == (s["width"], s["height"]), "没铺满整块屏"
+        full = layout_mod.layout_dev(s["width"], s["height"])
+        assert k.lay.face.width() > full.face.width() * 1.4
+    finally:
+        k.close()

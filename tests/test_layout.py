@@ -142,3 +142,121 @@ def test_bad_size_raises():
     for bad in ((0, 480), (800, 0), (-1, -1)):
         with pytest.raises(ValueError):
             layout.layout_dev(*bad)
+
+
+# ── face-only 形态（小屏：只留一张脸 + 一行状态）──────────────
+
+FO_SIZES = [
+    (800, 480),  # 设计基准（树莓派 5 寸屏）
+    (1024, 768),  # 4:3 —— 复古壳那台
+    (1024, 600),  # 5:3 变体（10 寸小屏常见）
+    (1280, 720),  # 16:9
+    (1280, 1024),  # 4:3（大一点）
+    (1920, 1080),  # 用户的小屏（16:9）
+    (3840, 1080),  # 带鱼屏
+    (480, 800),  # 竖屏
+    (440, 264),  # 桌面浮窗（0.55 倍）
+]
+
+
+def test_faceonly_design_size_matches_the_pinned_numbers():
+    """800×480 上逐项钉死 —— face-only 改坏了这里必须响。"""
+    fo = layout.faceonly_layout(800, 480)
+    assert fo.scale == 1.0
+    assert (round(fo.canvas_w), round(fo.canvas_h)) == (800, 480)
+    assert _rect(fo.face) == (70, 30, 660, 324)
+    assert _rect(fo.status) == (46, 378, 708, 72)
+    assert (fo.close_c.x(), fo.close_c.y(), fo.close_r) == (752, 34, 20)
+    assert fo.font_status == 40
+
+
+def test_faceonly_has_only_a_face_and_one_line():
+    """ "只留一张脸 + 一行状态"要在**结构上**成立：回复区 / 输入框 / 我的话都不存在。
+
+    不是"不画"，是**没有这些字段** —— 这样不存在"哪天有人加回一段绘制"的漏洞。
+    """
+    fo = layout.faceonly_layout(800, 480)
+    for banned in ("reply", "input", "my_line", "divider_y"):
+        assert not hasattr(fo, banned), f"face-only 里不该有 {banned}"
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_face_is_always_bigger_than_the_full_version(wh):
+    """同一块屏上，face-only 的脸必须明显更大（不然这个形态毫无意义）。"""
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    full = layout.layout_dev(w, h)
+    assert fo.face.width() >= full.face.width() * 1.4, f"{w}×{h} 上脸没变大"
+    assert fo.face.height() >= full.face.height() * 1.4, f"{w}×{h} 上脸没变高"
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_fonts_are_enlarged(wh):
+    """ "字号加大"的判据：状态行字号 ≥ 完整版的 1.5 倍。"""
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    full = layout.layout_dev(w, h)
+    assert fo.font_status >= full.font_status * 1.5, f"{w}×{h} 上字号没加大"
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_everything_stays_inside_the_panel(wh):
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    panel = fo.panel
+    for name in ("face", "status"):
+        r = getattr(fo, name)
+        assert r.x() >= panel.x() and r.y() >= panel.y(), f"{w}×{h} {name} 越出左上"
+        assert r.right() <= panel.right(), f"{w}×{h} {name} 越出右边"
+        assert r.bottom() <= panel.bottom(), f"{w}×{h} {name} 越出下边"
+    assert fo.close_c.x() - fo.close_r >= panel.x()
+    assert fo.close_c.x() + fo.close_r <= panel.right()
+    assert fo.close_c.y() + fo.close_r <= panel.bottom()
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_face_is_never_stretched(wh):
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    fb = faces.face_box()
+    assert abs(fo.face.width() / fo.face.height() - fb.width() / fb.height()) < 0.06
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_face_is_horizontally_centered(wh):
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    left = fo.face.x() - fo.panel.x()
+    right = fo.panel.right() - fo.face.right()
+    assert abs(left - right) <= 2, f"{w}×{h} 上脸没居中（左 {left} / 右 {right}）"
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_face_never_collides_with_the_close_button(wh):
+    """脸再大也不许蹭到右上角的 ✕ —— 这是有意的容量上限，不是巧合。"""
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    assert fo.face.right() < fo.close_c.x() - fo.close_r, f"{w}×{h} 上脸蹭到关闭按钮"
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_line_has_room_for_exactly_one_line(wh):
+    """状态行的高度：放得下那号字，但明显放不下两行（它就是"一行状态"）。"""
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    assert fo.status.height() >= fo.font_status
+    assert fo.status.height() < fo.font_status * 2
+
+
+@pytest.mark.parametrize("wh", FO_SIZES)
+def test_faceonly_face_and_line_do_not_overlap(wh):
+    w, h = wh
+    fo = layout.faceonly_layout(w, h)
+    gap = fo.status.y() - (fo.face.y() + fo.face.height())
+    assert gap >= layout.FO_GAP - 2, f"{w}×{h} 上脸和状态行挤在一起（缝 {gap}）"
+
+
+def test_faceonly_bad_size_raises():
+    for bad in ((0, 480), (800, 0), (-1, -1)):
+        with pytest.raises(ValueError):
+            layout.faceonly_layout(*bad)

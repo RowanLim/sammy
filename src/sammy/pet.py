@@ -54,6 +54,9 @@ POKE_FACES = [4, 8, 21, 29, 7]
 # 睡着时的表情编号（1=睡眠）。这个状态下动画要收敛：睡着还晃来晃去就不像睡着了
 SLEEP_EXPR = 1
 
+# face-only 的那一行：它刚说的话停留多久（秒），之后回到状态行
+FACEONLY_LINE_HOLD = 20.0
+
 
 def anim_enabled(env: dict | None = None) -> bool:
     """脸部动画开关（`SAMMY_ANIM=off` 关掉 —— 省电、或排障时用）。"""
@@ -89,6 +92,7 @@ class SammyWindow(QWidget):
         speaker: Speaker | None = None,
         kiosk: bool = False,
         display: str | int | None = None,
+        face_only: bool = False,
         autoconnect: bool = True,
     ) -> None:
         """brain / memory 都可注入。
@@ -102,8 +106,13 @@ class SammyWindow(QWidget):
         # 800×480 是"设备坐标系"（树莓派的 5 寸屏），画脸的逻辑只认它。
         # 这里唯一负责的是：映射到真实像素 —— 换屏不动任何画脸的代码。
         self.scale = DEFAULT_SCALE
+        self.face_only = face_only
         # 兜底版面：窗口尺寸还没定（或报 0×0）时也不至于没有版面可用
-        self.lay = layout.layout_dev(faces.DEV_W, faces.DEV_H)
+        self.lay = (
+            layout.faceonly_layout(faces.DEV_W, faces.DEV_H)
+            if face_only
+            else layout.layout_dev(faces.DEV_W, faces.DEV_H)
+        )
         self.target_screen: dict | None = None
         self._kiosk_geom: screen.Fit | None = None
         self._offset: tuple[int, int] = (0, 0)  # 居中留边的偏移（见 paintEvent）
@@ -232,6 +241,7 @@ class SammyWindow(QWidget):
         self._fit_cache = None
         self._fit_key = None
         self._reply_t0 = 0.0  # 这条回复是第几秒出现的（翻页从第一页开始）
+        self._line_until = 0.0  # face-only：刚说的话要在那一行停到什么时候
 
         self.bridge = Bridge()
         self.bridge.replyReady.connect(self._on_reply)
@@ -288,6 +298,7 @@ class SammyWindow(QWidget):
         self._idle_face = None
         self.set_expression(random.choice(POKE_FACES))
         self.sammy_line = random.choice(POKE_QUIPS)
+        self._hold_line()  # face-only 的那一行也先显示这句话
         self.my_line = ""
 
     # ── 对话 ────────────────────────────────────
@@ -314,6 +325,7 @@ class SammyWindow(QWidget):
         self.status = "思考中…"
         self.set_expression(16)  # 思考脸
         self.sammy_line = "……"
+        self._line_until = 0.0  # 单行先回到"思考中…"，别停在上一条回复上
         threading.Thread(target=self._call_brain, args=(text,), daemon=True).start()
 
     def _call_brain(self, text: str) -> None:
@@ -377,6 +389,7 @@ class SammyWindow(QWidget):
         self.set_expression(result.get("expression", 2))
         self.mood.nudge(int(result.get("expression", 2) or 2))  # 这一轮的情绪推一把底色
         self.mood.save()
+        self._hold_line()  # face-only 的那一行：先显示这句话
         self.status = f"在线 · {result.get('latency', 0):.1f}s"
         self.speaker.say(self.sammy_line)  # 说出来（异步，不挡界面）
         chatlog.append("assistant", self.sammy_line)  # 流水（P1-11）
@@ -388,8 +401,25 @@ class SammyWindow(QWidget):
         self.status = "出错了"
         self.status_ok = False
         self.sammy_line = f"我卡住了：{message[:120]}"
+        self._hold_line()  # 出错的话也要在那一行上看得见
         self.set_expression(6)  # 伤心脸
         self.update()
+
+    # ── face-only 的单行显示 ─────────────────────
+
+    def _hold_line(self) -> None:
+        """让那一行先显示它刚说的话；过一会儿再回到状态。"""
+        self._line_until = time.time() + FACEONLY_LINE_HOLD
+
+    def face_line(self) -> tuple[str, bool]:
+        """face-only 模式那一行显示什么（第二个值 = 是不是"刚说的话"）。
+
+        屏幕小，只给得起一行：**它刚说的话**优先（说完 20 秒内），其余时间
+        显示状态（在线/思考中/出错了……）—— 它也是那一屏唯一的报错出口。
+        """
+        if self.sammy_line and time.time() < self._line_until:
+            return self.sammy_line, True
+        return self.status, False
 
     # ── 空闲行为 ────────────────────────────────
 
@@ -411,10 +441,13 @@ class SammyWindow(QWidget):
                 return
 
     def _face_region(self) -> QRect:
-        """脸在窗口里的像素区域（向外留余量，盖住呼吸位移和弹的那一下）。"""
-        b = faces.face_box()
-        m = 12
-        r = QRect(b.x() - m, b.y() - m, b.width() + 2 * m, b.height() + 2 * m)
+        """脸在窗口里的像素区域（向外留余量，盖住呼吸位移和弹的那一下）。
+
+        用**版面里的脸**（`self.lay.face`），不是设计位 —— face-only 下脸不在
+        设计位置上，写死脸框会让动画只刷新一小块（脸会花）；顺带修掉 kiosk
+        上的同一处旧错：画布变宽后脸被重新居中过，旧写法刷的是老位置。
+        """
+        r = self.lay.face.adjusted(-12, -12, 12, 12)
         s = self.scale
         return QRect(
             int(r.x() * s) + self._offset[0],
@@ -451,6 +484,9 @@ class SammyWindow(QWidget):
         动了我的窗口（我要 1800×1080，它给 1920×1044 —— 差的就是 GNOME 顶栏那 36px）。
         字体和输入框都得跟着走，不然大字小框看着就是坏的。
         """
+        if self.face_only:
+            self.input.hide()  # "只留一张脸" —— 输入框也不许出现
+            return
         self.input.setStyleSheet(
             f"QLineEdit {{ background: rgba(18,42,26,190);"
             f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
@@ -494,7 +530,7 @@ class SammyWindow(QWidget):
         if self._kiosk_geom is None:
             w, h = round(faces.DEV_W * self.scale), round(faces.DEV_H * self.scale)
         if w > 0 and h > 0:
-            self.lay = layout.layout_dev(w, h)
+            self.lay = layout.faceonly_layout(w, h) if self.face_only else layout.layout_dev(w, h)
 
     def _tick(self) -> None:
         if self.thinking:
@@ -623,6 +659,7 @@ class SammyWindow(QWidget):
     def _start_speaking(self, instruction: str, kind: str, item_id: str | None = None) -> None:
         """三种主动开口共用这条出口 —— 表情和状态文字按类型区分，机制只有一套。"""
         self.thinking = True
+        self._line_until = 0.0  # 先说"想跟你说句话…"，别停在旧内容上
         self._speak_kind = kind
         self._speak_item_id = item_id
         self._speak_instruction = instruction
@@ -652,6 +689,7 @@ class SammyWindow(QWidget):
         self.thinking = False
         self.my_line = ""
         self.sammy_line = result.get("reply", "……")
+        self._hold_line()  # face-only 的那一行：它自己开口说的也算
         self.set_expression(result.get("expression", 2))
         self.speaker.say(self.sammy_line)  # 主动开口同样要出声
         chatlog.append("assistant", self.sammy_line, kind="proactive")  # 标出来是它先说的
@@ -701,6 +739,7 @@ class SammyWindow(QWidget):
         self._save_care()
         self.my_line = ""
         self.sammy_line = "行，那再过半小时。"
+        self._hold_line()
         self.status = "好，再过半小时提醒你"
         self.set_expression(8)  # 眨眼：懂你
         self._idle_face = None
@@ -730,14 +769,18 @@ class SammyWindow(QWidget):
         p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
         p.translate(*self._offset)  # 居中留边：先缩放再平移，量是设备坐标
 
-        # 屏幕玻璃（版面来自 layout：换屏只换尺寸，不改这里的画法）
-        L = self.lay
-        p.setPen(QPen(GREEN_DIM, 3))
-        p.setBrush(BEZEL)
-        p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
+        if self.face_only:
+            self._paint_face_only(p)
+        else:
+            self._paint_full(p)
+        p.end()
 
-        # 脸：有动图就播动图，没有就退回落单张（外加眨眼/呼吸/微动的形变）
-        box = faces.face_box()
+    def _draw_face(self, p: QPainter) -> None:
+        """画那张脸：有动图就播动图，没有就退回落单张（外加眨眼/呼吸/微动的形变）。
+
+        画框取自**版面**（`self.lay.face`）：完整版里等于设计位，face-only 里是放大的脸。
+        """
+        box = self.lay.face
         fr = self.anim.frame_at(self.anim_t, calm=self.expression == SLEEP_EXPR)
         p.save()
         if not fr.idle:
@@ -753,6 +796,15 @@ class SammyWindow(QWidget):
                 box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
             )
         p.restore()
+
+    def _paint_full(self, p: QPainter) -> None:
+        """完整版面：面板 + 脸 + 状态行 + 对话区 + 输入框。"""
+        L = self.lay
+        p.setPen(QPen(GREEN_DIM, 3))
+        p.setBrush(BEZEL)
+        p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
+
+        self._draw_face(p)
 
         # 状态行：表情名 · 状态灯 ~~~~ 状态文字
         label = f"{emoji_of(self.expression)} {name_of(self.expression)}"
@@ -807,6 +859,40 @@ class SammyWindow(QWidget):
             )
 
         # 关闭按钮
+        self._draw_close(p)
+
+    def _paint_face_only(self, p: QPainter) -> None:
+        """face-only 版面：**一张大脸 + 一行文字**，别的什么都没有。
+
+        那一行显示什么由 `face_line()` 定：它刚说的话（说完 20 秒内）> 状态。
+        小屏上这行也是唯一的报错出口（status_ok=False 时变警示色）。
+        """
+        L = self.lay
+        p.setPen(QPen(GREEN_DIM, 3))
+        p.setBrush(BEZEL)
+        p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
+
+        self._draw_face(p)
+
+        text, fresh = self.face_line()
+        p.setFont(QFont(layout.FAMILY, L.font_status))
+        if not self.status_ok:
+            p.setPen(WARN)
+        elif fresh:
+            p.setPen(TEXT)
+        else:
+            p.setPen(TEXT_DIM)  # 平时状态是背景信息，安静点，不抢脸的戏
+        p.drawText(
+            L.status,
+            Qt.AlignCenter,
+            QFontMetrics(p.font()).elidedText(text, Qt.ElideRight, L.status.width()),
+        )
+
+        self._draw_close(p)
+
+    def _draw_close(self, p: QPainter) -> None:
+        """关闭按钮 —— 两种版面共用（永远在右上角）。"""
+        L = self.lay
         p.setPen(QPen(GREEN_DIM, 2))
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(L.close_c, L.close_r, L.close_r)
@@ -821,7 +907,6 @@ class SammyWindow(QWidget):
             Qt.AlignCenter,
             "✕",
         )
-        p.end()
 
     # ── 交互 ────────────────────────────────────
 

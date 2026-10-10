@@ -123,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--voice-demo", metavar="WAV", help="语音闭环演示：唤醒→听懂→回答→说出来")
     parser.add_argument("--kiosk", action="store_true", help="小屏模式：无边框铺满指定屏幕")
     parser.add_argument("--display", help="配合 --kiosk：屏幕序号或名字（不给就用记住的/主屏）")
+    parser.add_argument(
+        "--face-only",
+        action="store_true",
+        help="face-only 形态：只留一张脸 + 一行状态（小屏/复古壳用，建议搭配 --kiosk）",
+    )
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -443,15 +448,16 @@ def main(argv: list[str] | None = None) -> int:
     from .pet import SammyWindow
 
     app = QApplication(sys.argv[:1])
-    win = SammyWindow(kiosk=args.kiosk, display=args.display)
+    win = SammyWindow(kiosk=args.kiosk, display=args.display, face_only=args.face_only)
     if args.kiosk:
         from .screen import remember
 
         which = str(args.display) if args.display else str(win.target_screen["index"])
         remember(which)  # 选过一次就记住，下次不用再问
         f = win._kiosk_geom
+        what = "（face-only：只有一张脸 + 一行状态）" if args.face_only else ""
         print(
-            f"小屏模式：屏 [{win.target_screen['index']}] {win.target_screen['name']} "
+            f"小屏模式{what}：屏 [{win.target_screen['index']}] {win.target_screen['name']} "
             f"{win.target_screen['width']}×{win.target_screen['height']}"
             f" → 窗口 {f.width}×{f.height}（缩放 {f.scale:.2f}，居中留边 {f.x}/{f.y}）"
         )
@@ -462,6 +468,7 @@ def main(argv: list[str] | None = None) -> int:
         win.set_expression(args.expr)
         win.reply = None  # 占位，避免误用
         win.sammy_line = args.reply or f"这是 {name_of(args.expr)} 的表情。"
+        win._hold_line()  # 快照里让 face-only 的那一行显示这句话（完整版不读它）
         win.my_line = "今天好累啊，不想干活。"
         win.status = "在线 · 1.8s"
         win.update()
