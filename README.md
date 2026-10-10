@@ -126,6 +126,27 @@ python3 scripts/backup.py         # 立即本地备份（每日 03:00 自动跑�
 git push origin main --tags       # 手动推远程
 ```
 
+## MCP 工具层
+
+Sammy 的外挂工具走 MCP（生态标准，不自研协议）。两代协议都会说：现代（2026-07-28 起，
+无握手、请求自带 `_meta`）与遗留（2025-11-25 及以前，`initialize` 握手）；先探测、探不动
+自动回退，对第三方服务也是这套。
+
+- 配置文件：`data/mcp.json`（不存在 = 没配任何服务，一切照常）
+- 查看状态：`make mcp` —— 逐个连一下，列出对面给的每个工具
+- 全链路演示：`make mcp-demo` —— 离线、真子进程；假 server + 自家工具挂服务 + 挂进工具表
+- 反方向：把自己的工具挂成 MCP 服务，别的程序也能调 ——
+  `.venv/bin/python -m sammy.mcp_server --tools current_time,web_search`
+
+配置示例（把自己挂出来，验证链路最省事）：
+
+```json
+{"servers": [{"name": "net", "command": ".venv/bin/python", "args": ["-m", "sammy.mcp_server"]}]}
+```
+
+挂上的工具名字带 `mcp__服务名__工具名` 前缀（模型看得见、能调）；外挂服务起不来只打一行警告，
+**不挡 Sammy 启动**。
+
 ## 铁律
 
 1. **PRD 是唯一事实来源** —— 想加功能，先改 PRD，再写代码。

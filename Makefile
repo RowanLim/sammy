@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall face-only watchdog watchdog-status
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall face-only watchdog watchdog-status mcp mcp-demo
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -17,6 +17,8 @@ help:
 	@echo "make face-only  face-only 形态：只有一张脸 + 一行状态（复古壳那种小屏用）"
 	@echo "make watchdog   看门狗：崩了自动拉起 + 崩溃日志（长期挂桌面用这个）"
 	@echo "make watchdog-status 看门狗状态：在不在盯着、崩过几次"
+	@echo "make mcp        看 MCP 工具层：配了哪些外挂服务（data/mcp.json）"
+	@echo "make mcp-demo   MCP 全链路演示：假 server + 自家工具挂服务 + 挂进工具表（离线）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
 	@echo "make fetch-models 下语音模型（唤醒词/识别/VAD，几百 MB）"
@@ -121,3 +123,11 @@ watchdog:
 # 看门狗状态：在不在盯着、崩过几次、最近一次崩溃
 watchdog-status:
 	./run.sh --watchdog-status
+
+# MCP 工具层：看配了哪些外挂服务（配置文件 data/mcp.json）
+mcp:
+	./run.sh --mcp
+
+# MCP 全链路演示：三条链路全离线，还都是真子进程
+mcp-demo:
+	$(VENV) scripts/mcp_demo.py

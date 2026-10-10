@@ -138,6 +138,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="看门狗状态：在不在盯着、崩过几次、最近一次崩溃",
     )
+    parser.add_argument(
+        "--mcp",
+        action="store_true",
+        help="MCP 工具层：看配了哪些外挂服务（配置文件 data/mcp.json）",
+    )
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -174,6 +179,9 @@ def main(argv: list[str] | None = None) -> int:
         raw = list(argv) if argv is not None else sys.argv[1:]
         extra = [a for a in raw if a != "--watchdog"]
         return Watchdog(child_command(extra)).run()
+
+    if args.mcp:
+        return _mcp_status()
 
     if args.models:
         from .models import describe_all
@@ -466,6 +474,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.snapshot:
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+    from . import mcp as _mcp
+
+    _mount_report = _mcp.mount_from_config()
+    for _line in _mount_report.summary_lines():
+        print(_line)
+
     from PySide6.QtWidgets import QApplication
 
     from .pet import SammyWindow
@@ -509,6 +523,51 @@ def main(argv: list[str] | None = None) -> int:
     if args.selftest:
         return _selftest(app, win, args.selftest)
     return app.exec()
+
+
+def _mcp_status() -> int:
+    """看 MCP 工具层：配了哪些服务、连得上吗、挂出来什么工具。"""
+    from .mcp import McpClient, default_config_path, load_config
+
+    path = default_config_path()
+    print("── MCP 工具层（外挂服务）──")
+    print(f"配置文件：{path}")
+    try:
+        configs = load_config()
+    except (OSError, ValueError) as e:
+        print(f"❌ 配置读不了：{e}")
+        return 5
+    if not configs:
+        print("还没配任何服务。想要的话，把下面这份存成上面的路径：")
+        sample = {
+            "servers": [
+                {"name": "net", "command": ".venv/bin/python", "args": ["-m", "sammy.mcp_server"]}
+            ]
+        }
+        print(json.dumps(sample, ensure_ascii=False, indent=2))
+        print("（net 这个示例是把 Sammy 自己的联网工具挂出来，用它验证链路最省事）")
+        return 0
+    bad = 0
+    for cfg in configs:
+        state = "" if cfg.enabled else "（已停用）"
+        client = McpClient(cfg, timeout=10, probe_timeout=3)
+        try:
+            client.start()
+        except Exception as e:
+            print(f"❌ 「{cfg.name}」{state} 起不来：{e}")
+            bad += 1
+            continue
+        try:
+            tds = client.list_tools()
+            info = client.server_info or {}
+            who = f"{info.get('name', '?')} {info.get('version', '')}".strip()
+            print(f"✅ 「{cfg.name}」{state} 通了：{client.era} · 协议 {client.version}")
+            print(f"    对面：{who}")
+            for td in tds:
+                print(f"    - {td.name}：{td.description or '（没写说明）'}")
+        finally:
+            client.stop()
+    return 5 if bad else 0
 
 
 def _selftest(app, win, out_path: str) -> int:
