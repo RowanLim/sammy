@@ -128,6 +128,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="face-only 形态：只留一张脸 + 一行状态（小屏/复古壳用，建议搭配 --kiosk）",
     )
+    parser.add_argument(
+        "--watchdog",
+        action="store_true",
+        help="看门狗：盯着 Sammy，崩了自动拉起（崩溃日志存 data/crashes/）",
+    )
+    parser.add_argument(
+        "--watchdog-status",
+        action="store_true",
+        help="看门狗状态：在不在盯着、崩过几次、最近一次崩溃",
+    )
     parser.add_argument("--silent", type=float, help="配合 --attention：假装已经安静多少分钟")
     parser.add_argument("--consolidate", action="store_true", help="立刻跑一次「夜里整理」")
     parser.add_argument("--day", help="配合 --consolidate 指定整理哪一天（YYYY-MM-DD）")
@@ -151,6 +161,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bright", type=int, metavar="N", help="配合 --lamp：亮度 1~100")
     parser.add_argument("--temp", type=int, metavar="K", help="配合 --lamp：色温 1700~6500K")
     args = parser.parse_args(argv)
+
+    if args.watchdog_status:
+        from .watchdog import status_report
+
+        print(status_report())
+        return 0
+
+    if args.watchdog:
+        from .watchdog import Watchdog, child_command
+
+        raw = list(argv) if argv is not None else sys.argv[1:]
+        extra = [a for a in raw if a != "--watchdog"]
+        return Watchdog(child_command(extra)).run()
 
     if args.models:
         from .models import describe_all
