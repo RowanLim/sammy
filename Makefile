@@ -4,13 +4,14 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
 	@echo "make models     看各档位模型配置状态"
 	@echo "make drives     看它此刻的驱力（精力/无聊/亲近）"
 	@echo "make attention  看它此刻会不会先开口、卡在哪一条闸门"
+	@echo "make recall     看它会不会想起旧事（候选池/闸门/额度）"
 	@echo "make screens    列出所有屏幕，以及铺满后的结果"
 	@echo "make kiosk      小屏模式：无边框铺满指定屏幕（接小屏后用这个）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
@@ -101,3 +102,6 @@ home:
 
 mood:
 	./run.sh --mood
+
+recall:
+	./run.sh --recall

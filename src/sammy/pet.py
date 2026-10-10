@@ -23,6 +23,7 @@ from .drives import EMOTIONS, Drives, status_text
 from .expressions import EXPR_NAMES, emoji_of, name_of
 from .memory import Memory, consolidate_now, extract_and_store, needs_nightly
 from .mood import MoodTracker
+from .recall import Recaller, chat_text_since, recall_prompt
 from .voice import Speaker, enabled_from_env
 
 # ── 配色 ────────────────────────────────────────
@@ -84,6 +85,7 @@ class SammyWindow(QWidget):
         drives: Drives | None = None,
         attention: Attention | None = None,
         care: Care | None = None,
+        recall: Recaller | None = None,
         speaker: Speaker | None = None,
         kiosk: bool = False,
         display: str | int | None = None,
@@ -201,6 +203,14 @@ class SammyWindow(QWidget):
         # 休息提醒（可注入）：盯的是"你坐太久了"，和"它想不想聊"是两回事
         self.care = care if care is not None else (Care.load() if autoconnect else Care())
         self.last_care_gate = None
+
+        # 回忆主动性（可注入）：主动开口时带上"它想起的旧事"（闸门见 recall.py）
+        self.recall = (
+            recall if recall is not None else (Recaller.load() if autoconnect else Recaller())
+        )
+        self.last_recall_gate = None
+        self._speak_item_id: str | None = None
+        self._speak_instruction: str = ""
 
         # 声音（可注入）：测试里注入 NullBackend，不然半夜跑测试会突然有人说话
         self.speaker = (
@@ -555,6 +565,7 @@ class SammyWindow(QWidget):
         self._save_drives()
         self._save_attention()
         self._save_care()
+        self._save_recall()
         self.speaker.stop()  # 别再念了
         super().closeEvent(event)
 
@@ -591,6 +602,15 @@ class SammyWindow(QWidget):
         if not gate.ok:
             return
 
+        # ③ 能提旧事就提旧事 —— "想起你说的某件事"比"我又无聊了"更像活物。
+        #    提不了（没候选 / 刚提过 / 今天超了）再退回原来的由头。
+        recent = chat_text_since(chatlog.recent(50))
+        rec = self.recall.decide(self.memory, recent_text=recent)
+        self.last_recall_gate = rec
+        if rec.ok and rec.item is not None:
+            self._start_speaking(recall_prompt(rec.item.text), kind="recall", item_id=rec.item.id)
+            return
+
         self._start_speaking(
             open_prompt(
                 want_to_talk=self.drives.want_to_talk,
@@ -600,13 +620,18 @@ class SammyWindow(QWidget):
             kind="chat",
         )
 
-    def _start_speaking(self, instruction: str, kind: str) -> None:
-        """两种主动开口共用这条出口 —— 表情和状态文字按类型区分，机制只有一套。"""
+    def _start_speaking(self, instruction: str, kind: str, item_id: str | None = None) -> None:
+        """三种主动开口共用这条出口 —— 表情和状态文字按类型区分，机制只有一套。"""
         self.thinking = True
         self._speak_kind = kind
+        self._speak_item_id = item_id
+        self._speak_instruction = instruction
         if kind == "care":
             self.status = "该提醒你动一动了…"
             self.set_expression(5)  # 疑惑脸：它是在打量你
+        elif kind == "recall":
+            self.status = "想起了点旧事…"
+            self.set_expression(7)  # 惊喜脸：眼睛一亮
         else:
             self.status = "想跟你说句话…"
             self.set_expression(32)  # 期待脸
@@ -630,14 +655,21 @@ class SammyWindow(QWidget):
         self.set_expression(result.get("expression", 2))
         self.speaker.say(self.sammy_line)  # 主动开口同样要出声
         chatlog.append("assistant", self.sammy_line, kind="proactive")  # 标出来是它先说的
-        if getattr(self, "_speak_kind", "chat") == "care":
+        kind = getattr(self, "_speak_kind", "chat")
+        if kind == "care":
             self.status = f"提醒你动一动了 · {result.get('latency', 0):.1f}s"
             self.care.note_reminded()
             self._save_care()
         else:
-            self.status = f"它自己开口了 · {result.get('latency', 0):.1f}s"
+            if kind == "recall":
+                self.status = f"想起了点旧事 · {result.get('latency', 0):.1f}s"
+            else:
+                self.status = f"它自己开口了 · {result.get('latency', 0):.1f}s"
             self.attention.note_spoke()
             self._save_attention()
+            if kind == "recall" and getattr(self, "_speak_item_id", None):
+                self.recall.note_recalled(self._speak_item_id)
+                self._save_recall()
         self._idle_face = None
         self.update()
 
@@ -652,6 +684,12 @@ class SammyWindow(QWidget):
             self.care.save()
         except OSError as e:
             print(f"  ⚠️ 休息计时存不下来: {e}")
+
+    def _save_recall(self) -> None:
+        try:
+            self.recall.save()
+        except OSError as e:
+            print(f"  ⚠️ 回忆状态存不下来: {e}")
 
     def snooze_care(self) -> None:
         """推后休息提醒（右键菜单里）。

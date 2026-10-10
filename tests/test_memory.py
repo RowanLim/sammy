@@ -273,3 +273,21 @@ def test_stats(memory):
     assert st["journal"] == 1
     assert st["since"] == date.today().isoformat()
     assert st["db"].endswith(".db")
+
+
+def test_entries_between_takes_a_time_window(memory):
+    """回忆主动性要的查询：按**绝对时间**取一段日记（新的在前）。"""
+    import time as _t
+
+    now = _t.time()
+    memory.add("新的", kind="event")
+    old_id = memory.add("旧的", kind="event")
+    memory.conn.execute("UPDATE journal SET ts=? WHERE id=?", (now - 10 * 86400, old_id))
+    memory.conn.commit()
+
+    got = memory.entries_between(now - 5 * 86400, now + 1)
+    assert [r["text"] for r in got] == ["新的"]
+
+    memory.add("整理产物", kind="consolidate")
+    got2 = memory.entries_between(now - 5 * 86400, now + 1, kinds=("consolidate",))
+    assert [r["text"] for r in got2] == ["整理产物"]

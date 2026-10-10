@@ -113,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--attention", action="store_true", help="看它此刻会不会先开口、卡在哪一条闸门"
     )
+    parser.add_argument("--recall", action="store_true", help="看它会不会想起旧事、会提哪一条")
     parser.add_argument("--care", action="store_true", help="看休息提醒的计时状态")
     parser.add_argument("--say", metavar="TEXT", help="试听：把文本洗一遍再念出来")
     parser.add_argument("--voice-name", help="配合 --say 指定声音（默认 Tingting）")
@@ -251,6 +252,47 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\n如果它现在开口，会拿到这个指令：\n  {_op(d.want_to_talk, d.closeness, d.boredom)}"
         )
+        return 0
+
+    if args.recall:
+        from . import chatlog
+        from .memory import Memory
+        from .recall import (
+            ELIGIBLE_AFTER_HOURS,
+            ELIGIBLE_BEFORE_DAYS,
+            ITEM_COOLDOWN_DAYS,
+            MAX_RECALLS_PER_DAY,
+            Recaller,
+            candidates,
+            chat_text_since,
+            recall_prompt,
+        )
+
+        r = Recaller.load()
+        mem = None
+        try:
+            mem = Memory()
+        except Exception as e:
+            print(f"  记忆打不开（{e}），当没有候选处理")
+
+        recent = chat_text_since(chatlog.recent(50))
+        gate = r.decide(mem, recent_text=recent)
+        pool = candidates(mem) if mem else []
+
+        print("── 回忆主动性（它会不会想起点旧事）──")
+        print(f"候选旧事：{len(pool)} 条（槽位 + 日记，已过'不该提的'筛）")
+        for c in pool[:8]:
+            print(f"  [{c.kind}] {c.text[:44]}")
+        print(f"\n现在会不会提旧事：{'会' if gate.ok else '不会'}")
+        print(f"  理由：{gate.reason}")
+        print(f"今天额度：已用 {r.recalled_today}/{MAX_RECALLS_PER_DAY}")
+        if gate.item is not None:
+            print(f"\n如果现在开口，会拿到这个指令：\n  {recall_prompt(gate.item.text)}")
+        else:
+            print(
+                f"\n闸门参数：冷却 {ITEM_COOLDOWN_DAYS} 天 / "
+                f"只提 {ELIGIBLE_AFTER_HOURS} 小时前 ~ {ELIGIBLE_BEFORE_DAYS} 天内的事"
+            )
         return 0
 
     if args.home:

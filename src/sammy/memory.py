@@ -134,6 +134,23 @@ class Memory:
         )
         return self.conn.execute(q, (day, *kinds)).fetchall()
 
+    def entries_between(
+        self,
+        start_ts: float,
+        end_ts: float,
+        kinds: tuple[str, ...] = ("event", "explicit", "digest"),
+    ) -> list[sqlite3.Row]:
+        """按**绝对时间**取一段日记（新的在前）。
+
+        回忆主动性用它挑"想起的事"；筛选规则全在 recall.py ——
+        这里只是一次普通查询，存储层不掺业务规则。
+        """
+        q = (
+            "SELECT * FROM journal WHERE ts >= ? AND ts <= ? AND kind IN "
+            f"({','.join('?' * len(kinds))}) ORDER BY ts DESC"
+        )
+        return self.conn.execute(q, (start_ts, end_ts, *kinds)).fetchall()
+
     def has_digest(self, day: str) -> bool:
         row = self.conn.execute(
             "SELECT 1 FROM journal WHERE day = ? AND kind = 'digest' LIMIT 1", (day,)

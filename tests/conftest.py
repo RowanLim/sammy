@@ -35,11 +35,14 @@ def isolate_chatlog(tmp_path, monkeypatch):
     """
     from sammy import chatlog
     from sammy import mood as mood_mod
+    from sammy import recall as recall_mod
 
     monkeypatch.setattr(chatlog, "LOG_FILE", tmp_path / "chat.jsonl")
     monkeypatch.setattr(chatlog, "ROTATED", tmp_path / "chat.jsonl.1")
     # 心情也一样：窗口会自己写 data/mood.json，别让测试把真实心情改掉
     monkeypatch.setattr(mood_mod, "STATE_FILE", tmp_path / "mood.json")
+    # 回忆状态同理：窗口会写 data/recall.json
+    monkeypatch.setattr(recall_mod, "STATE_FILE", tmp_path / "recall.json")
 
 
 @pytest.fixture

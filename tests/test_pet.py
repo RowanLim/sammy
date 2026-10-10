@@ -62,11 +62,18 @@ class FakeBrain:
 class FakeMemory:
     """假记忆库：够用的接口 + 记录写入。"""
 
-    def __init__(self, block: str = "", broken: bool = False):
+    def __init__(
+        self,
+        block: str = "",
+        broken: bool = False,
+        slots_data: dict | None = None,
+        journal_rows: list | None = None,
+    ):
         self._block = block
         self.broken = broken
-        self.slots_written: dict[str, str] = {}
+        self.slots_written: dict[str, str] = dict(slots_data or {})
         self.journal: list[str] = []
+        self._rows = list(journal_rows or [])  # 回忆用：带 id/kind/text/ts 的假日记行
 
     def context_block(self, *a, **k):
         return self._block
@@ -75,6 +82,11 @@ class FakeMemory:
         if self.broken:
             raise RuntimeError("记忆库坏了")
         return dict(self.slots_written)
+
+    def entries_between(self, start, end, kinds=("event", "explicit", "digest")):
+        if self.broken:
+            raise RuntimeError("记忆库坏了")
+        return [r for r in self._rows if start <= r["ts"] <= end and r["kind"] in kinds]
 
     def set_slot(self, key, value, source=""):
         self.slots_written[key] = value
@@ -577,3 +589,94 @@ def test_nightly_skipped_without_brain_or_memory(win):
     win.brain = FakeBrain()
     win.memory = None
     win._maybe_consolidate()
+
+
+# ── 回忆主动性接线 ────────────────────────────────
+
+
+def _recall_mem(slots: dict | None = None, events: list | None = None) -> FakeMemory:
+    import time as _t
+
+    rows = [
+        {"id": i + 1, "kind": "event", "text": text, "ts": _t.time() - age_days * 86400}
+        for i, (text, age_days) in enumerate(events or [])
+    ]
+    return FakeMemory(
+        slots_data=slots if slots is not None else {"name": "Rowan"},
+        journal_rows=rows,
+    )
+
+
+def test_heartbeat_brings_up_something_it_remembers(chatty):
+    """心跳先问"有没有旧事可提" —— 有就提旧事，而不是又一次"我无聊了"。"""
+    chatty.memory = _recall_mem()
+    chatty._heartbeat()
+    assert chatty.thinking
+    assert chatty._speak_kind == "recall"
+    assert chatty.last_recall_gate.ok
+    assert chatty._speak_item_id == "slot:name"
+    chatty._speak_up(chatty._speak_instruction)  # 同步跑，免得等线程
+    assert any("Rowan" in instr for instr, _ in chatty.brain.spoke), "旧事没进指令"
+    assert not chatty.brain.calls, "主动开口不该被当成回了谁的话"
+
+
+def test_without_anything_to_recall_it_falls_back_to_its_topics(chatty):
+    chatty.memory = FakeMemory()  # 空记忆
+    chatty._heartbeat()
+    assert chatty._speak_kind == "chat"
+    assert chatty.last_recall_gate is not None and not chatty.last_recall_gate.ok
+
+
+def test_recall_daily_cap_falls_back_to_topics(chatty):
+    import time as _t
+
+    from sammy.recall import MAX_RECALLS_PER_DAY
+
+    chatty.memory = _recall_mem()
+    chatty.recall.recalled_today = MAX_RECALLS_PER_DAY
+    chatty.recall.day = _t.strftime("%Y-%m-%d")
+    chatty._heartbeat()
+    assert chatty._speak_kind == "chat", "回忆额度用完就该退回普通由头"
+
+
+def test_recall_counts_against_both_quotas(chatty):
+    import random
+
+    chatty.memory = _recall_mem()
+    chatty._heartbeat()
+    item_id = chatty._speak_item_id
+    chatty._on_spoke_up(chatty.brain.speak_first("x"))
+    assert chatty.attention.spoken_today == 1, "它开口了，就要记主动额度"
+    assert chatty.recall.recalled_today == 1, "回忆也要记自己的账"
+    assert item_id in chatty.recall.recent_items
+    g = chatty.recall.decide(chatty.memory, rng=random.Random(0))
+    assert not g.ok, "唯一一条刚提过，马上不该能再提"
+
+
+def test_recall_generation_failure_does_not_burn_quotas(chatty):
+    chatty.memory = _recall_mem()
+    chatty.brain.fail = True
+    chatty._heartbeat()
+    chatty._speak_up(chatty._speak_instruction)
+    assert chatty.recall.recalled_today == 0, "生成失败不该消耗回忆额度"
+    assert chatty.attention.spoken_today == 0
+
+
+def test_does_not_recall_what_was_just_discussed(chatty):
+    import time as _t
+
+    from sammy import chatlog
+
+    chatlog.append("user", "你的项目桌面机器人 Sammy 怎么样了", when=_t.time())
+    chatty.memory = _recall_mem(slots={"current_project": "桌面机器人 Sammy"})
+    chatty._heartbeat()
+    assert chatty._speak_kind == "chat", "刚聊过的事不该又想起来"
+
+
+def test_recall_shows_a_distinct_status(chatty):
+    chatty.my_line = "我说过的话"
+    chatty._speak_kind = "recall"
+    chatty._speak_item_id = "slot:name"
+    chatty._on_spoke_up(chatty.brain.speak_first("x"))
+    assert chatty.my_line == "", "它自己开的口，你那一侧是空的"
+    assert "想起" in chatty.status
