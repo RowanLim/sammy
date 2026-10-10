@@ -11,6 +11,10 @@
 探测用的方法叫 `server/discover`：它回的版本不对、或者回一个不认识的方法错误，
 就说明对方是老式的 —— 规格里就是这么定的（-32022 之类的「现代错误」
 说明对方懂新协议；回别的错误、或者干脆不理，按遗留处理）。
+
+配置里 command 的启动规矩：含斜杠的相对路径按项目根解析、子进程的 PYTHONPATH
+默认带上项目 src、工作目录默认项目根 —— 源码模式与打包后的 .app 用同一份
+data/mcp.json（见 resolve_command / child_env / spawn_spec）。
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import tools as _tools
-from .paths import data_dir
+from .paths import data_dir, project_root
 
 # ── 协议常量 ────────────────────────────────────────
 
@@ -121,6 +125,51 @@ def load_config(path: str | Path | None = None) -> list[ServerConfig]:
     return out
 
 
+# ── 子进程启动规矩：源码模式与打包模式同一套 ─────────
+
+
+def resolve_command(command: str) -> str:
+    """把配置里的 command 解析成能执行的样子。
+
+    规矩只有一条：看起来像路径的（含斜杠）相对写法按**项目根**解析 ——
+    data/mcp.json 里的 command 按惯例写成项目内相对路径（如 .venv/bin/python），
+    它在源码模式天然成立（启动前会先 cd 到项目根），但打包后的 .app
+    双击启动时当前目录是「/」，同一份配置就找不到文件。绝对路径原样返回；
+    裸命令名（npx、python3 这类）原样交给 PATH —— 那本来就是系统的事。
+    """
+    if command.startswith("~"):
+        return os.path.expanduser(command)
+    if os.sep in command and not os.path.isabs(command):
+        return str(project_root() / command)
+    return command
+
+
+def child_env(config: ServerConfig) -> dict[str, str]:
+    """子进程的环境：默认保证项目的 src 在 PYTHONPATH 里。
+
+    源码模式靠 run.sh 里那行 PYTHONPATH=src；打包模式没人帮这个忙，
+    所以在这里统一补上。config.env 里显式给的键优先（含 PYTHONPATH）。
+    """
+    env = os.environ.copy()
+    src = str(project_root() / "src")
+    parts = [p for p in (env.get("PYTHONPATH") or "").split(os.pathsep) if p]
+    if src not in parts:
+        parts.insert(0, src)
+    env["PYTHONPATH"] = os.pathsep.join(parts)
+    env.update(config.env)
+    return env
+
+
+def spawn_spec(config: ServerConfig) -> tuple[list[str], dict[str, str], str]:
+    """把配置翻成子进程启动三件套：命令数组、环境、工作目录。
+
+    工作目录默认**项目根**（而不是继承启动方的当前目录）——
+    无论 Sammy 从哪启动，子进程眼里的当前目录都是同一个地方。
+    """
+    cmd = [resolve_command(config.command), *config.args]
+    return cmd, child_env(config), config.cwd or str(project_root())
+
+
 # ── 客户端 ──────────────────────────────────────────
 
 
@@ -172,9 +221,7 @@ class McpClient:
         """拉起进程 + 谈协议代。起不来或者谈不拢，抛 McpError 异常。"""
         if self._proc is not None:
             return self
-        env = os.environ.copy()
-        env.update(self.config.env)
-        cmd = [self.config.command, *self.config.args]
+        cmd, env, cwd = spawn_spec(self.config)
         try:
             self._proc = subprocess.Popen(
                 cmd,
@@ -182,10 +229,10 @@ class McpClient:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,
-                cwd=self.config.cwd,
+                cwd=cwd,
             )
         except OSError as e:
-            raise McpError(f"起不来（{self.config.command}）：{e}") from e
+            raise McpError(f"起不来（{cmd[0]}）：{e}") from e
         try:
             self._negotiate()
         except McpError:
@@ -676,11 +723,14 @@ __all__ = [
     "MountReport",
     "ServerConfig",
     "ToolDef",
+    "child_env",
     "default_config_path",
     "format_call_result",
     "load_config",
     "mount_client",
     "mount_from_config",
+    "resolve_command",
+    "spawn_spec",
     "stop_all",
     "unmount_client",
 ]

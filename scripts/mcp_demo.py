@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -106,7 +107,40 @@ def main() -> int:
         c.stop()
         mcp.stop_all()
 
-    print("\n✅ 三条链路全通：假 server / 自家工具挂服务 / 挂进工具表")
+    step("④", "从别的目录启动、没有 PYTHONPATH：同一份配置照样通（打包版走的就是这条路）")
+    venv_py = ROOT / ".venv" / "bin" / "python"
+    if not venv_py.exists():
+        print("  ⏭ 没有 .venv，跳过这一步（CI 环境）")
+    else:
+        saved_pp = os.environ.pop("PYTHONPATH", None)
+        saved_cwd = os.getcwd()
+        try:
+            os.chdir("/")  # 假装这是 .app 双击启动时的当前目录
+            c = McpClient(
+                ServerConfig(
+                    name="net",
+                    command=".venv/bin/python",
+                    args=["-m", "sammy.mcp_server", "--tools", "current_time"],
+                ),
+                timeout=30,
+                probe_timeout=6,
+            )
+            t0 = time.time()
+            try:
+                c.start()
+                names = [t.name for t in c.list_tools()]
+                assert names == ["current_time"], names
+                now = c.call_tool_text("current_time")
+                assert "现在是" in now, now
+                ok("相对路径也谈成", f"{c.era} · {now}", time.time() - t0)
+            finally:
+                c.stop()
+        finally:
+            os.chdir(saved_cwd)
+            if saved_pp is not None:
+                os.environ["PYTHONPATH"] = saved_pp
+
+    print("\n✅ 四条链路全通：假 server / 自家工具挂服务 / 挂进工具表 / 换目录无 PYTHONPATH 启动")
     return 0
 
 

@@ -546,6 +546,7 @@ def _mcp_status() -> int:
         }
         print(json.dumps(sample, ensure_ascii=False, indent=2))
         print("（net 这个示例是把 Sammy 自己的联网工具挂出来，用它验证链路最省事）")
+        print("（相对路径按项目根解析 —— 源码模式与打包版用同一份配置）")
         return 0
     bad = 0
     for cfg in configs:
