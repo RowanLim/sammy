@@ -846,11 +846,23 @@ class SammyWindow(QWidget):
         """
         if not self.look_on:
             return
+        if self._drag is not None:
+            return  # 正在被搬动：鼠标是「拿着它」的手，不是「看着」的目标
         local = self.mapFromGlobal(self._cursor_now())
         c = self.lay.face.center()
         dx = (local.x() - self._offset[0]) / self.scale - c.x()
         dy = (local.y() - self._offset[1]) / self.scale - c.y()
         self.anim.note_cursor(dx, dy, self.anim_t)
+
+    def _note_carry(self, delta: QPoint) -> None:
+        """窗口被搬动：位移换算成设备像素喂给动画层（「被带去哪儿就看哪儿」）。
+
+        开关关着（SAMMY_LOOK 设 off、或动画关着）时一步都不喂 —— 和光标凝视一个口径。
+        """
+        if not (self.look_on and self.anim_on):
+            return
+        s = self.scale
+        self.anim.note_carry(delta.x() / s, delta.y() / s)
 
     def _reply_fit(self) -> layout.ReplyFit:
         """当前回复的排版结论（带缓存）。
@@ -1400,6 +1412,8 @@ class SammyWindow(QWidget):
             return
         if event.button() == Qt.LeftButton:
             self._drag = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            if self.look_on and self.anim_on:
+                self.anim.begin_carry()  # 拎起来的一瞬：光标凝视作废，搬运凝视接管
         elif event.button() == Qt.RightButton:
             menu = QMenu(self)
             menu.addAction("戳一下", self.poke)
@@ -1410,10 +1424,16 @@ class SammyWindow(QWidget):
 
     def mouseMoveEvent(self, event) -> None:
         if self._drag is not None and event.buttons() & Qt.LeftButton:
-            self.move(event.globalPosition().toPoint() - self._drag)
+            target = event.globalPosition().toPoint() - self._drag
+            delta = target - self.pos()
+            self.move(target)
+            self._note_carry(delta)
 
     def mouseReleaseEvent(self, event) -> None:
-        self._drag = None
+        if self._drag is not None:
+            self._drag = None
+            if self.look_on and self.anim_on:
+                self.anim.end_carry()  # 放手：搬运凝视收尾（零头作废，别泄气）
 
     def mouseDoubleClickEvent(self, event) -> None:
         if self._shutdown_t0 is not None:

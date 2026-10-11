@@ -63,6 +63,11 @@ LOOK_MOVE_MIN = 6  # 光标累计动这么多设备像素才算"在动"（贴身
 LOOK_HOLD_S = 2.5  # 光标停下后还朝它看多久（秒）；之后回去发自己的呆
 LOOK_RETARGET_MIN_S = 0.45  # 追光标时两次转视的最小间隔（再快就像扫视机器）
 
+# 搬运凝视（自选小步·第五次）——「被带去哪儿就看哪儿」：拖动窗口 = 被搬走
+CARRY_GAIN = 0.08  # 搬动位移 → 凝视目标的增益（慢挪只瞥一眼，快搬直接贴边）
+CARRY_MOVE_MIN = 12  # 累计动这么多设备像素才值得转一次视线（贴手小抖不算）
+CARRY_RETARGET_MIN_S = 0.35  # 搬运时两次转视的最小间隔（秒）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -119,6 +124,15 @@ def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     return round(dx * k), round(dy * k)
 
 
+def carry_target(dx: float, dy: float) -> tuple[int, int]:
+    """搬动位移 → 凝视目标：先按 CARRY_GAIN 放大，再走光标那套「压进凝视盒」。
+
+    慢挪（每段一小截）只有小小一瞥；一阵快搬把盒填满、直接贴边看（配好奇拉高）。
+    映射本身不新加任何规则 —— 方向不扭曲、近了如实、远了贴边，全和光标共用一条。
+    """
+    return cursor_target(dx * CARRY_GAIN, dy * CARRY_GAIN)
+
+
 def _pos_from(commands: list[_Gaze], t: float) -> tuple[int, int]:
     """凝视指令表在 t 时刻的位置：缓动过去（GAZE_EASE 秒），然后定格。"""
     cur = commands[0]
@@ -166,6 +180,8 @@ class Animator:
     _cursor_active_t: float = field(default=float("-inf"), repr=False)
     _look_dirty: bool = field(default=False, repr=False)
     _look_retarget_t: float = field(default=float("-inf"), repr=False)
+    # 搬运凝视：自上次转视以来攒下的搬动位移（设备像素）
+    _carry_acc: tuple[float, float] = field(default=(0.0, 0.0), repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -253,6 +269,7 @@ class Animator:
             return
         x, y = cursor_target(*self._cursor)
         self._retarget_gaze(t, x, y)
+        self._carry_acc = (0.0, 0.0)  # 光标赢了：搬运方向作废（手才是新目标）
 
     def _retarget_gaze(self, t: float, x: int, y: int) -> None:
         """挂一条"此刻就转过去看"的凝视指令。
@@ -268,6 +285,41 @@ class Animator:
             return
         self._gaze.append(_Gaze(t=t, x=x, y=y, fx=fx, fy=fy))
 
+    # ── 搬运凝视：「被带去哪儿就看哪儿」────────────
+
+    def begin_carry(self) -> None:
+        """鼠标按住窗口（=被拎起来）：光标凝视作废、旧搬运累积清零。
+
+        「手是拿着它的手，不是指东西的手」—— 抓起来的一瞬，那条还没执行的
+        「去看光标」就不作数了；上一程的零头也不带进这一次搬运。
+        """
+        self._carry_acc = (0.0, 0.0)
+        self._look_dirty = False
+
+    def note_carry(self, dx: float, dy: float) -> None:
+        """喂一次搬运位移（设备像素）：窗口每动一步调一次。
+
+        方向判断在 _carry_step 里做（攒够 CARRY_MOVE_MIN 才转视线）——
+        贴着手的小抖动正负抵消，攒不起来。
+        """
+        ax, ay = self._carry_acc
+        self._carry_acc = (ax + dx, ay + dy)
+
+    def end_carry(self) -> None:
+        """放手：零头作废 —— 收尾不许从满幅往回泄一截（像泄气）。"""
+        self._carry_acc = (0.0, 0.0)
+
+    def _carry_step(self, t: float) -> None:
+        """搬运凝视的逐帧决策：攒够了、也过了限速窗口，就转过去看行进方向。"""
+        ax, ay = self._carry_acc
+        if math.hypot(ax, ay) < CARRY_MOVE_MIN:
+            return
+        if t < self._look_retarget_t + CARRY_RETARGET_MIN_S:
+            return
+        self._carry_acc = (0.0, 0.0)
+        self._look_retarget_t = t
+        self._retarget_gaze(t, *carry_target(ax, ay))
+
     def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
         """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
         kept = [g for g in self._gaze if g.t <= t]
@@ -282,6 +334,7 @@ class Animator:
         self._next_at = max(self._next_at, t) + self._rng.uniform(*self.blink_gap)
         self._frozen = None
         self._look_dirty = False  # 时间线被拨动：别把旧的"想看"带过去
+        self._carry_acc = (0.0, 0.0)  # 搬运累积同理：拨过时间线就不作数
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -351,6 +404,7 @@ class Animator:
                 frozen, self._frozen = self._frozen, None
                 self._unfreeze(t, frozen)
             self._look_step(t)
+            self._carry_step(t)
             gx, gy = self._gaze_pos(t)
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
@@ -370,6 +424,9 @@ __all__ = [
     "BLINK_DURATION",
     "BLINK_MIN_SQUASH",
     "BREATH_AMPLITUDE",
+    "CARRY_GAIN",
+    "CARRY_MOVE_MIN",
+    "CARRY_RETARGET_MIN_S",
     "CURIOSITY_STRETCH",
     "FADE_DURATION",
     "GAZE_EASE",
@@ -384,5 +441,6 @@ __all__ = [
     "SWAY_AMPLITUDE",
     "Animator",
     "Frame",
+    "carry_target",
     "cursor_target",
 ]

@@ -14,6 +14,7 @@
 8. 第 12 节（开机自检序列）与 boot.py 的 6 个时间常量逐条对账；
 9. 第 13 节（关机序列）的 7 个常量同样逐条对账；
 10. 第 14 节（光标凝视）的 3 个常量同样逐条对账。
+11. 第 15 节（搬运凝视）的 3 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -86,6 +87,9 @@ EXPECTED_PINS = {
     "SHRINK_MIN",
     "DOT_SHRINK",
     "CORE_H",
+    "CARRY_GAIN",
+    "CARRY_MOVE_MIN",
+    "CARRY_RETARGET_MIN_S",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -148,6 +152,7 @@ def test_decisions_and_files_are_covered():
         "开机自检序列",
         "关机序列",
         "光标凝视",
+        "搬运凝视",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (
