@@ -288,28 +288,31 @@ def test_on_window_overlay_layer_matches_window(win_on):
 # ── 内容不受装饰破坏 ────────────────────────────────
 
 
-def _face_green(w):
-    """脸区里的荧光绿像素（和 test_gaze 同一把尺）。"""
+def _face_lit(w):
+    """脸区里的亮像素（判据从 faces.LIT 读 —— 换配色不用改测试）。"""
     img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
     buf = bytes(img.constBits())
     stride = img.bytesPerLine()
     r = w.lay.face.adjusted(-12, -12, 12, 12)
     x0, x1 = int(r.x() * w.scale), int(r.right() * w.scale)
     y0, y1 = int(r.y() * w.scale), int(r.bottom() * w.scale)
+    from sammy import faces
+
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
     pts = []
     for y in range(y0, y1 + 1):
         for x in range(x0, x1 + 1):
             i = y * stride + x * 4
             b, g, rr = buf[i], buf[i + 1], buf[i + 2]
-            if g > 80 and g > 2 * rr and g > 2 * b:
+            if abs(rr - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
                 pts.append((x, y))
     return pts
 
 
 def test_on_window_content_parity_with_crt_off(win_on, win_off):
-    """装饰不改内容：脸的绿像素量与质心，开着和关着要在同一个量级。"""
-    p_on = _face_green(win_on)
-    p_off = _face_green(win_off)
+    """装饰不改内容：脸的亮像素量与质心，开着和关着要在同一个量级。"""
+    p_on = _face_lit(win_on)
+    p_off = _face_lit(win_off)
     assert len(p_off) > 800, "关着都抓不到脸，区域选错了"
     assert 0.75 <= len(p_on) / len(p_off) <= 1.25
     cx_on = sum(x for x, _ in p_on) / len(p_on)

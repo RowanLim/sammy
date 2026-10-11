@@ -35,12 +35,15 @@ from .mood import MoodTracker
 from .recall import Recaller, chat_text_since, recall_prompt
 from .voice import Speaker, enabled_from_env
 
-# ── 配色 ────────────────────────────────────────
-GREEN = QColor("#3ddc5a")
-GREEN_DIM = QColor(61, 220, 90, 70)
-BEZEL = QColor(6, 14, 10, 242)
-TEXT = QColor("#c8e6cf")
-TEXT_DIM = QColor("#5f8a6c")
+# ── 配色（黑白）──────────────────────────────────
+# 2026-10-12：Rowan 说原来的荧光绿「太吓人」→ 整体改白。
+# 暗底 + 白字才是老终端的样子；层次靠「白色 + 透明度」，不靠色相。
+# 黄色留作**唯一的彩色**，只在"不对劲"（离线/警告）时出现 —— 那时候它才扎眼。
+FG = QColor("#ffffff")
+FG_DIM = QColor(255, 255, 255, 70)
+BEZEL = QColor(6, 8, 7, 242)
+TEXT = QColor("#e8ece8")
+TEXT_DIM = QColor("#7d857d")
 WARN = QColor("#e8c05a")
 
 # ── 窗口缩放：树莓派上改成 1.0 ──
@@ -752,7 +755,7 @@ class SammyWindow(QWidget):
                 self._paint_full(p)
             p.setOpacity(1.0)
             return
-        p.setPen(QPen(GREEN_DIM, 3))
+        p.setPen(QPen(FG_DIM, 3))
         p.setBrush(BEZEL)
         p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
         if fr.phase == "power":
@@ -774,7 +777,7 @@ class SammyWindow(QWidget):
         p.setClipPath(path)  # 展开的亮带不许漏出圆角
         cy = panel.center().y()
         half = (panel.height() / 2.0) * fr.power
-        band = QColor(GREEN)
+        band = QColor(FG)
         band.setAlphaF(0.7 * (1.0 - fr.power))
         p.fillRect(QRectF(panel.left(), cy - half, panel.width(), half * 2.0), band)
         core = QColor(TEXT)
@@ -791,7 +794,7 @@ class SammyWindow(QWidget):
         fm = QFontMetrics(font)
         for i in range(fr.lines):
             rect = boot.line_rect(block, i)
-            p.setPen(TEXT if i == 0 else GREEN)  # 标题亮一档
+            p.setPen(TEXT if i == 0 else FG)  # 标题亮一档
             p.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, self._boot_lines[i])
         if fr.cursor:
             i = max(0, fr.lines - 1)
@@ -917,9 +920,9 @@ class SammyWindow(QWidget):
             self.input.hide()  # "只留一张脸" —— 输入框也不许出现
             return
         self.input.setStyleSheet(
-            f"QLineEdit {{ background: rgba(18,42,26,190);"
-            f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
-            f" color: #cfead6; padding-left: 18px;"
+            f"QLineEdit {{ background: rgba(16,18,17,190);"
+            f" border: 2px solid rgba(255,255,255,110); border-radius: 16px;"
+            f" color: #e8ece8; padding-left: 18px;"
             # 字体家族必须点名（U1 的漏网面）：QLineEdit 是子控件，不跟随
             # 自绘文字的 QFont —— 家族只能从样式表给。漏了就是一次静默的
             # 系统字体回落（发现时量到的是 Sans Serif —— 判据在 test_input_font.py）。
@@ -1320,7 +1323,7 @@ class SammyWindow(QWidget):
     def _paint_full(self, p: QPainter) -> None:
         """完整版面：面板 + 脸 + 状态行 + 对话区 + 输入框。"""
         L = self.lay
-        p.setPen(QPen(GREEN_DIM, 3))
+        p.setPen(QPen(FG_DIM, 3))
         p.setBrush(BEZEL)
         p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
 
@@ -1329,7 +1332,7 @@ class SammyWindow(QWidget):
         # 状态行：表情名 · 状态灯 ~~~~ 状态文字
         label = f"{emoji_of(self.expression)} {name_of(self.expression)}"
         p.setFont(QFont(layout.FAMILY, L.font_label))
-        p.setPen(GREEN)
+        p.setPen(FG)
         p.drawText(
             QRect(L.status.x(), L.status.y(), L.status.width() * 7 // 10, L.status.height()),
             Qt.AlignLeft | Qt.AlignVCenter,
@@ -1343,12 +1346,12 @@ class SammyWindow(QWidget):
             Qt.AlignRight | Qt.AlignVCenter,
             self._status_shown(),  # 思考中：句尾省略号换成会动的点（U3）
         )
-        p.setBrush(GREEN if self.status_ok else WARN)
+        p.setBrush(FG if self.status_ok else WARN)
         p.setPen(Qt.NoPen)
         p.drawEllipse(QPoint(dot_x, L.status.y() + L.status.height() // 2), 7, 7)
 
         # 分隔线
-        p.setPen(QPen(GREEN_DIM, 2))
+        p.setPen(QPen(FG_DIM, 2))
         p.drawLine(L.my_line.x(), L.divider_y, L.my_line.x() + L.my_line.width(), L.divider_y)
 
         # 对话区
@@ -1390,7 +1393,7 @@ class SammyWindow(QWidget):
         小屏上这行也是唯一的报错出口（status_ok=False 时变警示色）。
         """
         L = self.lay
-        p.setPen(QPen(GREEN_DIM, 3))
+        p.setPen(QPen(FG_DIM, 3))
         p.setBrush(BEZEL)
         p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
 
@@ -1417,7 +1420,7 @@ class SammyWindow(QWidget):
     def _draw_close(self, p: QPainter) -> None:
         """关闭按钮 —— 两种版面共用（永远在右上角）。"""
         L = self.lay
-        p.setPen(QPen(GREEN_DIM, 2))
+        p.setPen(QPen(FG_DIM, 2))
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(L.close_c, L.close_r, L.close_r)
         n = len(CLOSE_CROSS)
@@ -1427,7 +1430,7 @@ class SammyWindow(QWidget):
         for row, pat in enumerate(CLOSE_CROSS):
             for col, ch in enumerate(pat):
                 if ch == "#":
-                    p.fillRect(QRect(x0 + col * cell, y0 + row * cell, cell, cell), GREEN)
+                    p.fillRect(QRect(x0 + col * cell, y0 + row * cell, cell, cell), FG)
 
     # ── 交互 ────────────────────────────────────
 

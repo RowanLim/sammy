@@ -273,7 +273,6 @@ def test_talk_is_deterministic_and_reset_clears_state():
 from PySide6.QtCore import QPoint, QRect  # noqa: E402
 from PySide6.QtGui import QImage  # noqa: E402
 
-GREEN_MIN = 80  # 荧光绿判据（与其他凝视用例同一套）
 SEED_TALK = 7
 
 
@@ -313,8 +312,8 @@ def _step(w) -> None:
     w.anim.frame_at(w.anim_t)
 
 
-def _green_centroid_y(w) -> float:
-    """抓图后量脸区荧光绿像素的质心 y（与其它凝视用例同一口径）。"""
+def _lit_centroid_y(w) -> float:
+    """抓图后量脸区亮像素的质心 y（判据从 faces.LIT 读，换配色不用改测试）。"""
     img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
     buf = bytes(img.constBits())
     stride = img.bytesPerLine()
@@ -325,16 +324,19 @@ def _green_centroid_y(w) -> float:
         int(r.width() * w.scale) + 2,
         int(r.height() * w.scale) + 2,
     ).intersected(QRect(0, 0, img.width(), img.height()))
+    from sammy import faces
+
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
     n = sy = 0
     for y in range(clip.top(), clip.bottom() + 1):
         row = y * stride
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, rr = buf[i], buf[i + 1], buf[i + 2]
-            if g > GREEN_MIN and g > 2 * rr and g > 2 * b:
+            if abs(rr - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
                 n += 1
                 sy += y
-    assert n > 1000, "抓到的绿像素太少，区域搞错了？"
+    assert n > 1000, "抓到的亮像素太少，区域搞错了？"
     return sy / n
 
 
@@ -476,7 +478,7 @@ def test_talking_bobs_the_face_pixels_and_stops_when_silent():
         for _ in range(steps):
             _step(a)
             _step(b)
-            d = _green_centroid_y(a) - _green_centroid_y(b)
+            d = _lit_centroid_y(a) - _lit_centroid_y(b)
             samples.append((round(a.anim_t - 8.0, 3), d))
         typing = [d for t, d in samples if t <= reveal]
         assert max(typing) >= 2.0, f"打字时没有向上弹：峰值 {max(typing)}"

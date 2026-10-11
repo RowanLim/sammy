@@ -224,7 +224,6 @@ def test_calm_still_kills_blink_and_dampens_sway():
 
 from PySide6.QtCore import QRect  # noqa: E402
 
-GREEN_MIN = 80  # 荧光绿判据：g 通道 > 80 且 g > 2r、g > 2b（见 tests 校准）
 SEED_GAZE = 7  # 校准过的种子：400 秒内左右都探到边
 SEED_FADE = 8
 
@@ -262,10 +261,17 @@ def _face_region(win_) -> QRect:
     )
 
 
-def _green_mask(win_) -> set[tuple[int, int]]:
-    """抓图 → 荧光绿像素集合。字节序实测为 [B,G,R,A]（RGB32）。"""
+def _lit_mask(win_) -> set[tuple[int, int]]:
+    """抓图 → 亮像素（前景色）集合。字节序实测为 [B,G,R,A]（RGB32）。
+
+    ⚠️ 判据从 faces.LIT 读，**不许写死某个色相**：2026-10-12 前景由荧光绿改白，
+    写死「绿色主导」的话换配色时会静默失效（集合直接变空，测试跟着乱报）。
+    """
     from PySide6.QtGui import QImage
 
+    from sammy import faces
+
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
     img = win_.grab().toImage().convertToFormat(QImage.Format_RGB32)
     buf = bytes(img.constBits())  # 立刻拷贝，别持有视图（faces.py 的教训）
     stride = img.bytesPerLine()
@@ -276,7 +282,7 @@ def _green_mask(win_) -> set[tuple[int, int]]:
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, r = buf[i], buf[i + 1], buf[i + 2]
-            if g > GREEN_MIN and g > 2 * r and g > 2 * b:
+            if abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
                 mask.add((x, y))
     return mask
 
@@ -321,9 +327,9 @@ def test_window_gaze_shifts_the_face_horizontally(win):
     t_right, t_left = _clean_times(w.anim, 2, spread=anim.GAZE_MAX_X * 1.2)
 
     w.anim_t = t_right
-    mask_r = _green_mask(w)
+    mask_r = _lit_mask(w)
     w.anim_t = t_left
-    mask_l = _green_mask(w)
+    mask_l = _lit_mask(w)
 
     assert len(mask_r) > 1500 and len(mask_l) > 1500, "抓到的绿像素太少，区域搞错了？"
     cx_r, _ = _centroid(mask_r)
@@ -342,9 +348,9 @@ def test_window_face_stretches_when_peering_to_the_side(win):
 
     w.anim_t = 0.5  # 第一个目标（≥1 秒后）还没出现：正中、无拉伸
     assert w.anim.frame_at(0.5).gx == 0
-    center = _green_mask(w)
+    center = _lit_mask(w)
     w.anim_t = t_edge
-    edge = _green_mask(w)
+    edge = _lit_mask(w)
 
     _, y0c, _, y1c = _bbox(center)
     _, y0e, _, y1e = _bbox(edge)
@@ -363,13 +369,13 @@ def test_window_crossfade_is_a_real_blend(win):
     w.anim_t = 0.0
     w.set_expression(13)  # 淡化 9→13，从 t=0 起
     w.anim_t = 0.19  # 正好中段（FADE_DURATION=0.38）
-    mid = _green_mask(w)
+    mid = _lit_mask(w)
 
     orig = w.anim.expr_fade
     w.anim.expr_fade = lambda t: (None, 1.0)  # 旁路淡化：拍两张"纯脸"做参照
-    pure13 = _green_mask(w)
+    pure13 = _lit_mask(w)
     w.expression = 9
-    pure9 = _green_mask(w)
+    pure9 = _lit_mask(w)
     w.anim.expr_fade = orig
 
     assert len(pure9 ^ pure13) >= 500, "参照两张脸差异太小，这个用例选错表情了"
@@ -390,9 +396,9 @@ def test_window_after_fade_finishes_it_looks_exactly_like_the_new_face(win):
     w.anim_t = 0.0
     w.set_expression(13)
     w.anim_t = 1.0  # 早该淡完了
-    done = _green_mask(w)
+    done = _lit_mask(w)
     orig = w.anim.expr_fade
     w.anim.expr_fade = lambda t: (None, 1.0)
-    pure13 = _green_mask(w)
+    pure13 = _lit_mask(w)
     w.anim.expr_fade = orig
     assert len(done ^ pure13) <= 30, "淡完之后还有残影"

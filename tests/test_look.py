@@ -291,7 +291,6 @@ def test_without_cursor_behaviour_is_exactly_unchanged():
 
 from PySide6.QtCore import QPoint, QRect  # noqa: E402
 
-GREEN_MIN = 80  # 荧光绿判据（和 test_gaze 同一套）
 SEED_LOOK = 7
 
 
@@ -381,10 +380,17 @@ def _face_region(w) -> QRect:
     )
 
 
-def _green_mask(w) -> set[tuple[int, int]]:
-    """抓图 → 荧光绿像素集合（字节序 [B,G,R,A]，与 test_gaze 同一套）。"""
+def _lit_mask(w) -> set[tuple[int, int]]:
+    """抓图 → 亮像素（前景色）集合。字节序实测为 [B,G,R,A]（RGB32）。
+
+    ⚠️ 判据从 faces.LIT 读，**不许写死某个色相**：2026-10-12 前景由荧光绿改白，
+    写死「绿色主导」的话换配色时会静默失效（集合直接变空，测试跟着乱报）。
+    """
     from PySide6.QtGui import QImage
 
+    from sammy import faces
+
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
     img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
     buf = bytes(img.constBits())  # 立刻拷贝，别持有视图（faces.py 的教训）
     stride = img.bytesPerLine()
@@ -395,7 +401,7 @@ def _green_mask(w) -> set[tuple[int, int]]:
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, r = buf[i], buf[i + 1], buf[i + 2]
-            if g > GREEN_MIN and g > 2 * r and g > 2 * b:
+            if abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
                 mask.add((x, y))
     return mask
 
@@ -431,7 +437,7 @@ def test_window_gaze_leans_toward_the_cursor():
         _sweep(w_l, cur_l, 200.0, -200.0)
         assert _settle_clean(w_r).gx == anim.GAZE_MAX_X
         assert _settle_clean(w_l).gx == -anim.GAZE_MAX_X
-        mr, ml = _green_mask(w_r), _green_mask(w_l)
+        mr, ml = _lit_mask(w_r), _lit_mask(w_l)
         assert len(mr) > 1500 and len(ml) > 1500, "抓到的绿像素太少，区域搞错了？"
         cx_r, _ = _centroid(mr)
         cx_l, _ = _centroid(ml)
@@ -455,7 +461,7 @@ def test_window_face_tilts_toward_cursor_height():
         _sweep(w_d, cur_d, -150.0, 150.0, axis="dy")
         assert _settle_clean(w_u).gy == -anim.GAZE_MAX_Y
         assert _settle_clean(w_d).gy == anim.GAZE_MAX_Y
-        mu, md = _green_mask(w_u), _green_mask(w_d)
+        mu, md = _lit_mask(w_u), _lit_mask(w_d)
         assert len(mu) > 1500 and len(md) > 1500
         cx_u, cy_u = _centroid(mu)
         cx_d, cy_d = _centroid(md)

@@ -271,7 +271,6 @@ def test_carry_is_deterministic_with_seed_and_timeline():
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, Qt  # noqa: E402
 from PySide6.QtGui import QImage, QMouseEvent  # noqa: E402
 
-GREEN_MIN = 80  # 荧光绿判据（和其他凝视用例同一套）
 SEED_CARRY = 7
 
 
@@ -364,10 +363,18 @@ def _face_region(w) -> QRect:
     )
 
 
-def _green_mask(w) -> set[tuple[int, int]]:
-    """抓图 → 荧光绿像素集合（字节序 [B,G,R,A]，与其他凝视判据同一口径）。"""
+def _lit_mask(w) -> set[tuple[int, int]]:
+    """抓图 → 亮像素（前景色）集合。字节序实测为 [B,G,R,A]（RGB32）。
+
+    ⚠️ 判据从 faces.LIT 读，**不许写死某个色相**：2026-10-12 前景由荧光绿改白，
+    写死「绿色主导」的话换配色时会静默失效（集合直接变空，测试跟着乱报）。
+    """
+
+    from sammy import faces
+
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
     img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
-    buf = bytes(img.constBits())
+    buf = bytes(img.constBits())  # 立刻拷贝，别持有视图（faces.py 的教训）
     stride = img.bytesPerLine()
     clip = _face_region(w).intersected(QRect(0, 0, img.width(), img.height()))
     mask: set[tuple[int, int]] = set()
@@ -376,7 +383,7 @@ def _green_mask(w) -> set[tuple[int, int]]:
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, r = buf[i], buf[i + 1], buf[i + 2]
-            if g > GREEN_MIN and g > 2 * r and g > 2 * b:
+            if abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
                 mask.add((x, y))
     return mask
 
@@ -418,7 +425,7 @@ def test_dragging_shifts_the_face_toward_motion():
         fr, fl = _settle_clean(w_r), _settle_clean(w_l)
         assert (fr.gx, fr.gy) == (anim.GAZE_MAX_X, 0), (fr.gx, fr.gy)
         assert (fl.gx, fl.gy) == (-anim.GAZE_MAX_X, 0), (fl.gx, fl.gy)
-        mr, ml = _green_mask(w_r), _green_mask(w_l)
+        mr, ml = _lit_mask(w_r), _lit_mask(w_l)
         assert len(mr) > 1500 and len(ml) > 1500, "抓到的绿像素太少，区域搞错了？"
         cx_r, _ = _centroid(mr)
         cx_l, _ = _centroid(ml)

@@ -27,7 +27,7 @@ from .expressions import ASSETS_DIR, EXPR_NAMES
 # 设备分辨率：5 寸 IPS 屏（硬件方案定稿规格）
 DEV_W, DEV_H = 800, 480
 
-LIT = QColor("#3ddc5a")  # 亮起的像素：荧光绿
+LIT = QColor("#ffffff")  # 亮起的像素：白（2026-10-12 由荧光绿改白 —— Rowan: 绿色太吓人）
 
 _bboxes: dict[int, QRect] | None = None
 _frame: QRect | None = None

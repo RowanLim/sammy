@@ -40,8 +40,8 @@ from sammy import faces
 OUT_DIR = ROOT / "assets" / "expressions" / "anim"
 PREVIEW = ROOT / ".tmp" / "anim-preview.png"
 W, H = 128, 64  # 素材原始尺寸（也是那块 OLED 的尺寸）
-# 荧光线色（和界面里的 LIT 一致；调色板要用分量，所以这里也存一份）
-LIT_R, LIT_G, LIT_B = 0x3D, 0xDC, 0x5A
+# 荧光线色从 faces.LIT 读（单一来源）—— 2026-10-12 由荧光绿改白，这里不用动
+LIT_R, LIT_G, LIT_B = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
 
 # ── 像素符号（用字符画定义，改起来一眼能看懂）──
 HEART = (" █ █ ", "█████", "█████", " ███ ", "  █  ")
