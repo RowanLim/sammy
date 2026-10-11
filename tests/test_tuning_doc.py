@@ -15,6 +15,7 @@
 9. 第 13 节（关机序列）的 7 个常量同样逐条对账；
 10. 第 14 节（光标凝视）的 3 个常量同样逐条对账。
 11. 第 15 节（搬运凝视）的 3 个常量同样逐条对账。
+12. 第 16 节（说话动脸）的 5 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -90,6 +91,11 @@ EXPECTED_PINS = {
     "CARRY_GAIN",
     "CARRY_MOVE_MIN",
     "CARRY_RETARGET_MIN_S",
+    "TALK_PERIOD",
+    "TALK_BOB_Y",
+    "TALK_SQUASH",
+    "TALK_EASE_IN",
+    "TALK_EASE_OUT",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -153,6 +159,7 @@ def test_decisions_and_files_are_covered():
         "关机序列",
         "光标凝视",
         "搬运凝视",
+        "说话动脸",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

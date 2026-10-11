@@ -29,6 +29,11 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 
 📌 第五个自选小步：**搬运凝视「被带去哪儿就看哪儿」** —— 拖动窗口（= 被搬走）时脸看向行进方向、松手不泄气，`SAMMY_LOOK=off` 可关。对比图与短视频见 [docs/8h-b2/carry-strip.png](docs/8h-b2/carry-strip.png)；调参见 [docs/TUNING.md](docs/TUNING.md) 第 15 节。
 
+📌 第六个自选小步：**说话动脸「字在往外冒，脸跟着动」** —— 打字机在吐字时脸跟着弹
+（一拍 0.44 秒、±2.6 设备像素），字停了脸也停；`SAMMY_ANIM=off` 连时间轴都不给。
+波形证据（绿质心 δ 实测）与短视频见 [docs/8h-b2/talk-strip.png](docs/8h-b2/talk-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 16 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

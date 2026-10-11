@@ -14,6 +14,9 @@
    这是从 RoboEyes（FluxGarage，GPL-3.0）借的**行为想法**，实现一行没抄。
 5. **换表情交叉淡化**（U2）：0.38 秒老脸淡出、新脸淡入 —— 换情绪是"缓过去"的，
    不是"啪"地切断（原先只有一个 0.22 秒的弹跳）。
+6. **说话动脸**（自选小步·第六次）：打字机在吐字时，脸按说话节奏轻轻起伏
+   （上下弹 ±2.6 设备像素 + 极轻的一鼓一收 ±2%）—— 「字在往外冒，脸跟着动」；
+   字停了脸也停（缓入 0.18 秒、收口 0.26 秒）。
 
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
@@ -68,6 +71,14 @@ CARRY_GAIN = 0.08  # 搬动位移 → 凝视目标的增益（慢挪只瞥一眼
 CARRY_MOVE_MIN = 12  # 累计动这么多设备像素才值得转一次视线（贴手小抖不算）
 CARRY_RETARGET_MIN_S = 0.35  # 搬运时两次转视的最小间隔（秒）
 
+# 说话动脸（自选小步·第六次）——「字在往外冒，脸跟着动」：打字机在吐字时，
+# 脸按说话节奏轻轻起伏（上下弹 + 极轻的一鼓一收）；字停了，脸也停。
+TALK_PERIOD = 0.44  # 说话「嘴动」的一拍多长（秒）—— 约 2.3 拍每秒
+TALK_BOB_Y = 2.6  # 上下弹幅（设备像素，正负）：比呼吸稍大，比凝视小一个量级
+TALK_SQUASH = 0.02  # 一鼓一收（正负 2 个百分点）：整脸没有嘴，靠它补「在发音」
+TALK_EASE_IN = 0.18  # 开口：包络从 0 涨到满用多久（秒）
+TALK_EASE_OUT = 0.26  # 收口：从停下到完全静下来用多久（秒）—— 比开口慢一点，像松开
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -83,6 +94,8 @@ class Frame:
     gx: int = 0  # 凝视偏移：脸正往哪边"看"
     gy: int = 0
     stretch: float = 1.0  # 好奇：看向边缘时纵向拉高（1.0 = 无）
+    talk_y: int = 0  # 说话：上下弹（设备像素；0 = 不在说话）
+    talk_sq: float = 1.0  # 说话：一鼓一收（1.0 = 不在说话）
 
     @property
     def idle(self) -> bool:
@@ -94,6 +107,8 @@ class Frame:
             and self.gx == 0
             and self.gy == 0
             and self.stretch == 1.0
+            and self.talk_y == 0
+            and self.talk_sq == 1.0
         )
 
 
@@ -182,6 +197,11 @@ class Animator:
     _look_retarget_t: float = field(default=float("-inf"), repr=False)
     # 搬运凝视：自上次转视以来攒下的搬动位移（设备像素）
     _carry_acc: tuple[float, float] = field(default=(0.0, 0.0), repr=False)
+    # 说话动脸：开口起点 / 收口起点与音量（None = 没有在收口）
+    _talk_active: bool = field(default=False, repr=False)
+    _talk_t0: float = field(default=0.0, repr=False)
+    _talk_stop_t: float | None = field(default=None, repr=False)
+    _talk_stop_level: float = field(default=0.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -320,6 +340,40 @@ class Animator:
         self._look_retarget_t = t
         self._retarget_gaze(t, *carry_target(ax, ay))
 
+    # ── 说话动脸：「字在往外冒，脸跟着动」────────────
+
+    def note_talk(self, t: float, active: bool) -> None:
+        """喂一次「现在在不在说话」（打字机在不在吐字）—— 窗口每帧调一次。
+
+        变 True：开口，从静息出发（包络从 0 长到满）；
+        变 False：收口，从**停下这一刻的音量**缓出去（不是啪地掐断）。
+        重开一段时不再追溯旧相位 —— 实际时序里两段说话之间隔着模型延迟，
+        接缝（至多半像素、一帧）看不见；真实打断走的是「话赶话」，自有新的开场。
+        """
+        if active:
+            if not self._talk_active:
+                self._talk_active = True
+                self._talk_t0 = t
+                self._talk_stop_t = None
+                self._talk_stop_level = 0.0
+            return
+        if self._talk_active:
+            level = self._talk_env(t)  # 停下这一刻的音量（先算再关）
+            self._talk_active = False
+            self._talk_stop_t = t
+            self._talk_stop_level = level
+
+    def _talk_env(self, t: float) -> float:
+        """说话包络（0 到 1）：开口渐入、收口渐出；完全停下之后是 0。"""
+        if self._talk_active:
+            return _smooth01((t - self._talk_t0) / TALK_EASE_IN)
+        if self._talk_stop_t is None or self._talk_stop_level <= 0.0:
+            return 0.0
+        fade = (t - self._talk_stop_t) / TALK_EASE_OUT
+        if fade >= 1.0:
+            return 0.0
+        return self._talk_stop_level * (1.0 - _smooth01(fade))
+
     def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
         """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
         kept = [g for g in self._gaze if g.t <= t]
@@ -335,6 +389,9 @@ class Animator:
         self._frozen = None
         self._look_dirty = False  # 时间线被拨动：别把旧的"想看"带过去
         self._carry_acc = (0.0, 0.0)  # 搬运累积同理：拨过时间线就不作数
+        self._talk_active = False  # 说话状态同理：时间线被拨动，别抱着旧包络
+        self._talk_stop_t = None
+        self._talk_stop_level = 0.0
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -416,7 +473,27 @@ class Animator:
         if 0.0 <= spent <= POP_DURATION:
             pop = 1.0 + POP_AMPLITUDE * _envelope(spent / POP_DURATION)
 
-        return Frame(squash=squash, dx=dx, dy=dy, pop=pop, gx=gx, gy=gy, stretch=stretch)
+        # 说话动脸：字在冒的时候按说话节奏轻轻起伏；睡着不弹（定格优先）
+        talk_y = 0
+        talk_sq = 1.0
+        if not calm:
+            env = self._talk_env(t)
+            if env > 0.0:
+                wave = math.sin(2 * math.pi * (t - self._talk_t0) / TALK_PERIOD)
+                talk_y = round(TALK_BOB_Y * env * wave)
+                talk_sq = 1.0 + TALK_SQUASH * env * wave
+
+        return Frame(
+            squash=squash,
+            dx=dx,
+            dy=dy,
+            pop=pop,
+            gx=gx,
+            gy=gy,
+            stretch=stretch,
+            talk_y=talk_y,
+            talk_sq=talk_sq,
+        )
 
 
 __all__ = [
@@ -439,6 +516,11 @@ __all__ = [
     "LOOK_RETARGET_MIN_S",
     "POP_DURATION",
     "SWAY_AMPLITUDE",
+    "TALK_BOB_Y",
+    "TALK_EASE_IN",
+    "TALK_EASE_OUT",
+    "TALK_PERIOD",
+    "TALK_SQUASH",
     "Animator",
     "Frame",
     "carry_target",

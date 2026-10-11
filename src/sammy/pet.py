@@ -577,6 +577,33 @@ class SammyWindow(QWidget):
         """到点把文字区重画一次（face-only 那一行的"到点回状态"就靠它）。"""
         self.update(self._text_region())
 
+    def _talking_now(self) -> bool:
+        """此刻是不是「正在说话」—— 打字机在吐字 = 它在把话一个字一个字说出来。
+
+        说话动脸（自选小步·第六次）的输入源：只在**第一遍逐字**的时候为真 ——
+        翻页的停留段、第二遍的整页重放、思考点、开机 / 关机画面都不算；
+        动画关着时恒为假（没有时间轴，也就没有「正在说」这回事）。
+        睡着时由动画层收敛（calm 优先），这里不管。
+        """
+        if not self.anim_on or self.thinking:
+            return False
+        if self._boot_t0 is not None or self._shutdown_t0 is not None:
+            return False
+        if self.face_only:
+            text, fresh = self.face_line()
+            if not fresh or self._type_key != text:
+                return False
+            return (self.anim_t - self._type_t0) < typewriter.reveal_seconds(text)
+        if self._type_key != self.sammy_line:
+            return False  # 这条话还没被画出来（打字机的惰性起步还没起）
+        fit = self._reply_fit()
+        plan = self._plan_for(fit.pages)
+        elapsed = self.anim_t - self._type_t0
+        if not plan.pages or elapsed >= plan.loop:
+            return False
+        i, shown = plan.view_at(elapsed)
+        return len(shown) < len(plan.pages[i])  # 停留段里 shown 就是整页：不在说
+
     # ── 开机自检序列（自选小步）────────────────────
 
     def begin_boot(self) -> bool:
@@ -816,6 +843,8 @@ class SammyWindow(QWidget):
         """
         self.anim_t += anim.ANIM_DT
         self._poll_cursor()
+        if self.anim_on:
+            self.anim.note_talk(self.anim_t, self._talking_now())
         if self._boot_t0 is not None:
             # 开机序列：整窗都在动；播到头就收尾交班（输入框回来、正常刷新接管）
             if self.anim_t - self._boot_t0 >= boot.total_seconds(len(self._boot_lines)):
@@ -1263,8 +1292,11 @@ class SammyWindow(QWidget):
         p.save()
         if not fr.idle:
             # 形变以**脸中心**为轴：这样压扁读起来是"闭眼"，不是"沉下去"
-            p.translate(box.center().x() + fr.dx + fr.gx, box.center().y() + fr.dy + fr.gy)
-            p.scale(fr.pop, fr.pop * fr.squash * fr.stretch)
+            p.translate(
+                box.center().x() + fr.dx + fr.gx,
+                box.center().y() + fr.dy + fr.gy + fr.talk_y,
+            )
+            p.scale(fr.pop, fr.pop * fr.squash * fr.stretch * fr.talk_sq)
             p.translate(-box.center().x(), -box.center().y())
         if prev is not None and alpha < 1.0:
             # 交叉淡化：两张脸各半的时候，读起来是"变过去"而不是"切过去"
