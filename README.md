@@ -166,3 +166,4 @@ Sammy 的外挂工具走 MCP（生态标准，不自研协议）。两代协议�
 - 旧项目（只读）：`/Volumes/Mac mini/Sammy` —— 7959 行 Python，4 个版本，0 个 git 仓库
 - 硬件方案：树莓派 4B + 5寸 IPS 触控屏 + MG90S×2 + PCA9685，≈¥400（M2 之后采购）
 - 协作方：Max（Mac）、Nex（Linux）
+- 调参速查：docs/TUNING.md —— 6 个待拍板点（脸的大小 / 脾气 / 回忆频率 / 看门狗阈值 / MCP）各自对应哪个常量，值有测试对账
