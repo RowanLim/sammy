@@ -81,6 +81,10 @@
   face-only 那一行 40 号
 - 想整体大一档：把 FONT_STATUS / FONT_INPUT / FONT_REPLY 三个常量一起调（保持 12 的倍数）；
   字体的来路与许可证在 assets/fonts/（OFL 要求改动过的字体必须改名，测试钉着）
+- **输入框也是像素字了**（QLineEdit 子控件）：家族取 layout.FAMILY（字体丢失时
+  跟着回落），字号 = FONT_INPUT 乘缩放 —— 都写在样式表里（pet.py 的 _layout_input 那段）。
+  U1 当时漏了家族、静默回落系统字体，后续小步补上（判据在 tests/test_input_font.py
+  里，对比图见 docs/8h-b2/input-font.png）
 
 ## 9. 打字机与思考点的节奏（第二轮 U3）
 

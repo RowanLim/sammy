@@ -879,6 +879,10 @@ class SammyWindow(QWidget):
             f"QLineEdit {{ background: rgba(18,42,26,190);"
             f" border: 2px solid rgba(61,220,90,110); border-radius: 16px;"
             f" color: #cfead6; padding-left: 18px;"
+            # 字体家族必须点名（U1 的漏网面）：QLineEdit 是子控件，不跟随
+            # 自绘文字的 QFont —— 家族只能从样式表给。漏了就是一次静默的
+            # 系统字体回落（发现时量到的是 Sans Serif —— 判据在 test_input_font.py）。
+            f' font-family: "{layout.FAMILY}";'
             f" font-size: {int(self.lay.font_input * self.scale)}px; }}"
         )
         self.input.setGeometry(

@@ -25,6 +25,8 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 
 📌 再往后的自选小步：**关机序列**（退出时画面收束成一条线、一颗光点）与**光标凝视「它在看着你」** —— 你动鼠标它会看过来、停几秒回去发呆，`SAMMY_LOOK=off` 可关。调参见 [docs/TUNING.md](docs/TUNING.md) 第 13、14 节。
 
+📌 再补一刀（U1 的漏网面）：**输入框**（QLineEdit 子控件）原先漏了字体家族、一直静默用系统字体 —— 现已接上 Sammy Pixel 像素字（前后对比见 [docs/8h-b2/input-font.png](docs/8h-b2/input-font.png)）。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：
