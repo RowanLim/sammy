@@ -12,7 +12,8 @@
 6. 报告（REPORT-8H.md）指到这页；
 7. 第二轮（UI）的第 8~11 节与新增常量同样逐条对账；
 8. 第 12 节（开机自检序列）与 boot.py 的 6 个时间常量逐条对账；
-9. 第 13 节（关机序列）的 7 个常量同样逐条对账。
+9. 第 13 节（关机序列）的 7 个常量同样逐条对账；
+10. 第 14 节（光标凝视）的 3 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -62,6 +63,9 @@ EXPECTED_PINS = {
     "DOT_PERIOD",
     "PAGE_HOLD",
     "GAZE_MIN_GAP",
+    "LOOK_MOVE_MIN",
+    "LOOK_HOLD_S",
+    "LOOK_RETARGET_MIN_S",
     "GAZE_MAX_GAP",
     "GAZE_EASE",
     "GAZE_MAX_X",
@@ -143,6 +147,7 @@ def test_decisions_and_files_are_covered():
         "表情淡化与弹跳",
         "开机自检序列",
         "关机序列",
+        "光标凝视",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

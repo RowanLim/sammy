@@ -58,6 +58,11 @@ CURIOSITY_STRETCH = 0.07  # 看向左右边缘时纵向拉高的上限（7%）
 
 FADE_DURATION = 0.38  # 换表情的交叉淡化时长（老脸退场、新脸进场）
 
+# 光标凝视（自选小步·第三次）——「它在看着你」：光标当第二个"值得看的东西"
+LOOK_MOVE_MIN = 6  # 光标累计动这么多设备像素才算"在动"（贴身手抖不算）
+LOOK_HOLD_S = 2.5  # 光标停下后还朝它看多久（秒）；之后回去发自己的呆
+LOOK_RETARGET_MIN_S = 0.45  # 追光标时两次转视的最小间隔（再快就像扫视机器）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -100,6 +105,35 @@ def _smooth01(p: float) -> float:
     return 0.5 * (1.0 - math.cos(math.pi * p))
 
 
+def cursor_target(dx: float, dy: float) -> tuple[int, int]:
+    """光标方向 → 凝视目标：按比例压进凝视盒。
+
+    规则：方向不扭曲（x / y 同比例收）；很近时**如实映射**（不许放大 ——
+    光标就在脸跟前，脸不该探到满幅）；够远就贴边（仍在盒内）。
+    """
+    k = 1.0
+    if dx:
+        k = min(k, GAZE_MAX_X / abs(dx))
+    if dy:
+        k = min(k, GAZE_MAX_Y / abs(dy))
+    return round(dx * k), round(dy * k)
+
+
+def _pos_from(commands: list[_Gaze], t: float) -> tuple[int, int]:
+    """凝视指令表在 t 时刻的位置：缓动过去（GAZE_EASE 秒），然后定格。"""
+    cur = commands[0]
+    for g in commands:
+        if g.t <= t:
+            cur = g
+        else:
+            break
+    p = _smooth01((t - cur.t) / GAZE_EASE)  # 还没出发（p<0）会被夹到 0
+    return (
+        round(cur.fx + (cur.x - cur.fx) * p),
+        round(cur.fy + (cur.y - cur.fy) * p),
+    )
+
+
 @dataclass(frozen=True)
 class _Gaze:
     """一次"看向某处"的指令：t 时刻出发，从 (fx, fy) 缓动到 (x, y)。"""
@@ -126,6 +160,12 @@ class Animator:
     _expr: int | None = field(default=None, repr=False)
     _fade_from: int | None = field(default=None, repr=False)
     _fade_at: float = field(default=-99.0, repr=False)
+    # 光标凝视：最近一次光标位置（相对脸中心，设备像素）与"想看"状态
+    _cursor: tuple[float, float] | None = field(default=None, repr=False)
+    _cursor_ref: tuple[float, float] | None = field(default=None, repr=False)
+    _cursor_active_t: float = field(default=float("-inf"), repr=False)
+    _look_dirty: bool = field(default=False, repr=False)
+    _look_retarget_t: float = field(default=float("-inf"), repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -179,17 +219,54 @@ class Animator:
         定格段不要再抖 —— "看定"本身就是一个信号（有机的微动另有 sway/breath）。
         """
         self._ensure_gaze(t)
-        cur = self._gaze[0]
-        for g in self._gaze:
-            if g.t <= t:
-                cur = g
-            else:
-                break
-        p = _smooth01((t - cur.t) / GAZE_EASE)  # 还没出发（p<0）会被夹到 0
-        return (
-            round(cur.fx + (cur.x - cur.fx) * p),
-            round(cur.fy + (cur.y - cur.fy) * p),
-        )
+        return _pos_from(self._gaze, t)
+
+    # ── 光标凝视：「它在看着你」────────────────────
+
+    def note_cursor(self, dx: float, dy: float, t: float) -> None:
+        """喂一次"当前光标在哪"（相对脸中心，设备像素）—— 窗口每帧调一次。
+
+        判"在动"用**累计位移**：慢速拖动攒够 LOOK_MOVE_MIN 像素也算动；
+        贴身手抖（幅度总小于阈值）不算 —— 光标自己都没动，脸不该乱看。
+        """
+        if self._cursor_ref is None:
+            self._cursor_ref = (dx, dy)  # 第一笔只建立参照（"之前在哪"）
+        self._cursor = (dx, dy)
+        rx, ry = self._cursor_ref
+        if math.hypot(dx - rx, dy - ry) >= LOOK_MOVE_MIN:
+            self._cursor_ref = (dx, dy)
+            self._cursor_active_t = t
+            self._look_dirty = True
+
+    def _look_step(self, t: float) -> None:
+        """光标凝视的逐帧决策：该转就转，过期的"想看"作废（不会突然补看）。"""
+        if not self._look_dirty:
+            return
+        if t - self._cursor_active_t > LOOK_HOLD_S:
+            self._look_dirty = False  # 光标早停了：这条"想看"过期作废
+            return
+        if t < self._look_retarget_t + LOOK_RETARGET_MIN_S:
+            return  # 追得太密会像扫视机器：隔一小会再转
+        self._look_dirty = False
+        self._look_retarget_t = t
+        if self._cursor is None:
+            return
+        x, y = cursor_target(*self._cursor)
+        self._retarget_gaze(t, x, y)
+
+    def _retarget_gaze(self, t: float, x: int, y: int) -> None:
+        """挂一条"此刻就转过去看"的凝视指令。
+
+        清掉更晚的旧目标（光标优先），从**当前实际位置**起步 —— 中途改向也不跳。
+        已经在看那儿且缓动已经完成，就不挂空指令。
+        """
+        kept = [g for g in self._gaze if g.t <= t]
+        self._gaze = kept or [_Gaze(t=0.0, x=0, y=0, fx=0, fy=0)]
+        fx, fy = _pos_from(self._gaze, t)
+        last = self._gaze[-1]
+        if (x, y) == (last.x, last.y) and t >= last.t + GAZE_EASE:
+            return
+        self._gaze.append(_Gaze(t=t, x=x, y=y, fx=fx, fy=fy))
 
     def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
         """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
@@ -204,6 +281,7 @@ class Animator:
         self._blinks = [b for b in self._blinks if b[0] > t]
         self._next_at = max(self._next_at, t) + self._rng.uniform(*self.blink_gap)
         self._frozen = None
+        self._look_dirty = False  # 时间线被拨动：别把旧的"想看"带过去
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -272,6 +350,7 @@ class Animator:
             if self._frozen is not None:
                 frozen, self._frozen = self._frozen, None
                 self._unfreeze(t, frozen)
+            self._look_step(t)
             gx, gy = self._gaze_pos(t)
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
@@ -298,8 +377,12 @@ __all__ = [
     "GAZE_MAX_X",
     "GAZE_MAX_Y",
     "GAZE_MIN_GAP",
+    "LOOK_HOLD_S",
+    "LOOK_MOVE_MIN",
+    "LOOK_RETARGET_MIN_S",
     "POP_DURATION",
     "SWAY_AMPLITUDE",
     "Animator",
     "Frame",
+    "cursor_target",
 ]

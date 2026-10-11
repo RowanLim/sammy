@@ -11,7 +11,16 @@ import threading
 import time
 
 from PySide6.QtCore import QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPainterPath, QPen
+from PySide6.QtGui import (
+    QColor,
+    QCursor,
+    QFont,
+    QFontMetrics,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPen,
+)
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
 from . import anim, boot, chatlog, crt, faces, layout, screen, typewriter
@@ -78,6 +87,17 @@ def anim_enabled(env: dict | None = None) -> bool:
         from .voice import config
 
         raw = config("SAMMY_ANIM", "on")
+    return str(raw or "on").strip().lower() not in {"off", "0", "false", "no"}
+
+
+def look_enabled(env: dict | None = None) -> bool:
+    """光标凝视开关（「它在看着你」；SAMMY_LOOK 设 off 关掉 —— 与动画同一套语义）。"""
+    if env is not None:
+        raw = env.get("SAMMY_LOOK", "on")
+    else:
+        from .voice import config
+
+        raw = config("SAMMY_LOOK", "on")
     return str(raw or "on").strip().lower() not in {"off", "0", "false", "no"}
 
 
@@ -301,6 +321,8 @@ class SammyWindow(QWidget):
         # 动画开着吗？换表情要不要交叉淡化由它定 —— 关着时没有时间轴，
         # 只能瞬间切（否则淡化永远停在第一帧，表情再也换不动）。
         self.anim_on = anim_enabled()
+        # 光标凝视（「它在看着你」）：把全局光标喂给动画层；SAMMY_LOOK 设 off 可关
+        self.look_on = look_enabled()
         self.anim.set_expression(self.expression, None)  # 开场没有"上一张脸"
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._anim_tick)
@@ -793,6 +815,7 @@ class SammyWindow(QWidget):
         其余时间它是静的，谁也不用花这份电。
         """
         self.anim_t += anim.ANIM_DT
+        self._poll_cursor()
         if self._boot_t0 is not None:
             # 开机序列：整窗都在动；播到头就收尾交班（输入框回来、正常刷新接管）
             if self.anim_t - self._boot_t0 >= boot.total_seconds(len(self._boot_lines)):
@@ -810,6 +833,24 @@ class SammyWindow(QWidget):
         self.update(self._face_region())
         if self._text_live():
             self.update(self._text_region())
+
+    def _cursor_now(self) -> QPoint:
+        """当前全局光标位置（测试里换成假光标）。"""
+        return QCursor.pos()
+
+    def _poll_cursor(self) -> None:
+        """把全局光标换算成"相对脸中心"的设备像素，喂给动画层（每帧一次）。
+
+        「它在看着你」：光标动了就转过去看，停下 LOOK_HOLD_S 秒后回去发自己的呆。
+        关掉开关（SAMMY_LOOK 设 off）时连读都不读 —— 关就该关彻底。
+        """
+        if not self.look_on:
+            return
+        local = self.mapFromGlobal(self._cursor_now())
+        c = self.lay.face.center()
+        dx = (local.x() - self._offset[0]) / self.scale - c.x()
+        dy = (local.y() - self._offset[1]) / self.scale - c.y()
+        self.anim.note_cursor(dx, dy, self.anim_t)
 
     def _reply_fit(self) -> layout.ReplyFit:
         """当前回复的排版结论（带缓存）。
