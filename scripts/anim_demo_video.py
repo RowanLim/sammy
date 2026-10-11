@@ -52,6 +52,7 @@ def main() -> int:
     n, idx = int(FPS * SECONDS), 0
     try:
         for expr in args.exprs:
+            win.anim_t = 0.0  # 先把时钟拨回片头：交叉淡化从这一段开头开始
             win.set_expression(expr)
             for i in range(n):
                 win.anim_t = i / FPS

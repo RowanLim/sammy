@@ -1,6 +1,6 @@
 """脸的动画 —— 让它像个活的东西，而不是一张贴图。
 
-静态像素脸看起来"死"，缺的是三件事（按重要性排）：
+静态像素脸看起来"死"，缺的是这几件事（按重要性排）：
 
 1. **眨眼**（最强的"活"信号）：2.5~6 秒一次，偶尔连眨两下；
    上下压扁到 14%，约 110 毫秒。
@@ -8,14 +8,22 @@
    幅度必须小 —— 大了就变成"飘"，不是"呼吸"。
 3. **微动/偷看**：慢慢左右偏一点（像在看别处），±2 像素，周期 ~11 秒（和呼吸不同频，
    否则两条正弦会同步成一种机械的摆动）。
+4. **凝视漂移**（U2）：每 2.6~7.4 秒把脸缓动（0.55 秒）到新的随机方向 ——
+   眼睛"会看"了，不再只是原地微微晃。看向左右边缘时脸被**纵向轻拉**（好奇：探着头看）。
+   ⚠️ 位图脸没法只动眼睛，用"整脸的定向偏移 + 拉高"来表达"在看哪儿"。
+   这是从 RoboEyes（FluxGarage，GPL-3.0）借的**行为想法**，实现一行没抄。
+5. **换表情交叉淡化**（U2）：0.38 秒老脸淡出、新脸淡入 —— 换情绪是"缓过去"的，
+   不是"啪"地切断（原先只有一个 0.22 秒的弹跳）。
 
-另外：**换表情时弹一下**（0.22 秒内放大 6% 再回来），否则表情是"啪"地切断的。
+睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
+还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
 ## 为什么是纯函数
 
 动画对不对，取决于"几秒内发生了什么" —— 盯着屏幕看不出来（尤其眨眼只有 110ms）。
-所以这里把状态写成 `frame_at(t)` 的纯函数，测试就能钉住：
-该眨的时候眨、不该眨的时候不眨、幅度不越界、睡着时别乱动。
+这里把状态写成 `frame_at(t)` 的纯函数，测试就能钉住：该眨的时候眨、不该眨的时候不眨、
+幅度不越界、睡着时别乱动、凝视别瞬移。凝视/淡化带一点内部状态（目标表、上一张脸），
+对**单调前进的 t** 是确定的；同种子完全可复现。
 """
 
 from __future__ import annotations
@@ -40,6 +48,16 @@ SWAY_AMPLITUDE = 2
 POP_DURATION = 0.22  # 换表情时弹一下
 POP_AMPLITUDE = 0.06  # 放大 6%
 
+# 凝视漂移（U2）—— 幅度单位是设备像素（800×480 坐标系）
+GAZE_MIN_GAP = 2.6  # 两次"看向新方向"之间最短（秒）
+GAZE_MAX_GAP = 7.4
+GAZE_EASE = 0.55  # 一次转眼的缓动时长：够"看过去"，又不拖泥带水
+GAZE_MAX_X = 10  # 横向摆幅 ±：脸的格子很宽，再大就读成"滑出去"了
+GAZE_MAX_Y = 6  # 纵向摆幅 ±：比横向收着点，上下动太多读起来像点头
+CURIOSITY_STRETCH = 0.07  # 看向左右边缘时纵向拉高的上限（7%）
+
+FADE_DURATION = 0.38  # 换表情的交叉淡化时长（老脸退场、新脸进场）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -52,10 +70,21 @@ class Frame:
     dx: int = 0  # 左右微动（设备像素）
     dy: int = 0  # 呼吸位移（设备像素）
     pop: float = 1.0  # 换表情时的弹（1.0 = 无）
+    gx: int = 0  # 凝视偏移：脸正往哪边"看"
+    gy: int = 0
+    stretch: float = 1.0  # 好奇：看向边缘时纵向拉高（1.0 = 无）
 
     @property
     def idle(self) -> bool:
-        return self.squash == 1.0 and self.dx == 0 and self.dy == 0 and self.pop == 1.0
+        return (
+            self.squash == 1.0
+            and self.dx == 0
+            and self.dy == 0
+            and self.pop == 1.0
+            and self.gx == 0
+            and self.gy == 0
+            and self.stretch == 1.0
+        )
 
 
 def _envelope(frac: float) -> float:
@@ -65,9 +94,26 @@ def _envelope(frac: float) -> float:
     return 0.5 * (1.0 - math.cos(2 * math.pi * frac))
 
 
+def _smooth01(p: float) -> float:
+    """0→1 的平滑缓动（两端速度为 0）—— 凝视转场与交叉淡化共用这一条曲线。"""
+    p = min(1.0, max(0.0, p))
+    return 0.5 * (1.0 - math.cos(math.pi * p))
+
+
+@dataclass(frozen=True)
+class _Gaze:
+    """一次"看向某处"的指令：t 时刻出发，从 (fx, fy) 缓动到 (x, y)。"""
+
+    t: float
+    x: int
+    y: int
+    fx: int
+    fy: int
+
+
 @dataclass
 class Animator:
-    """按时间给出脸部形变。自己安排眨眼时间表。"""
+    """按时间给出脸部形变。自己安排眨眼与凝视的时间表。"""
 
     seed: int | None = None
     blink_gap: tuple[float, float] = (BLINK_MIN_GAP, BLINK_MAX_GAP)
@@ -75,10 +121,17 @@ class Animator:
     _blinks: list[tuple[float, float]] = field(default_factory=list, repr=False)
     _next_at: float = field(default=0.0, repr=False)
     _pop_at: float = field(default=-99.0, repr=False)
+    _gaze: list[_Gaze] = field(default_factory=list, repr=False)
+    _frozen: tuple[int, int] | None = field(default=None, repr=False)
+    _expr: int | None = field(default=None, repr=False)
+    _fade_from: int | None = field(default=None, repr=False)
+    _fade_at: float = field(default=-99.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
         self._next_at = self._rng.uniform(*self.blink_gap)
+        # 开场：从正中出发，1 秒多之后看第一眼
+        self._gaze = [self._new_gaze(1.0 + self._rng.uniform(0.0, 1.5), 0, 0)]
 
     # ── 眨眼时间表 ──────────────────────────────
 
@@ -95,22 +148,105 @@ class Animator:
         self._ensure(until)
         return [s for s, _ in self._blinks if s <= until]
 
+    # ── 凝视时间表 ──────────────────────────────
+
+    def _new_gaze(self, at: float, fx: int, fy: int) -> _Gaze:
+        return _Gaze(
+            t=at,
+            x=self._rng.randint(-GAZE_MAX_X, GAZE_MAX_X),
+            y=self._rng.randint(-GAZE_MAX_Y, GAZE_MAX_Y),
+            fx=fx,
+            fy=fy,
+        )
+
+    def _ensure_gaze(self, t: float) -> None:
+        while self._gaze[-1].t < t + 1.0:
+            last = self._gaze[-1]
+            self._gaze.append(
+                self._new_gaze(
+                    last.t + self._rng.uniform(GAZE_MIN_GAP, GAZE_MAX_GAP), last.x, last.y
+                )
+            )
+
+    def gaze_times(self, until: float) -> list[float]:
+        """已安排 / 将要安排的凝视起点（测试与调试用）。"""
+        self._ensure_gaze(until)
+        return [g.t for g in self._gaze if g.t <= until]
+
+    def _gaze_pos(self, t: float) -> tuple[int, int]:
+        """t 时刻的凝视偏移：缓动过去（GAZE_EASE 秒），然后定格。
+
+        定格段不要再抖 —— "看定"本身就是一个信号（有机的微动另有 sway/breath）。
+        """
+        self._ensure_gaze(t)
+        cur = self._gaze[0]
+        for g in self._gaze:
+            if g.t <= t:
+                cur = g
+            else:
+                break
+        p = _smooth01((t - cur.t) / GAZE_EASE)  # 还没出发（p<0）会被夹到 0
+        return (
+            round(cur.fx + (cur.x - cur.fx) * p),
+            round(cur.fy + (cur.y - cur.fy) * p),
+        )
+
+    def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
+        """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
+        kept = [g for g in self._gaze if g.t <= t]
+        if kept:
+            self._gaze = kept
+        target = self._gaze[-1]
+        self._gaze.append(_Gaze(t=t, x=target.x, y=target.y, fx=frozen[0], fy=frozen[1]))
+
     def reset(self, t: float = 0.0) -> None:
         """时间被拨动/重置时重新安排（别把旧时间表留在身上）。"""
         self._blinks = [b for b in self._blinks if b[0] > t]
         self._next_at = max(self._next_at, t) + self._rng.uniform(*self.blink_gap)
+        self._frozen = None
+        self._gaze = [g for g in self._gaze if g.t > t]
+        if not self._gaze:
+            self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
 
-    # ── 换表情的"弹" ────────────────────────────
+    # ── 换表情的"弹"与交叉淡化 ────────────────────
 
     def pop(self, at: float) -> None:
         self._pop_at = at
+
+    def set_expression(self, index: int, at: float | None) -> None:
+        """界面换表情时告诉动画层，好记住"上一张脸"用于交叉淡化。
+
+        `at=None`（动画关着、没有时间轴）→ 瞬间切，不留淡化状态。
+        """
+        if at is None or self._expr is None:
+            self._expr = index
+            self._fade_from = None
+            return
+        if index == self._expr:
+            return
+        self._fade_from = self._expr
+        self._fade_at = float(at)
+        self._expr = index
+        self.pop(at)  # 顺手弹一下：淡化的同时还有个小小的"应答"
+
+    def expr_fade(self, t: float) -> tuple[int | None, float]:
+        """淡化进度 → (要退场的表情编号 | None, 新脸的不透明度 0~1)。
+
+        没有淡化在跑时返回 (None, 1.0)：渲染层按"直接画当前脸"处理。
+        """
+        if self._fade_from is None or t >= self._fade_at + FADE_DURATION:
+            return None, 1.0
+        if t <= self._fade_at:
+            return self._fade_from, 0.0
+        return self._fade_from, _smooth01((t - self._fade_at) / FADE_DURATION)
 
     # ── 这一帧 ──────────────────────────────────
 
     def frame_at(self, t: float, calm: bool = False) -> Frame:
         """时间 → 形变。
 
-        `calm=True`（睡着/发呆）时位移大幅收敛 —— **睡着还晃来晃去就不像睡着了**。
+        `calm=True`（睡着/发呆）时：不眨眼、位移收敛、凝视**冻住** ——
+        睡着还四处看、还晃来晃去，就不像睡着了。
         """
         t = max(0.0, float(t))  # 坏时间自愈：负数会让 sin 出怪值
         self._ensure(t)
@@ -127,12 +263,27 @@ class Animator:
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
 
+        # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
+        if calm:
+            if self._frozen is None:
+                self._frozen = self._gaze_pos(t)
+            gx, gy = self._frozen
+        else:
+            if self._frozen is not None:
+                frozen, self._frozen = self._frozen, None
+                self._unfreeze(t, frozen)
+            gx, gy = self._gaze_pos(t)
+
+        # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
+        edge = min(1.0, abs(gx) / GAZE_MAX_X)
+        stretch = 1.0 + CURIOSITY_STRETCH * edge * edge
+
         pop = 1.0
         spent = t - self._pop_at
         if 0.0 <= spent <= POP_DURATION:
             pop = 1.0 + POP_AMPLITUDE * _envelope(spent / POP_DURATION)
 
-        return Frame(squash=squash, dx=dx, dy=dy, pop=pop)
+        return Frame(squash=squash, dx=dx, dy=dy, pop=pop, gx=gx, gy=gy, stretch=stretch)
 
 
 __all__ = [
@@ -140,6 +291,13 @@ __all__ = [
     "BLINK_DURATION",
     "BLINK_MIN_SQUASH",
     "BREATH_AMPLITUDE",
+    "CURIOSITY_STRETCH",
+    "FADE_DURATION",
+    "GAZE_EASE",
+    "GAZE_MAX_GAP",
+    "GAZE_MAX_X",
+    "GAZE_MAX_Y",
+    "GAZE_MIN_GAP",
     "POP_DURATION",
     "SWAY_AMPLITUDE",
     "Animator",

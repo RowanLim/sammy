@@ -85,6 +85,7 @@ def render_window_chat(out: Path) -> str:
     try:
         win.resize(440, 264)
         win.set_expression(4)  # 开心
+        win.anim_t = 0.45  # 快照拍稳态：交叉淡化与开场的弹跳先走完
         win.my_line = "今天好累啊，不想干活。"
         win.sammy_line = "先别硬撑，喝口水，跟我唠两句也行。"
         win.status = "在线 · 1.8s"
@@ -162,6 +163,7 @@ def _grab_window_frames(dir_out: Path, start: int, exprs, per_sec: float = 1.5) 
     n_per = int(per_sec * FPS)
     try:
         for expr in exprs:
+            win.anim_t = 0.0  # 每段从 0 起拍：交叉淡化从片头开始，而不是停在上一段结尾
             win.set_expression(expr)
             for i in range(n_per):
                 win.anim_t = i / FPS

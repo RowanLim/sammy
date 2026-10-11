@@ -506,6 +506,8 @@ def main(argv: list[str] | None = None) -> int:
         from .expressions import name_of
 
         win.set_expression(args.expr)
+        # 快照是"稳态照片"：交叉淡化与开场的弹跳先走完（否则拍到的是上一张脸）
+        win.anim_t += 0.45
         win.reply = None  # 占位，避免误用
         win.sammy_line = args.reply or f"这是 {name_of(args.expr)} 的表情。"
         win._hold_line()  # 快照里让 face-only 的那一行显示这句话（完整版不读它）

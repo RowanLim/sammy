@@ -260,9 +260,13 @@ class SammyWindow(QWidget):
         # 纯数学在 anim.py（可测），这里只负责推进时间和重画那一小块。
         self.anim = anim.Animator()
         self.anim_t = 0.0
+        # 动画开着吗？换表情要不要交叉淡化由它定 —— 关着时没有时间轴，
+        # 只能瞬间切（否则淡化永远停在第一帧，表情再也换不动）。
+        self.anim_on = anim_enabled()
+        self.anim.set_expression(self.expression, None)  # 开场没有"上一张脸"
         self.anim_timer = QTimer(self)
         self.anim_timer.timeout.connect(self._anim_tick)
-        if anim_enabled():
+        if self.anim_on:
             self.anim_timer.start(int(anim.ANIM_DT * 1000))
 
         # 主动心跳：每分钟问一次"要不要先开口"（默认不说话，见 attention.py）
@@ -280,8 +284,10 @@ class SammyWindow(QWidget):
 
     def set_expression(self, index: int) -> None:
         if index in EXPR_NAMES:
-            if index != self.expression:
-                self.anim.pop(self.anim_t)  # 换表情时弹一下，别"啪"地切开
+            if self.anim_on:
+                self.anim.set_expression(index, self.anim_t)  # 缓动过渡：老脸淡出、新脸淡入
+            else:
+                self.anim.set_expression(index, None)  # 动画关着：没有时间轴，瞬间切
             self.expression = index
             self.update()
 
@@ -776,26 +782,39 @@ class SammyWindow(QWidget):
         p.end()
 
     def _draw_face(self, p: QPainter) -> None:
-        """画那张脸：有动图就播动图，没有就退回落单张（外加眨眼/呼吸/微动的形变）。
+        """画那张脸：有动图就播动图，没有就退回落单张。
 
+        形变（眨眼/呼吸/凝视/好奇拉高）以**脸中心**为轴；
+        换表情时交叉淡化 —— 老脸淡出、新脸淡入，不许"啪"地切断。
         画框取自**版面**（`self.lay.face`）：完整版里等于设计位，face-only 里是放大的脸。
         """
         box = self.lay.face
         fr = self.anim.frame_at(self.anim_t, calm=self.expression == SLEEP_EXPR)
+        prev, alpha = self.anim.expr_fade(self.anim_t)
         p.save()
         if not fr.idle:
             # 形变以**脸中心**为轴：这样压扁读起来是"闭眼"，不是"沉下去"
-            p.translate(box.center().x() + fr.dx, box.center().y() + fr.dy)
-            p.scale(fr.pop, fr.pop * fr.squash)
+            p.translate(box.center().x() + fr.dx + fr.gx, box.center().y() + fr.dy + fr.gy)
+            p.scale(fr.pop, fr.pop * fr.squash * fr.stretch)
             p.translate(-box.center().x(), -box.center().y())
-        moving = faces.motion_frame(self.expression, self.anim_t)
+        if prev is not None and alpha < 1.0:
+            # 交叉淡化：两张脸各半的时候，读起来是"变过去"而不是"切过去"
+            p.setOpacity(1.0 - alpha)
+            self._draw_face_image(p, prev, box)
+            p.setOpacity(alpha)
+            self._draw_face_image(p, self.expression, box)
+            p.setOpacity(1.0)
+        else:
+            self._draw_face_image(p, self.expression, box)
+        p.restore()
+
+    def _draw_face_image(self, p: QPainter, index: int, box: QRect) -> None:
+        """画单张脸（动图当前帧或静态位图）—— 淡化时两张脸共用这一条路径。"""
+        moving = faces.motion_frame(index, self.anim_t)
         if moving is not None:
             p.drawImage(box, moving)
         else:
-            p.drawPixmap(
-                box.topLeft(), faces.face_pixmap(self.expression, QSize(box.width(), box.height()))
-            )
-        p.restore()
+            p.drawPixmap(box.topLeft(), faces.face_pixmap(index, QSize(box.width(), box.height())))
 
     def _paint_full(self, p: QPainter) -> None:
         """完整版面：面板 + 脸 + 状态行 + 对话区 + 输入框。"""
