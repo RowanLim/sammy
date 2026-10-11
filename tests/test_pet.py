@@ -815,3 +815,37 @@ def test_faceonly_kiosk_fills_the_screen_with_the_big_face(win):
         assert k.lay.face.width() > full.face.width() * 1.4
     finally:
         k.close()
+
+
+def test_close_button_is_a_hand_drawn_pixel_cross(win):
+    """关闭钮的叉是手画像素图形（字体里没有合适的大叉，系统回落的不够像素）。
+
+    判据：矩阵 ON 格中心亮、OFF 格中心暗、图形关于两个轴都对称。
+    这同时把这颗按钮钉在"不依赖字体加载成不成功"上（画的是方块，不是字）。
+    """
+    from PySide6.QtGui import QImage
+
+    from sammy import pet as pet_mod
+
+    img = win.grab().toImage().convertToFormat(QImage.Format_ARGB32)
+    L = win.lay
+    n = len(pet_mod.CLOSE_CROSS)
+    cell = pet_mod.CLOSE_CROSS_CELL
+    x0 = L.close_c.x() - (n * cell) // 2
+    y0 = L.close_c.y() - (n * cell) // 2
+
+    def g(devx, devy):
+        return img.pixelColor(round(devx * win.scale), round(devy * win.scale)).green()
+
+    on, off = [], []
+    for row, pat in enumerate(pet_mod.CLOSE_CROSS):
+        for col, ch in enumerate(pat):
+            v = g(x0 + col * cell + cell // 2, y0 + row * cell + cell // 2)
+            (on if ch == "#" else off).append(v)
+    assert min(on) > 120, "亮格没亮起来：" + str(on)
+    assert max(off) < 100, "暗格漏光了：" + str(off)
+    mid = (n - 1) / 2
+    for row, pat in enumerate(pet_mod.CLOSE_CROSS):
+        for col, ch in enumerate(pat):
+            mirror = pet_mod.CLOSE_CROSS[int(2 * mid - row)][int(2 * mid - col)]
+            assert mirror == ch, "矩阵不对称，叉会看起来是歪的"

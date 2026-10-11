@@ -520,6 +520,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"已保存: {args.snapshot}")
         return 0
 
+    if not args.selftest:
+        # 开机自检序列（自选小步）：真启动路径才播；
+        # 快照 / 自检走各自的分支，不经过这里（拍到的永远是稳态）
+        win.begin_boot()
+
     if args.kiosk:
         # 小屏模式：由窗管铺满**绑定的那块屏**。
         # 不用 show()+move()：多显示器下 move() 会被窗管摆走（实测被摆到屏外虚空）。

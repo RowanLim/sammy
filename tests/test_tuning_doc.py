@@ -10,7 +10,8 @@
 4. face-only 的派生数字（660×324 / 屏宽占比 / 倍数）与真算出来的布局一致；
 5. MCP 的三个版本号与代码一致；
 6. 报告（REPORT-8H.md）指到这页；
-7. 第二轮（UI）的第 8~11 节与新增常量同样逐条对账。
+7. 第二轮（UI）的第 8~11 节与新增常量同样逐条对账；
+8. 第 12 节（开机自检序列）与 boot.py 的 6 个时间常量逐条对账。
 """
 
 from __future__ import annotations
@@ -67,6 +68,12 @@ EXPECTED_PINS = {
     "CURIOSITY_STRETCH",
     "FADE_DURATION",
     "POP_DURATION",
+    "POWER_DUR",
+    "LOG_LEAD",
+    "LINE_STEP",
+    "LOG_TAIL",
+    "WAKE_DUR",
+    "CURSOR_PERIOD",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -85,6 +92,7 @@ _MODULE_NAMES = (
     "crt",
     "typewriter",
     "anim",
+    "boot",
 )
 
 
@@ -125,6 +133,7 @@ def test_decisions_and_files_are_covered():
         "打字机与思考点的节奏",
         "凝视漂移与好奇",
         "表情淡化与弹跳",
+        "开机自检序列",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (
@@ -137,6 +146,7 @@ def test_decisions_and_files_are_covered():
         "crt.py",
         "typewriter.py",
         "anim.py",
+        "boot.py",
     ):
         assert filename in text, "速查表没点文件名：" + filename
 

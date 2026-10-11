@@ -10,11 +10,11 @@ import random
 import threading
 import time
 
-from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPen
+from PySide6.QtCore import QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, chatlog, crt, faces, layout, screen, typewriter
+from . import anim, boot, chatlog, crt, faces, layout, screen, typewriter
 from . import mood as mood_mod
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
@@ -53,6 +53,18 @@ POKE_FACES = [4, 8, 21, 29, 7]
 
 # 睡着时的表情编号（1=睡眠）。这个状态下动画要收敛：睡着还晃来晃去就不像睡着了
 SLEEP_EXPR = 1
+
+# 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
+# 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
+# 和整块界面的像素语言对不上；手画还保证不依赖字体加载成功与否。
+CLOSE_CROSS = (
+    "#...#",
+    ".#.#.",
+    "..#..",
+    ".#.#.",
+    "#...#",
+)
+CLOSE_CROSS_CELL = 4
 
 # face-only 的那一行：它刚说的话停留多久（秒），之后回到状态行
 FACEONLY_LINE_HOLD = 20.0
@@ -176,6 +188,9 @@ class SammyWindow(QWidget):
         self.thinking = False
         self.idle_seconds = 0
         self._drag: QPoint | None = None
+        # 开机自检序列（自选小步）：_boot_t0 非 None 时画的是开机画面
+        self._boot_t0: float | None = None
+        self._boot_lines: tuple[str, ...] = ()
 
         # 大脑（可注入）
         self.brain = brain
@@ -535,6 +550,124 @@ class SammyWindow(QWidget):
         """到点把文字区重画一次（face-only 那一行的"到点回状态"就靠它）。"""
         self.update(self._text_region())
 
+    # ── 开机自检序列（自选小步）────────────────────
+
+    def begin_boot(self) -> bool:
+        """开始开机自检（真启动路径调用；快照 / 自检脚本不调）。
+
+        返回是否真的开始：开关关着（SAMMY_BOOT=off）或动画关着（SAMMY_ANIM=off）
+        就是 False —— 窗口保持稳态。素材脚本拍到的永远是稳态，不会带着开机画面。
+        """
+        if not boot.boot_enabled() or not self.anim_on:
+            return False
+        self._boot_lines = boot.self_check_lines(
+            memories=self._boot_memory_count(),
+            expressions=len(EXPR_NAMES),
+            tools=self._boot_tool_count(),
+            brain=self.brain is not None,
+        )
+        self._boot_t0 = self.anim_t
+        if not self.face_only:
+            self.input.hide()  # 开机这几秒输入框不该在场（播完回来）
+        self.update()
+        return True
+
+    def _boot_memory_count(self) -> int | None:
+        """记忆条数（槽位 + 日记）—— 打不开记忆就写"未打开"。"""
+        if self.memory is None:
+            return None
+        try:
+            st = self.memory.stats()
+            return int(st["slots"]) + int(st["journal"])
+        except Exception:
+            return None
+
+    def _boot_tool_count(self) -> int | None:
+        """启用的外挂服务数（只读配置，不启动任何进程）。"""
+        try:
+            from . import mcp as mcp_mod
+
+            return sum(1 for c in mcp_mod.load_config() if c.enabled)
+        except Exception:
+            return None
+
+    def _boot_frame(self) -> boot.Frame | None:
+        """这一帧的开机序列参数；不在序列里（没开或播完）返回 None（画正常画面）。"""
+        if self._boot_t0 is None:
+            return None
+        t = self.anim_t - self._boot_t0
+        if t >= boot.total_seconds(len(self._boot_lines)):
+            return None
+        return boot.frame_at(t, len(self._boot_lines))
+
+    def _finish_boot(self) -> None:
+        """跳过 / 播完的收尾：交班给正常绘画（输入框回来）。"""
+        self._boot_t0 = None
+        if not self.face_only:
+            self.input.show()
+        self.update()
+
+    def _paint_boot(self, p: QPainter, fr: boot.Frame) -> None:
+        """开机序列某一帧：上电扫掠 / 自检行 / 唤醒淡入（三段各自的画法）。
+
+        唤醒段画的就是正常画面（整体淡入）—— 结束时与稳态逐像素接上。
+        """
+        L = self.lay
+        if fr.phase == "wake":
+            p.setOpacity(fr.wake)
+            if self.face_only:
+                self._paint_face_only(p)
+            else:
+                self._paint_full(p)
+            p.setOpacity(1.0)
+            return
+        p.setPen(QPen(GREEN_DIM, 3))
+        p.setBrush(BEZEL)
+        p.drawRoundedRect(L.panel, L.panel_radius, L.panel_radius)
+        if fr.phase == "power":
+            self._paint_boot_power(p, fr)
+        else:
+            self._paint_boot_log(p, fr)
+        self._draw_close(p)  # 关得到人 —— 别把人关在开机画面里
+
+    def _paint_boot_power(self, p: QPainter, fr: boot.Frame) -> None:
+        """上电扫掠：亮带从中间向上下展开、同时变暗，最后只剩暗面板。
+
+        判据锚点：中心比上下亮、离中心越远越暗、面板圆角外透明。
+        """
+        L = self.lay
+        panel = QRectF(L.panel)
+        path = QPainterPath()
+        path.addRoundedRect(panel, L.panel_radius, L.panel_radius)
+        p.save()
+        p.setClipPath(path)  # 展开的亮带不许漏出圆角
+        cy = panel.center().y()
+        half = (panel.height() / 2.0) * fr.power
+        band = QColor(GREEN)
+        band.setAlphaF(0.7 * (1.0 - fr.power))
+        p.fillRect(QRectF(panel.left(), cy - half, panel.width(), half * 2.0), band)
+        core = QColor(TEXT)
+        core.setAlphaF(max(0.0, 0.9 * (1.0 - fr.power) ** 2))
+        p.fillRect(QRectF(panel.left(), cy - 2.0, panel.width(), 4.0), core)
+        p.restore()
+
+    def _paint_boot_log(self, p: QPainter, fr: boot.Frame) -> None:
+        """自检行：一行一行出现；光标跟在最后一行后面闪。"""
+        L = self.lay
+        font = QFont(layout.FAMILY, L.font_status)
+        p.setFont(font)
+        block = boot.block_rect(QRectF(L.panel), len(self._boot_lines))
+        fm = QFontMetrics(font)
+        for i in range(fr.lines):
+            rect = boot.line_rect(block, i)
+            p.setPen(TEXT if i == 0 else GREEN)  # 标题亮一档
+            p.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, self._boot_lines[i])
+        if fr.cursor:
+            i = max(0, fr.lines - 1)
+            line = boot.line_rect(block, i)
+            w = fm.horizontalAdvance(self._boot_lines[i]) if fr.lines else 0.0
+            p.fillRect(boot.cursor_rect(line, w), TEXT)
+
     # ── 空闲行为 ────────────────────────────────
 
     def _bind_to_screen(self, name: str) -> None:
@@ -578,6 +711,13 @@ class SammyWindow(QWidget):
         其余时间它是静的，谁也不用花这份电。
         """
         self.anim_t += anim.ANIM_DT
+        if self._boot_t0 is not None:
+            # 开机序列：整窗都在动；播到头就收尾交班（输入框回来、正常刷新接管）
+            if self.anim_t - self._boot_t0 >= boot.total_seconds(len(self._boot_lines)):
+                self._finish_boot()
+            else:
+                self.update()
+                return
         self.update(self._face_region())
         if self._text_live():
             self.update(self._text_region())
@@ -900,6 +1040,10 @@ class SammyWindow(QWidget):
         """整幅画面画进一个选好目标的 painter（坐标：设计单位）。"""
         p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
         p.translate(*self._offset)  # 居中留边：先缩放再平移，量是设备坐标
+        fr = self._boot_frame()
+        if fr is not None:
+            self._paint_boot(p, fr)  # 开机自检序列（自选小步）
+            return
         if self.face_only:
             self._paint_face_only(p)
         else:
@@ -1094,17 +1238,14 @@ class SammyWindow(QWidget):
         p.setPen(QPen(GREEN_DIM, 2))
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(L.close_c, L.close_r, L.close_r)
-        p.setPen(GREEN)
-        p.drawText(
-            QRect(
-                L.close_c.x() - L.close_r,
-                L.close_c.y() - L.close_r,
-                L.close_r * 2,
-                L.close_r * 2,
-            ),
-            Qt.AlignCenter,
-            "✕",
-        )
+        n = len(CLOSE_CROSS)
+        cell = CLOSE_CROSS_CELL
+        x0 = L.close_c.x() - (n * cell) // 2
+        y0 = L.close_c.y() - (n * cell) // 2
+        for row, pat in enumerate(CLOSE_CROSS):
+            for col, ch in enumerate(pat):
+                if ch == "#":
+                    p.fillRect(QRect(x0 + col * cell, y0 + row * cell, cell, cell), GREEN)
 
     # ── 交互 ────────────────────────────────────
 
@@ -1112,6 +1253,9 @@ class SammyWindow(QWidget):
         pos = event.position() / self.scale
         if (pos - self.lay.close_c).manhattanLength() < self.lay.close_r * 1.6:
             QApplication.quit()
+            return
+        if self._boot_t0 is not None:
+            self._finish_boot()  # 开机画面一按就跳到底（拖动和菜单交班后再说）
             return
         if event.button() == Qt.LeftButton:
             self._drag = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
@@ -1131,4 +1275,7 @@ class SammyWindow(QWidget):
         self._drag = None
 
     def mouseDoubleClickEvent(self, event) -> None:
+        if self._boot_t0 is not None:
+            self._finish_boot()  # 开机画面双击也先跳到底，别顺手戳一下
+            return
         self.poke()
