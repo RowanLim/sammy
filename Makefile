@@ -27,6 +27,7 @@ help:
 	@echo "make input-font-media 重生成输入框像素字体对比素材（进 docs/8h-b2/）"
 	@echo "make carry-media   重生成搬运凝视素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make talk-media    重生成说话动脸素材（帧带 + 短视频，进 docs/8h-b2/）"
+	@echo "make doze-media    重生成作息与睡相素材（帧带 + Z 循环短视频，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -169,6 +170,9 @@ carry-media:
 # 说话动脸素材（「字在往外冒，脸跟着动」：帧带 + 短视频）
 talk-media:
 	$(VENV) scripts/talk_preview.py
+
+doze-media:
+	$(VENV) scripts/doze_preview.py
 
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:

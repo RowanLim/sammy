@@ -45,6 +45,31 @@ DOUBLE_BLINK_GAP = 0.18
 
 BREATH_PERIOD = 4.5  # 呼吸周期（秒）
 BREATH_AMPLITUDE = 2  # 设备像素（±）
+
+# ── 睡相：睡着时脸边那个 Z（2026-10-12）────────────────
+# 为什么要有：睡着时脸是静的。**静的脸和死机的脸在屏幕上长得一样** ——
+# 有个东西在慢慢冒，才一眼看出"是它睡着了"，而不是"它卡住了"。
+Z_PERIOD = 2.6  # 一个 Z 从冒出来到消失（秒）
+Z_RISE_PX = 9  # 这期间升起多少设备像素（慢，才像呼吸）
+Z_SHOW_FRAC = 0.62  # 周期里它可见的比例；其余时间空着，才有"一个一个冒"的节奏
+
+
+def z_alpha(t: float) -> float:
+    """睡着时那个 Z 的不透明度（0 = 这一帧不画）。纯函数，好在测试里钉死周期。"""
+    phase = (t % Z_PERIOD) / Z_PERIOD
+    if phase >= Z_SHOW_FRAC:
+        return 0.0
+    return math.sin(math.pi * (phase / Z_SHOW_FRAC))  # 淡入淡出，别"啪"地闪
+
+
+def z_rise(t: float) -> float:
+    """这个 Z 已经升起了多少设备像素（0 → Z_RISE_PX，跟 alpha 同一条时间线）。"""
+    phase = (t % Z_PERIOD) / Z_PERIOD
+    if phase >= Z_SHOW_FRAC:
+        return 0.0
+    return Z_RISE_PX * (phase / Z_SHOW_FRAC)
+
+
 SWAY_PERIOD = 11.3  # 微动周期 —— 特意和呼吸不同频，免得两条正弦同步
 SWAY_AMPLITUDE = 2
 

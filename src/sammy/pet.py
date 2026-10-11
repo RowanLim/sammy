@@ -1311,6 +1311,34 @@ class SammyWindow(QWidget):
         else:
             self._draw_face_image(p, self.expression, box)
         p.restore()
+        self._draw_z(p, box)
+
+    def _draw_z(self, p: QPainter, box: QRect) -> None:
+        """睡着时在脸边上慢慢冒一个 Z（升起 + 淡出）。
+
+        为什么值得画：**看不见的"活着"等于没有** —— 静的脸和死机的脸在屏幕上
+        长得一样。有个东西在慢慢冒，才一眼读出"它睡着了"而不是"它卡住了"。
+
+        位置必须在**脸框内**的右上角：脸框是局部重绘（`_face_region`）覆盖的地方。
+        画到框外，动画每帧不会来刷新它 —— 会卡在屏幕上不动（或不出现），
+        而这类"画得出来但不会动"的毛病最难查（test_doze.py 里钉了这条）。
+        """
+        if not (self.anim_on and self.drives.asleep):
+            return
+        a = anim.z_alpha(self.anim_t)
+        if a <= 0.0:
+            return
+        size = layout.snap_to_pixel(36)
+        p.setFont(QFont(layout.FAMILY, max(1, int(size * self.scale))))
+        col = QColor(FG)
+        col.setAlphaF(min(1.0, 0.75 * a))
+        p.setPen(col)
+        rise = anim.z_rise(self.anim_t)
+        w = int(48 * self.scale)
+        h = int(size * 1.4 * self.scale)
+        x = box.right() - w - int(14 * self.scale)
+        y = box.top() + int(8 * self.scale) - int(rise * self.scale)
+        p.drawText(QRect(x, y, w, h), Qt.AlignRight | Qt.AlignVCenter, "z")
 
     def _draw_face_image(self, p: QPainter, index: int, box: QRect) -> None:
         """画单张脸（动图当前帧或静态位图）—— 淡化时两张脸共用这一条路径。"""

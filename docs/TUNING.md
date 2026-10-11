@@ -194,3 +194,18 @@ SAMMY_ANIM 一套）。真启动才播 —— 快照 / 自检脚本不播，素�
 改完任何一条：跑一遍 make check（全绿再提交）。这页自己的判据在
 tests/test_tuning_doc.py；给 Rowan 的清单在 docs/CHECKLIST-8H.md（第二轮：docs/CHECKLIST-8H-B2.md），
 总结在 docs/REPORT-8H.md —— 都随仓库走。
+
+## 17. 作息与睡相（自选小步·第七次）
+
+| 常量 | 在哪 | 现在 | 含义 |
+|---|---|---|---|
+| `NIGHT_FROM_H` / `NIGHT_TO_H` | drives.py | 23 / 7 | 几点到几点算"夜里"（它的作息，不是我的高峰规矩） |
+| `NIGHT_DRAIN_FACTOR` | drives.py | 1.6 | 夜里精力掉得快多少倍 |
+| `Z_PERIOD` | anim.py | 2.6s | 一个 Z 从冒出来到消失 |
+| `Z_RISE_PX` | anim.py | 9 | 期间升起多少设备像素 |
+| `Z_SHOW_FRAC` | anim.py | 0.62 | 周期里可见的比例（其余时间空着，才有"一个一个冒"） |
+
+想让它**更早犯困**：调大 `NIGHT_DRAIN_FACTOR`（2.0 = 夜里两倍速）。
+想让它**睡得更沉/更浅**：改 `Z_PERIOD`（越大越慢）。想让 Z 更显眼：调大 `Z_RISE_PX`。
+⚠️ Z 的**位置**不是审美参数：它必须落在脸框（`_face_region`）内，否则局部重绘不会刷新它 ——
+`test_doze.py::test_z_stays_inside_the_repainted_region` 钉着这条，别为了"挪好看点"把它挪出去。

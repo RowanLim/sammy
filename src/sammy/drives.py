@@ -50,6 +50,19 @@ ASLEEP_BELOW = 0.12
 # 算式会刚好卡在边界上（0.27 > 0.27 不成立），导致精神还行却叫不醒。
 WAKE_ENERGY_ABOVE = 0.20
 
+# ── 作息（2026-10-12 加：「它该有自己的日夜」）────────────
+# 夜里（23:00-07:00）精力掉得更快 —— 一台老机器到了后半夜就该犯困。
+# 为什么是"掉得更快"而不是"到点直接睡着"：让它**自己走到**睡着。
+# 犯困→睡着这段本来就是设计里有的，抄近路就没有"越来越困"的过程了。
+# 另外：这**不是**高峰/空闲那条规矩（那是给我花钱定的），是它的作息。
+NIGHT_FROM_H, NIGHT_TO_H = 23, 7
+NIGHT_DRAIN_FACTOR = 1.6
+
+
+def night_factor(hour: int) -> float:
+    """这一刻的「夜度」：夜里 1.6 倍、白天 1.0。只放大消耗，不动物理上限。"""
+    return NIGHT_DRAIN_FACTOR if (hour >= NIGHT_FROM_H or hour < NIGHT_TO_H) else 1.0
+
 
 def _clamp(v: float) -> float:
     return max(0.0, min(1.0, v))
@@ -94,7 +107,10 @@ class Drives:
             self.energy = _clamp(self.energy + ENERGY_PER_HOUR_ASLEEP * hours)
             self.boredom = _clamp(self.boredom - BOREDOM_RELIEF_PER_HOUR_ASLEEP * hours)
         else:
-            self.energy = _clamp(self.energy - ENERGY_PER_HOUR_AWAKE * hours)
+            # 作息：取这段时间**中点**的时刻判夜/昼（一个小时的块里两者等价，
+            # 机器合上盖放了两天这种长间隔下，中点是个不会太离谱的近似）
+            hour = time.localtime((self.last_update + now) / 2.0).tm_hour
+            self.energy = _clamp(self.energy - ENERGY_PER_HOUR_AWAKE * night_factor(hour) * hours)
             self.boredom = _clamp(self.boredom + BOREDOM_PER_HOUR * hours)
             self.closeness = _clamp(self.closeness - CLOSENESS_DECAY_PER_HOUR * hours)
 
