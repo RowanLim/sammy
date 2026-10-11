@@ -57,6 +57,19 @@
 - 现在是零配置：data/mcp.json 不存在 = 不挂任何外挂工具
 - 想开局就带联网工具：把 README「MCP 工具层」的示例配置存成 data/mcp.json 即可。
 
+
+## 7. CRT 质感的强度（第二轮 U4）
+
+文件：src/sammy/crt.py
+
+- SCANLINE_ALPHA = 0.15（隔行暗线的不透明度；SCANLINE_PERIOD = 2 是网格周期）
+- VIGNETTE_ALPHA = 0.30（四角的压暗顶格；VIGNETTE_INNER = 0.55 是起暗的位置）
+- GLOW_OPACITY = 0.40（辉光叠回的不透明度；GLOW_DOWNSCALE = 6 是模糊半径）
+- 整层可关：环境变量 SAMMY_CRT=off（写 .env 也行，语义和 SAMMY_ANIM 一套）
+
+想淡一点：先动 SCANLINE_ALPHA 与 VIGNETTE_ALPHA；脚本 scripts/u4_preview.py
+一跑就能对着图改（放大是最近邻，别糊掉隔行像素）。
+
 ---
 
 改完任何一条：跑一遍 make check（全绿再提交）。这页自己的判据在

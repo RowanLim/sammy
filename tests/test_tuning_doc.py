@@ -46,6 +46,12 @@ EXPECTED_PINS = {
     "FO_TOP",
     "FO_GAP",
     "FO_STATUS_H",
+    "SCANLINE_PERIOD",
+    "SCANLINE_ALPHA",
+    "VIGNETTE_ALPHA",
+    "VIGNETTE_INNER",
+    "GLOW_OPACITY",
+    "GLOW_DOWNSCALE",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -61,6 +67,7 @@ _MODULE_NAMES = (
     "care",
     "attention",
     "tools",
+    "crt",
 )
 
 
@@ -87,7 +94,7 @@ def test_pinned_constants_match_the_code():
         assert ok, name + "：文档写 " + raw + "，代码是 " + str(actual)
 
 
-def test_six_decisions_and_files_are_covered():
+def test_decisions_and_files_are_covered():
     text = _text(TUNING)
     for heading in (
         "脸在小屏上的大小",
@@ -96,9 +103,18 @@ def test_six_decisions_and_files_are_covered():
         "看门狗的放弃阈值",
         "MCP 的版本校验",
         "MCP 工具要不要默认开",
+        "CRT 质感的强度",
     ):
         assert heading in text, "速查表缺小节：" + heading
-    for filename in ("layout.py", "mood.py", "recall.py", "watchdog.py", "mcp.py", "mcp.json"):
+    for filename in (
+        "layout.py",
+        "mood.py",
+        "recall.py",
+        "watchdog.py",
+        "mcp.py",
+        "mcp.json",
+        "crt.py",
+    ):
         assert filename in text, "速查表没点文件名：" + filename
 
 

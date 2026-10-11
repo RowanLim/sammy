@@ -45,6 +45,17 @@ def isolate_chatlog(tmp_path, monkeypatch):
     monkeypatch.setattr(recall_mod, "STATE_FILE", tmp_path / "recall.json")
 
 
+@pytest.fixture(autouse=True)
+def _default_crt_off(monkeypatch):
+    """所有测试默认关掉 CRT 质感层（SAMMY_CRT=off）。
+
+    为什么：其余判据量的是**内容本身**（脸的位置、文字像素）——扫描线会把
+    每两行压暗一行，像素计数类断言的口径就变了。这层装饰在 test_crt.py 里
+    单独开、关两条路全量验；生产默认是**开**（crt_enabled 默认 on）。
+    """
+    monkeypatch.setenv("SAMMY_CRT", "off")
+
+
 @pytest.fixture
 def memory(tmp_path):
     """每个用例一个干净的记忆库。"""

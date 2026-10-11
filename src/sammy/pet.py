@@ -11,10 +11,10 @@ import threading
 import time
 
 from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, chatlog, faces, layout, screen, typewriter
+from . import anim, chatlog, crt, faces, layout, screen, typewriter
 from . import mood as mood_mod
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
@@ -107,6 +107,10 @@ class SammyWindow(QWidget):
         # 这里唯一负责的是：映射到真实像素 —— 换屏不动任何画脸的代码。
         self.scale = DEFAULT_SCALE
         self.face_only = face_only
+        # CRT 质感（U4）：默认开，SAMMY_CRT=off 关掉（三件事在 crt.py）。
+        self.crt_on = crt.crt_enabled()
+        self._crt_overlay: crt.CrtOverlay | None = None
+        self._crt_buf: QImage | None = None
         # 兜底版面：窗口尺寸还没定（或报 0×0）时也不至于没有版面可用
         self.lay = (
             layout.faceonly_layout(faces.DEV_W, faces.DEV_H)
@@ -236,6 +240,13 @@ class SammyWindow(QWidget):
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
         self.input.returnPressed.connect(self.send)
         self._layout_input()
+
+        # CRT 质感层（U4）：扫描线 + 暗角盖在最上面（连输入框一起盖）。
+        # 为什么单独一个子控件：QLineEdit 会压住父窗口画的东西（见 crt.CrtOverlay）。
+        if self.crt_on:
+            self._crt_overlay = crt.CrtOverlay(self)
+            self._crt_overlay.show()
+            self._sync_crt_layer()
 
         # 回复排版缓存（每帧都算二分查找太浪费；键变了才重算）
         self._fit_cache = None
@@ -619,12 +630,14 @@ class SammyWindow(QWidget):
         if self._kiosk_geom is None:
             self._layout_input()
             self.update()
+            self._sync_crt_layer()
             return  # 桌面浮窗：缩放是我自己定的，不跟着窗口尺寸走
         f = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height())
         if abs(f.scale - self.scale) > 1e-3:
             self.scale = f.scale
             self._layout_input()
             self.update()
+            self._sync_crt_layer()
 
     def _relayout(self) -> None:
         """重算版面（**设备单位**）。
@@ -871,16 +884,77 @@ class SammyWindow(QWidget):
     # ── 绘制 ────────────────────────────────────
 
     def paintEvent(self, event) -> None:
+        # CRT 通道（U4）：内容先画进离屏缓冲叠辉光、再整张贴回；
+        # 关着（SAMMY_CRT=off）走原来的直画路径。
+        if self.crt_on:
+            if self._crt_overlay is not None:
+                self._crt_overlay.update(event.region())  # 质感层跟着内容重画
+            self._paint_crt()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
+        self._paint_content(p)
+        p.end()
+
+    def _paint_content(self, p: QPainter) -> None:
+        """整幅画面画进一个选好目标的 painter（坐标：设计单位）。"""
         p.scale(self.scale, self.scale)  # 一行换屏：设备坐标 → 真实像素
         p.translate(*self._offset)  # 居中留边：先缩放再平移，量是设备坐标
-
         if self.face_only:
             self._paint_face_only(p)
         else:
             self._paint_full(p)
+
+    def _paint_crt(self) -> None:
+        """CRT 渲染通道：离屏缓冲 → 叠辉光 → 整张贴回。
+
+        为什么不只画脏区：辉光要读到全图的亮像素（脸、文字、点），只拿局部
+        缓冲会把边界以外的光裁掉、接缝看得出来。30fps 下这点开销能接受
+        （真要省电就走 SAMMY_CRT=off 的直画路径）。
+        """
+        dpr = self.devicePixelRatioF()
+        w_px = max(1, round(self.width() * dpr))
+        h_px = max(1, round(self.height() * dpr))
+        buf = self._crt_buf
+        if buf is None or buf.width() != w_px or buf.height() != h_px:
+            buf = QImage(w_px, h_px, QImage.Format_ARGB32_Premultiplied)
+            buf.setDevicePixelRatio(dpr)
+            self._crt_buf = buf
+        buf.fill(Qt.transparent)
+        bp = QPainter(buf)
+        bp.setRenderHint(QPainter.Antialiasing)
+        self._paint_content(bp)
+        bp.end()
+        crt.compose_glow(
+            buf,
+            panel=self.lay.panel,
+            panel_radius=self.lay.panel_radius,
+            scale=self.scale,
+            offset=self._offset,
+        )
+        p = QPainter(self)
+        p.drawImage(0, 0, buf)
         p.end()
+
+    def _sync_crt_layer(self) -> None:
+        """（重）建质感层：窗口尺寸 / 缩放 / 像素密度变了都要重建。"""
+        ov = self._crt_overlay
+        if ov is None:
+            return
+        ov.setGeometry(0, 0, self.width(), self.height())
+        ov.raise_()  # 永远压在输入框上面
+        dpr = self.devicePixelRatioF()
+        ov.set_layer(
+            crt.build_layer(
+                max(1, round(self.width() * dpr)),
+                max(1, round(self.height() * dpr)),
+                panel=self.lay.panel,
+                panel_radius=self.lay.panel_radius,
+                scale=self.scale,
+                offset=self._offset,
+                dpr=dpr,
+            )
+        )
 
     def _draw_face(self, p: QPainter) -> None:
         """画那张脸：有动图就播动图，没有就退回落单张。
