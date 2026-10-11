@@ -3,6 +3,7 @@
 > 缘起：8 小时报告（REPORT-8H.md）里 6 个「待拍板」的答案基本都是「调一个数」。
 > 这页把「哪一个数」落到确切的文件与常量上：**表里的每个值都由
 > tests/test_tuning_doc.py 与代码对账**（代码改了忘改这页，测试会红）。
+> 第二轮（UI 优先）的拍板点也并进来了：第 8~11 节（字体 / 打字机 / 凝视 / 淡化）。
 
 ## 1. 脸在小屏上的大小
 
@@ -70,8 +71,44 @@
 想淡一点：先动 SCANLINE_ALPHA 与 VIGNETTE_ALPHA；脚本 scripts/u4_preview.py
 一跑就能对着图改（放大是最近邻，别糊掉隔行像素）。
 
+## 8. 像素字体的字号（第二轮 U1）
+
+文件：src/sammy/layout.py
+
+- PIXEL_STEP = 12（字体设计字号；界面所有字号都吸到它的整数倍，否则字形糊一格）
+- 现用：正文 / 输入 / 状态行 24 号；回复区从 36 号起、放不下就降档（备选 36、24、12）；
+  face-only 那一行 40 号
+- 想整体大一档：把 FONT_STATUS / FONT_INPUT / FONT_REPLY 三个常量一起调（保持 12 的倍数）；
+  字体的来路与许可证在 assets/fonts/（OFL 要求改动过的字体必须改名，测试钉着）
+
+## 9. 打字机与思考点的节奏（第二轮 U3）
+
+文件：src/sammy/typewriter.py
+
+- TYPE_CPS = 25.0（每秒打几个字 —— 40 毫秒一字）
+- TYPE_PAUSE = 0.09（标点后额外停顿的秒数）
+- TYPE_CAP = 4.5（一页最长打多久；超了整体等比加速）
+- DOT_PERIOD = 0.4（思考点每帧停多久；一颗 → 三颗循环）
+- PAGE_HOLD = 3.6（每页打完停多久再翻页；与布局的 PAGE_SECONDS 对账）
+
+## 10. 凝视漂移与好奇（第二轮 U2）
+
+文件：src/sammy/anim.py
+
+- GAZE_MIN_GAP = 2.6、GAZE_MAX_GAP = 7.4（两次「看向新方向」的间隔范围，秒）
+- GAZE_EASE = 0.55（一次转向的缓动时长；两端速度为 0，然后定格）
+- GAZE_MAX_X = 10、GAZE_MAX_Y = 6（横 / 纵向摆幅，设备像素）
+- CURIOSITY_STRETCH = 0.07（看向左右边缘时纵向拉高的上限 —— 7%）
+
+## 11. 表情淡化与弹跳（第二轮 U2）
+
+文件：src/sammy/anim.py
+
+- FADE_DURATION = 0.38（换表情的交叉淡化时长，秒）
+- POP_DURATION = 0.22（先有的「弹一下」，与淡化并存）
+
 ---
 
 改完任何一条：跑一遍 make check（全绿再提交）。这页自己的判据在
-tests/test_tuning_doc.py；给 Rowan 的清单在 docs/CHECKLIST-8H.md，
+tests/test_tuning_doc.py；给 Rowan 的清单在 docs/CHECKLIST-8H.md（第二轮：docs/CHECKLIST-8H-B2.md），
 总结在 docs/REPORT-8H.md —— 都随仓库走。

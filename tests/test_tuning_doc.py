@@ -9,7 +9,8 @@
 3. 六个拍板点的小节与对应文件名一个不缺；
 4. face-only 的派生数字（660×324 / 屏宽占比 / 倍数）与真算出来的布局一致；
 5. MCP 的三个版本号与代码一致；
-6. 报告（REPORT-8H.md）指到这页。
+6. 报告（REPORT-8H.md）指到这页；
+7. 第二轮（UI）的第 8~11 节与新增常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -52,6 +53,20 @@ EXPECTED_PINS = {
     "VIGNETTE_INNER",
     "GLOW_OPACITY",
     "GLOW_DOWNSCALE",
+    "PIXEL_STEP",
+    "TYPE_CPS",
+    "TYPE_PAUSE",
+    "TYPE_CAP",
+    "DOT_PERIOD",
+    "PAGE_HOLD",
+    "GAZE_MIN_GAP",
+    "GAZE_MAX_GAP",
+    "GAZE_EASE",
+    "GAZE_MAX_X",
+    "GAZE_MAX_Y",
+    "CURIOSITY_STRETCH",
+    "FADE_DURATION",
+    "POP_DURATION",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -68,6 +83,8 @@ _MODULE_NAMES = (
     "attention",
     "tools",
     "crt",
+    "typewriter",
+    "anim",
 )
 
 
@@ -104,6 +121,10 @@ def test_decisions_and_files_are_covered():
         "MCP 的版本校验",
         "MCP 工具要不要默认开",
         "CRT 质感的强度",
+        "像素字体的字号",
+        "打字机与思考点的节奏",
+        "凝视漂移与好奇",
+        "表情淡化与弹跳",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (
@@ -114,6 +135,8 @@ def test_decisions_and_files_are_covered():
         "mcp.py",
         "mcp.json",
         "crt.py",
+        "typewriter.py",
+        "anim.py",
     ):
         assert filename in text, "速查表没点文件名：" + filename
 
