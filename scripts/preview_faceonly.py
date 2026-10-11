@@ -25,6 +25,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
+from sammy import layout
 from sammy import screen as screen_mod
 from sammy.paths import data_dir
 from sammy.pet import SammyWindow
@@ -60,6 +61,7 @@ def render(w: int, h: int, out: pathlib.Path) -> str:
         win.set_expression(3)  # 微笑
         win.sammy_line = LINE
         win._hold_line()  # 让那一行显示"刚说的话"的样子
+        win.finish_typing()  # U3：预览拍稳态，那一行显示的是一整句
         win.update()
         img = win.grab()
         if not img.save(str(out)):
@@ -82,6 +84,7 @@ def main(argv: list[str]) -> int:
         sizes = DEFAULTS
 
     _app = QApplication([])  # 必须先有它才能建窗口（离屏，不弹窗）
+    layout.load_fonts()  # 和真机一致：像素字体先注册（U1）
     out_dir = data_dir() / "previews"
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"face-only 预览 → {out_dir}")

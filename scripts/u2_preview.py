@@ -25,8 +25,7 @@ from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
 from PySide6.QtWidgets import QApplication
 
 
-from sammy import anim
-
+from sammy import anim, layout
 from sammy.pet import SammyWindow
 
 
@@ -42,6 +41,7 @@ def _fresh() -> SammyWindow:
     w = SammyWindow(autoconnect=False)
     for tm in (w.timer, w.anim_timer, w.heart, w.night):
         tm.stop()
+    w.finish_typing()  # 素材拍稳态：回复区不许停在"刚打出来的两个字"（U3）
     return w
 
 
@@ -145,6 +145,7 @@ def main() -> int:
     ap.add_argument("--out", default=str(ROOT / ".tmp" / "u2-preview"))
     args = ap.parse_args()
     _app = QApplication.instance() or QApplication([])  # 保住引用（窗口要用）
+    layout.load_fonts()  # 和真机一致：像素字体先注册（U1）
     out = Path(args.out)
     print("  ✅", gaze_strip(out))
     print("  ✅", fade_strip(out))

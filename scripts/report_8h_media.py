@@ -29,7 +29,7 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
-from sammy import expressions
+from sammy import expressions, layout
 from sammy import screen as screen_mod
 from sammy.pet import SammyWindow
 
@@ -39,6 +39,7 @@ BG = QColor("#0a120d")  # 深绿黑，和外壳同一个色系
 LINE = "今天天气不错，我想起你昨晚说的那盆绿萝了。"
 
 _app = QApplication.instance() or QApplication([])
+layout.load_fonts()  # 和真机一致：像素字体先注册（U1）
 
 
 def _resolver(w: int, h: int):
@@ -66,6 +67,7 @@ def render_faceonly(w: int, h: int, out: Path) -> str:
         win.set_expression(3)  # 微笑
         win.sammy_line = LINE
         win._hold_line()
+        win.finish_typing()  # U3：素材拍稳态，回复区显示的是一整句
         win.update()
         img = win.grab()
         if not img.save(str(out)):
@@ -88,6 +90,7 @@ def render_window_chat(out: Path) -> str:
         win.anim_t = 0.45  # 快照拍稳态：交叉淡化与开场的弹跳先走完
         win.my_line = "今天好累啊，不想干活。"
         win.sammy_line = "先别硬撑，喝口水，跟我唠两句也行。"
+        win.finish_typing()  # U3：素材拍稳态，回复区显示的是一整句
         win.status = "在线 · 1.8s"
         win.update()
         _app.processEvents()
@@ -144,6 +147,7 @@ def _grab_faceonly_frames(dir_out: Path, seconds: float = 3.0) -> int:
         win.set_expression(3)
         win.sammy_line = LINE
         win._hold_line()
+        win.finish_typing()  # U3：动图拍的是脸的动画，字幕保持整句
         for i in range(n):
             win.anim_t = i / FPS
             win.update()
@@ -159,6 +163,7 @@ def _grab_window_frames(dir_out: Path, start: int, exprs, per_sec: float = 1.5) 
     win = SammyWindow(autoconnect=False)
     win.resize(440, 264)
     win.show()
+    win.finish_typing()  # U3：字幕保持整句（时间轴每段都会拨回 0，重打会穿帮）
     idx = start
     n_per = int(per_sec * FPS)
     try:

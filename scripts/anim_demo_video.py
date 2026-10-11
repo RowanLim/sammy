@@ -28,6 +28,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
+from sammy import layout
 from sammy.expressions import name_of
 from sammy.pet import SammyWindow
 
@@ -44,9 +45,11 @@ def main() -> int:
     args = ap.parse_args()
 
     app = QApplication(sys.argv[:1])  # noqa: F841
+    layout.load_fonts()  # 和真机一致：像素字体先注册（U1）
     win = SammyWindow(autoconnect=False)
     win.resize(440, 264)
     win.show()
+    win.finish_typing()  # U3：这是脸的动画片，字幕保持整句，别让打字机抢戏
 
     tmp = Path(tempfile.mkdtemp(prefix="animframes-"))
     n, idx = int(FPS * SECONDS), 0

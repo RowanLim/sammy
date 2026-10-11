@@ -14,7 +14,7 @@ from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, chatlog, faces, layout, screen
+from . import anim, chatlog, faces, layout, screen, typewriter
 from . import mood as mood_mod
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
@@ -242,6 +242,13 @@ class SammyWindow(QWidget):
         self._fit_key = None
         self._reply_t0 = 0.0  # 这条回复是第几秒出现的（翻页从第一页开始）
         self._line_until = 0.0  # face-only：刚说的话要在那一行停到什么时候
+        # 打字机（U3）：回复逐字出现的进度。**惰性起步** —— 这条文本第一次
+        # 被画出来时才算"开始打"（否则窗口没显示的那段时间也被算进去，
+        # 一露面就已经打了一半）。
+        self._type_key: str | None = None
+        self._type_t0 = 0.0
+        self._type_plan: typewriter.TypePlan | None = None
+        self._type_plan_key: tuple[str, ...] | None = None
 
         self.bridge = Bridge()
         self.bridge.replyReady.connect(self._on_reply)
@@ -414,8 +421,13 @@ class SammyWindow(QWidget):
     # ── face-only 的单行显示 ─────────────────────
 
     def _hold_line(self) -> None:
-        """让那一行先显示它刚说的话；过一会儿再回到状态。"""
+        """让那一行先显示它刚说的话；过一会儿再回到状态。
+
+        「过一会儿」还得**到点自动重画一下**：那一行平时不在动画的刷新范围里，
+        没有这一下，时间到了画面还赖着旧文字（20 秒就只是个没人看的时间戳）。
+        """
         self._line_until = time.time() + FACEONLY_LINE_HOLD
+        QTimer.singleShot(int((FACEONLY_LINE_HOLD + 0.1) * 1000), self._repaint_text_region)
 
     def face_line(self) -> tuple[str, bool]:
         """face-only 模式那一行显示什么（第二个值 = 是不是"刚说的话"）。
@@ -426,6 +438,91 @@ class SammyWindow(QWidget):
         if self.sammy_line and time.time() < self._line_until:
             return self.sammy_line, True
         return self.status, False
+
+    # ── 打字机 / 思考点（U3）────────────────────
+
+    def finish_typing(self) -> None:
+        """把打字机**立刻拨到尾**（快照/报告素材用）—— 拍到的必须是一整句。
+
+        抓图不能拍"话说到一半"：给个远古的起点，任何时刻都算打完。
+        """
+        self._type_key = self.sammy_line
+        self._type_t0 = self.anim_t - 1e6
+
+    def _sync_typing(self, text: str) -> float:
+        """这条文本开打了多久 —— **第一次被画出来**时才开始（惰性起步）。"""
+        if self._type_key != text:
+            self._type_key = text
+            self._type_t0 = self.anim_t
+        return self.anim_t - self._type_t0
+
+    def _plan_for(self, pages: tuple[str, ...]) -> typewriter.TypePlan:
+        """这条回复的打字机时间表（文本没变就复用；节奏定义在 typewriter.py）。"""
+        if self._type_plan is None or self._type_plan_key != pages:
+            self._type_plan = typewriter.TypePlan(pages)
+            self._type_plan_key = pages
+        return self._type_plan
+
+    def _reply_shown(self) -> tuple[int, str]:
+        """回复区这一刻显示什么：(页码, 文本)。
+
+        三种形态 —— 思考中给会动的点；动画关着直接整页（没有时间轴，
+        打字机会永远停在第一个字）；其余走打字机（第一遍逐字）。
+        """
+        if self.thinking:
+            return 0, typewriter.dots(self.anim_t)
+        fit = self._reply_fit()
+        if not self.anim_on:
+            i = fit.index_at(self.anim_t - self._reply_t0)
+            return i, fit.pages[i]
+        plan = self._plan_for(fit.pages)
+        return plan.view_at(self._sync_typing(self.sammy_line))
+
+    def _typed_line(self, text: str) -> str:
+        """face-only 那一行也逐字出现（动画关着就直接整句）—— 小屏同一台机器。"""
+        if not self.anim_on:
+            return text
+        return typewriter.reveal(text, self._sync_typing(text))
+
+    def _status_shown(self) -> str:
+        """状态行：思考时把句尾的省略号换成会动的点（干等的省略号看着像卡死）。"""
+        if self.thinking:
+            return typewriter.grow_dots(self.status, self.anim_t)
+        return self.status
+
+    def _text_region(self) -> QRect:
+        """文字区（状态行 + 回复区）在窗口里的像素区域 —— 打字机/思考点动时刷它。"""
+        L = self.lay
+        r = QRect(L.status)
+        rep = getattr(L, "reply", None)  # face-only 版面没有回复区
+        if rep is not None:
+            r = r.united(rep)
+        s = self.scale
+        return QRect(
+            int(r.x() * s) + self._offset[0] - 2,
+            int(r.y() * s) + self._offset[1] - 2,
+            int(r.width() * s) + 4,
+            int(r.height() * s) + 4,
+        )
+
+    def _text_live(self) -> bool:
+        """文字区现在是不是"活的"（思考点在动 / 打字机在打）—— 是才值得刷。"""
+        if self.thinking:
+            return True
+        if not self.anim_on or self._type_key != self.sammy_line:
+            return False
+        if self.face_only:
+            return (self.anim_t - self._type_t0) < typewriter.reveal_seconds(self.sammy_line)
+        plan = self._type_plan
+        if plan is None:
+            return False
+        if len(plan.pages) > 1:  # 翻页回复：整轮都在换内容，必须一直刷
+            return True
+        return (self.anim_t - self._type_t0) < plan.loop
+
+    def _repaint_text_region(self) -> None:
+        """到点把文字区重画一次（face-only 那一行的"到点回状态"就靠它）。"""
+        self.update(self._text_region())
 
     # ── 空闲行为 ────────────────────────────────
 
@@ -463,12 +560,16 @@ class SammyWindow(QWidget):
         )
 
     def _anim_tick(self) -> None:
-        """推进动画时间，**只重画脸那一小块**。
+        """推进动画时间，**只重画需要重画的那一块**。
 
-        整窗重画在 1920×1080 上 30fps 太浪费，而且脸以外的东西根本没变。
+        整窗重画在 1920×1080 上 30fps 太浪费，而且大多数时候脸以外没变。
+        文字区只在思考点 / 打字机在动的时候才刷（`_text_live` 说了算）——
+        其余时间它是静的，谁也不用花这份电。
         """
         self.anim_t += anim.ANIM_DT
         self.update(self._face_region())
+        if self._text_live():
+            self.update(self._text_region())
 
     def _reply_fit(self) -> layout.ReplyFit:
         """当前回复的排版结论（带缓存）。
@@ -840,7 +941,7 @@ class SammyWindow(QWidget):
         p.drawText(
             QRect(dot_x + 20, L.status.y(), L.status.right() + 1 - dot_x - 20, L.status.height()),
             Qt.AlignRight | Qt.AlignVCenter,
-            self.status,
+            self._status_shown(),  # 思考中：句尾省略号换成会动的点（U3）
         )
         p.setBrush(GREEN if self.status_ok else WARN)
         p.setPen(Qt.NoPen)
@@ -862,11 +963,13 @@ class SammyWindow(QWidget):
                 ),
             )
 
-        # 回复文字：大字一页放得下就一页；放不下缩小；还放不下就翻页（绝不裁字）
+        # 回复文字：大字一页放得下就一页；放不下缩小；还放不下就翻页（绝不裁字）。
+        # 显示内容由打字机给（U3）：逐字出现；思考中换成会动的点。
         fit = self._reply_fit()
+        page_i, shown = self._reply_shown()
         p.setFont(QFont(layout.FAMILY, fit.size))
         p.setPen(TEXT)
-        p.drawText(L.reply, layout.REPLY_FLAGS, fit.page_at(self.anim_t - self._reply_t0))
+        p.drawText(L.reply, layout.REPLY_FLAGS, shown)
         if fit.paged:
             # 翻页提示：让人知道"后面还有"，别以为话说到一半就没了
             p.setFont(QFont(layout.FAMILY, max(12, L.font_my - 2)))
@@ -874,7 +977,7 @@ class SammyWindow(QWidget):
             p.drawText(
                 L.reply,
                 Qt.AlignRight | Qt.AlignBottom,
-                f"{fit.index_at(self.anim_t - self._reply_t0) + 1}/{len(fit.pages)}",
+                f"{page_i + 1}/{len(fit.pages)}",
             )
 
         # 关闭按钮
@@ -894,6 +997,8 @@ class SammyWindow(QWidget):
         self._draw_face(p)
 
         text, fresh = self.face_line()
+        # 刚说的话：也逐字出现；其余时间显示状态（思考中句尾的点会动）
+        text = self._typed_line(text) if fresh else self._status_shown()
         p.setFont(QFont(layout.FAMILY, L.font_status))
         if not self.status_ok:
             p.setPen(WARN)

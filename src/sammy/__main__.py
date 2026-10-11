@@ -511,6 +511,7 @@ def main(argv: list[str] | None = None) -> int:
         win.reply = None  # 占位，避免误用
         win.sammy_line = args.reply or f"这是 {name_of(args.expr)} 的表情。"
         win._hold_line()  # 快照里让 face-only 的那一行显示这句话（完整版不读它）
+        win.finish_typing()  # U3：打字机也拨到尾 —— 快照是一整句，不是刚蹦出来的两个字
         win.my_line = "今天好累啊，不想干活。"
         win.status = "在线 · 1.8s"
         win.update()
@@ -582,6 +583,7 @@ def _selftest(app, win, out_path: str) -> int:
 
     def inspect() -> None:
         win.poke()  # 顺带走一遍交互代码路径（戳一下 + 换表情）
+        win.finish_typing()  # U3：截图前把打字机拨到尾，拍的是一整句
         handle = win.windowHandle()
         screen = handle.screen() if handle else None
         flags = win.windowFlags()
