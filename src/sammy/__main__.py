@@ -485,6 +485,9 @@ def main(argv: list[str] | None = None) -> int:
     from .pet import SammyWindow
 
     app = QApplication(sys.argv[:1])
+    from . import layout as _layout
+
+    _layout.load_fonts()  # 像素字体：必须在 QApplication 之后（QFontDatabase 依赖它）
     win = SammyWindow(kiosk=args.kiosk, display=args.display, face_only=args.face_only)
     if args.kiosk:
         from .screen import remember

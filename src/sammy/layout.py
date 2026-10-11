@@ -26,6 +26,7 @@ from PySide6.QtCore import QPoint, QRect, Qt
 from PySide6.QtGui import QFont, QFontMetrics
 
 from .faces import DEV_H, DEV_W, face_box
+from .paths import fonts_dir
 
 # ── 设计基准（800×480 设备单位）──
 MARGIN = 46  # 左右边距
@@ -43,18 +44,59 @@ PANEL_INSET = 2
 PANEL_RADIUS = 32
 
 # ── 基准字号（都乘 scale）──
-FONT_LABEL = 26
-FONT_STATUS = 22
-FONT_MY = 20
-FONT_REPLY = 26
-FONT_INPUT = 30
+# ⚠️ 这几个数必须是 PIXEL_STEP（12）的整数倍：像素字体只在**设计字号的整数倍**上才不糊。
+# 24 = 12 × 2，是这块屏上最舒服的一档；字号统一成一样也是"终端"该有的样子。
+FONT_LABEL = 24
+FONT_STATUS = 24
+FONT_MY = 24
+FONT_REPLY = 24
+FONT_INPUT = 24
 
-FAMILY = "PingFang SC"  # 中文优先；Linux 上找不到会回落到系统默认无衬线（有中文字形）
+# ── 像素字体（U1）────────────────────────────────
+PIXEL_STEP = 12  # 字体的设计字号（12px 档）
+PIXEL_SIZES = (36, 24, 12)  # 回复区可选字号，从大到小，全是 12 的倍数
+PIXEL_FONT_NAME = "sammy-pixel-zh-hans.ttf"
+FAMILY = "Sammy Pixel"  # 随仓库分发的像素字体（assets/fonts，OFL-1.1）
+FALLBACK_FAMILY = "PingFang SC"  # 字体不在就回落系统字体 —— 宁可不好看，不能没字
+
+
+def snap_to_pixel(size: float) -> int:
+    """把字号吸到像素网格上（12 的整数倍）。平手时**取小**（宁可小一点也别糊）。
+
+    18→12（平手取小）· 30→24 · 26→24 · 36→36 · 12→12
+    """
+    n = int((float(size) / PIXEL_STEP) + 0.5 - 1e-9)
+    return max(PIXEL_STEP, n * PIXEL_STEP)
+
+
+def load_fonts() -> str:
+    """把随项目的像素字体注册进 Qt，返回实际生效的家族名。
+
+    **必须在 QApplication 建好之后调用**（QFontDatabase 依赖它）。
+    字体文件不在或加载失败 → 回落系统字体，并**说明**（静默回落最难查）。
+    """
+    global FAMILY
+    path = fonts_dir() / PIXEL_FONT_NAME
+    if not path.is_file():
+        print(f"  ⚠️ 像素字体不在（{path}），回落系统字体 {FALLBACK_FAMILY}")
+        FAMILY = FALLBACK_FAMILY
+        return FAMILY
+    from PySide6.QtGui import QFontDatabase
+
+    fid = QFontDatabase.addApplicationFont(str(path))
+    fams = QFontDatabase.applicationFontFamilies(fid) if fid >= 0 else []
+    if not fams:
+        print(f"  ⚠️ 像素字体加载失败，回落系统字体 {FALLBACK_FAMILY}")
+        FAMILY = FALLBACK_FAMILY
+        return FAMILY
+    FAMILY = fams[0]
+    return FAMILY
+
 
 # ── 回复区排版 ──────────────────────────────
 # 从大到小试。都放不下就**翻页**，绝不硬画到框外（硬画的后果是句子被悄悄切掉，
 # 实测用户第一眼看到的就是"话说到一半没了"）。
-REPLY_SIZES = (26, 24, 22, 20, 18)
+REPLY_SIZES = PIXEL_SIZES  # 回复区备选字号：和界面同一套像素网格
 PAGE_SECONDS = 3.6  # 翻页间隔：够读完一页，又不至于让人等
 REPLY_FLAGS = Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap
 _BREAKS = "。！？；，、…—!?;,. \n"  # 优先在这些地方断开，别把词从中间劈开

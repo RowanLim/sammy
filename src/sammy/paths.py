@@ -73,6 +73,11 @@ def assets_dir() -> pathlib.Path:
     return bundled_dir() / "assets" / "expressions"
 
 
+def fonts_dir() -> pathlib.Path:
+    """字体目录（随项目分发的第三方资源，OFL 许可证也在里面）。"""
+    return bundled_dir() / "assets" / "fonts"
+
+
 def env_file() -> pathlib.Path:
     """配置文件：`<项目>/data/.env`。
 
