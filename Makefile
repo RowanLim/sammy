@@ -22,6 +22,7 @@ help:
 	@echo "make report-media 重生成 8 小时报告素材（截图+视频，进 docs/8h/）"
 	@echo "make ui-media       重生成第二轮 UI 素材（对比图 + 短视频，进 docs/8h-b2/）"
 	@echo "make boot-media     重生成开机自检素材（帧带 + 放大图 + 短视频，进 docs/8h-b2/）"
+	@echo "make shutdown-media 重生成关机序列素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -145,8 +146,12 @@ ui-media:
 boot-media:
 	$(VENV) scripts/boot_preview.py
 
+# 关机序列素材（收束成一条线、一个点、熄灭）
+shutdown-media:
+	$(VENV) scripts/shutdown_preview.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media

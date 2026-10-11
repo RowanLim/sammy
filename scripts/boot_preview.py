@@ -74,6 +74,9 @@ def _fresh():
     w.status = "在线 · 1.8s"
     w.sammy_line = "嗯…我醒着呢。"
     w.finish_typing()  # 素材里的句子永远是一整句（U3 的纪律）
+    # 素材脚本不碰真状态：关窗时的保存全换成空操作（素材不是它的一天）
+    for name in ("_save_drives", "_save_attention", "_save_care", "_save_recall"):
+        setattr(w, name, lambda: None)
     return w
 
 

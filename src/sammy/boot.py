@@ -117,6 +117,63 @@ def frame_at(t: float, n_lines: int) -> Frame:
     return Frame(phase="done", power=1.0, lines=n, cursor=False, wake=1.0)
 
 
+# ── 关机序列（收束成一条线、一个点、熄灭）──────────────
+# 开机是"上电"，关机就是它的反面：栅格断电、画面往中缝收，
+# 收成一条亮线、再收成一个光点，最后没了 —— 老显示器的退场。
+# 和开机放在同一个模块：都是"电源时刻"的纯时间轴，共用同一个开关
+# （SAMMY_BOOT=off 时两段都不播）。
+COLLAPSE_DUR = 0.40  # 画面纵向压扁的时长，秒
+LINE_DUR = 0.22  # 亮线横向收束的时长，秒
+DOT_DUR = 0.30  # 光点熄灭的时长，秒
+SQUEEZE_MIN = 0.02  # 纵向压扁终点的系数（相对面板高）
+SHRINK_MIN = 0.04  # 横向收束终点的系数（相对面板宽）
+DOT_SHRINK = 0.01  # 熄灭段继续收窄到的系数（约等于一个点）
+CORE_H = 5  # 中心亮线的高度，设计单位
+
+
+@dataclass(frozen=True)
+class ShutdownFrame:
+    """关机序列某一刻的全部参数（画面层照这个画，不做任何再推算）。"""
+
+    phase: str  # collapse / line / dot / done
+    sx: float  # 横向收缩，从 1 收到 DOT_SHRINK
+    sy: float  # 纵向压扁，从 1 压到 SQUEEZE_MIN
+    core: float  # 中心亮线的亮度，0 涨到 1
+    alpha: float  # 整体透明度，熄灭段从 1 暗到 0
+
+
+def shutdown_total_seconds() -> float:
+    """整段关机序列的时长 —— 过了这个点，窗口就该把退出交出去。"""
+    return COLLAPSE_DUR + LINE_DUR + DOT_DUR
+
+
+def shutdown_frame_at(t: float) -> ShutdownFrame:
+    """t 时刻这一帧的参数（纯函数 —— 关机的时间判据钉的就是它）。
+
+    形状的由来：断电时场偏转先塌（纵向快起慢收，缓入一条线），然后行偏转塌
+    （横向往中心收成一点），最后剩的光点自己暗掉。t=0 就是稳态本身 ——
+    起手不许跳帧，收尾落在全黑上。
+    """
+    if t <= 0.0:
+        return ShutdownFrame(phase="collapse", sx=1.0, sy=1.0, core=0.0, alpha=1.0)
+    if t < COLLAPSE_DUR:
+        p = t / COLLAPSE_DUR
+        # (1-p) 平方的形状：一断电就往中缝掉、最后缓入一条线
+        sy = SQUEEZE_MIN + (1.0 - SQUEEZE_MIN) * (1.0 - p) ** 2
+        return ShutdownFrame(phase="collapse", sx=1.0, sy=sy, core=_smooth(p), alpha=1.0)
+    t1 = t - COLLAPSE_DUR
+    if t1 < LINE_DUR:
+        q = t1 / LINE_DUR
+        sx = SHRINK_MIN + (1.0 - SHRINK_MIN) * (1.0 - q) ** 2
+        return ShutdownFrame(phase="line", sx=sx, sy=SQUEEZE_MIN, core=1.0, alpha=1.0)
+    t2 = t1 - LINE_DUR
+    if t2 < DOT_DUR:
+        r = t2 / DOT_DUR
+        sx = SHRINK_MIN - (SHRINK_MIN - DOT_SHRINK) * r
+        return ShutdownFrame(phase="dot", sx=sx, sy=SQUEEZE_MIN, core=1.0, alpha=1.0 - _smooth(r))
+    return ShutdownFrame(phase="done", sx=DOT_SHRINK, sy=SQUEEZE_MIN, core=1.0, alpha=0.0)
+
+
 def self_check_lines(
     *, memories: int | None, expressions: int | None, tools: int | None, brain: bool
 ) -> tuple[str, ...]:

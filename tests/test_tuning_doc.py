@@ -11,7 +11,8 @@
 5. MCP 的三个版本号与代码一致；
 6. 报告（REPORT-8H.md）指到这页；
 7. 第二轮（UI）的第 8~11 节与新增常量同样逐条对账；
-8. 第 12 节（开机自检序列）与 boot.py 的 6 个时间常量逐条对账。
+8. 第 12 节（开机自检序列）与 boot.py 的 6 个时间常量逐条对账；
+9. 第 13 节（关机序列）的 7 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -74,6 +75,13 @@ EXPECTED_PINS = {
     "LOG_TAIL",
     "WAKE_DUR",
     "CURSOR_PERIOD",
+    "COLLAPSE_DUR",
+    "LINE_DUR",
+    "DOT_DUR",
+    "SQUEEZE_MIN",
+    "SHRINK_MIN",
+    "DOT_SHRINK",
+    "CORE_H",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -134,6 +142,7 @@ def test_decisions_and_files_are_covered():
         "凝视漂移与好奇",
         "表情淡化与弹跳",
         "开机自检序列",
+        "关机序列",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

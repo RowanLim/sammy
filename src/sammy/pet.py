@@ -191,6 +191,11 @@ class SammyWindow(QWidget):
         # 开机自检序列（自选小步）：_boot_t0 非 None 时画的是开机画面
         self._boot_t0: float | None = None
         self._boot_lines: tuple[str, ...] = ()
+        # 关机序列（自选小步·第二次）：_shutdown_t0 非 None 时画的是退场画面
+        self._shutdown_t0: float | None = None
+        # 退出口：默认就是原来的 QApplication.quit（关闭钮 / 菜单都改走它）；
+        # 测试里换成记录器 —— 验"这一刻恰好退一次"，不真把测试进程退出
+        self._quit_hook = QApplication.quit
 
         # 大脑（可注入）
         self.brain = brain
@@ -607,6 +612,83 @@ class SammyWindow(QWidget):
             self.input.show()
         self.update()
 
+    # ── 关机序列（退场）──────────────────────────
+
+    def begin_shutdown(self) -> bool:
+        """开始关机序列（关闭钮 / 右键菜单「退出」走这里）。
+
+        返回是否真的开始：开关关着（SAMMY_BOOT=off）或动画关着（SAMMY_ANIM=off）
+        就 False —— 调用方直接退出。脚本和测试关窗（w.close()）不经过这里：
+        它们永远是"啪"一下，不会拍到退场画面。
+        """
+        if self._shutdown_t0 is not None:
+            return True  # 已经在关：再来就是"接着关"，不重开一段
+        if not boot.boot_enabled() or not self.anim_on:
+            return False
+        if self._boot_t0 is not None:
+            self._finish_boot()  # 开机还没播完就退：先收进稳态，再开始关机
+        self._shutdown_t0 = self.anim_t
+        if not self.face_only:
+            self.input.hide()  # 退场这几秒输入框不该在场 —— 它不受画面变换影响
+        if self._crt_overlay is not None:
+            # 扫描线 / 暗角锁在窗口上 —— 画面在收束，网格不能杵着不动
+            self._crt_overlay.hide()
+        self.update()
+        return True
+
+    def _shutdown_frame(self) -> boot.ShutdownFrame | None:
+        """这一帧的关机序列参数；没在关机就 None（画正常画面）。"""
+        if self._shutdown_t0 is None:
+            return None
+        return boot.shutdown_frame_at(self.anim_t - self._shutdown_t0)
+
+    def _finish_shutdown(self) -> None:
+        """跳过 / 播完的收尾：把退出交出去（默认 QApplication.quit）。
+
+        为什么退出走钩子：测试要验"这一刻恰好退一次"，不能真把测试进程退了。
+        生产上默认钩子就是原来的那条路（退出后 closeEvent 照旧存状态）。
+        """
+        if self._shutdown_t0 is None:
+            return
+        self._shutdown_t0 = None
+        self._quit_hook()
+
+    def _request_quit(self) -> None:
+        """退出口（关闭钮 / 右键菜单）：先播关机序列；关着或已在关就直接退。"""
+        if self._shutdown_t0 is not None:
+            self._finish_shutdown()  # 关机中再点：跳过，直接退
+            return
+        if not self.begin_shutdown():
+            self._quit_hook()
+
+    def _paint_shutdown(self, p: QPainter, fr: boot.ShutdownFrame) -> None:
+        """关机序列某一帧：画面向中缝压扁、亮线收成点、熄灭。
+
+        三段只是同一幅画面在三个方向上的收束 —— 压扁（sy）、收窄（sx）、
+        变暗（alpha）；一幅画面套一个变换画到底，中间不会有跳变。
+        """
+        L = self.lay
+        c = L.panel.center()
+        p.save()
+        if fr.alpha < 1.0:
+            p.setOpacity(fr.alpha)
+        if fr.sx != 1.0 or fr.sy != 1.0:
+            # 起手帧的变换是恒等的：跳过它 —— "接上稳态"要逐像素成立
+            p.translate(c.x(), c.y())
+            p.scale(fr.sx, fr.sy)
+            p.translate(-c.x(), -c.y())
+        if self.face_only:
+            self._paint_face_only(p)
+        else:
+            self._paint_full(p)
+        p.restore()
+        if fr.core > 0.0:
+            # 中心亮线：压不扁的那一条 —— 它才是"关机"的本体，画面围着它收
+            w = L.panel.width() * fr.sx
+            col = QColor(TEXT)
+            col.setAlphaF(min(1.0, fr.core * fr.alpha))
+            p.fillRect(QRectF(c.x() - w / 2.0, c.y() - boot.CORE_H / 2.0, w, boot.CORE_H), col)
+
     def _paint_boot(self, p: QPainter, fr: boot.Frame) -> None:
         """开机序列某一帧：上电扫掠 / 自检行 / 唤醒淡入（三段各自的画法）。
 
@@ -718,6 +800,13 @@ class SammyWindow(QWidget):
             else:
                 self.update()
                 return
+        if self._shutdown_t0 is not None:
+            # 关机序列：整窗都在动；播到头就把退出交出去（恰好一次）
+            if self.anim_t - self._shutdown_t0 >= boot.shutdown_total_seconds():
+                self._finish_shutdown()
+                return
+            self.update()
+            return
         self.update(self._face_region())
         if self._text_live():
             self.update(self._text_region())
@@ -1044,6 +1133,10 @@ class SammyWindow(QWidget):
         if fr is not None:
             self._paint_boot(p, fr)  # 开机自检序列（自选小步）
             return
+        sfr = self._shutdown_frame()
+        if sfr is not None:
+            self._paint_shutdown(p, sfr)  # 关机序列（退场）
+            return
         if self.face_only:
             self._paint_face_only(p)
         else:
@@ -1251,8 +1344,11 @@ class SammyWindow(QWidget):
 
     def mousePressEvent(self, event) -> None:
         pos = event.position() / self.scale
+        if self._shutdown_t0 is not None:
+            self._finish_shutdown()  # 关机画面一按就收尾退出（含再点关闭钮）
+            return
         if (pos - self.lay.close_c).manhattanLength() < self.lay.close_r * 1.6:
-            QApplication.quit()
+            self._request_quit()
             return
         if self._boot_t0 is not None:
             self._finish_boot()  # 开机画面一按就跳到底（拖动和菜单交班后再说）
@@ -1264,7 +1360,7 @@ class SammyWindow(QWidget):
             menu.addAction("戳一下", self.poke)
             # 「推后」必须有真能点到的地方 —— 被硬催着起来的提醒，用户第一件事就是卸载它
             menu.addAction("让我再坐会儿（推后 30 分钟）", self.snooze_care)
-            menu.addAction("退出 Sammy", QApplication.quit)
+            menu.addAction("退出 Sammy", self._request_quit)
             menu.exec(event.globalPosition().toPoint())
 
     def mouseMoveEvent(self, event) -> None:
@@ -1275,6 +1371,9 @@ class SammyWindow(QWidget):
         self._drag = None
 
     def mouseDoubleClickEvent(self, event) -> None:
+        if self._shutdown_t0 is not None:
+            self._finish_shutdown()  # 关机画面双击也先收尾退出
+            return
         if self._boot_t0 is not None:
             self._finish_boot()  # 开机画面双击也先跳到底，别顺手戳一下
             return
