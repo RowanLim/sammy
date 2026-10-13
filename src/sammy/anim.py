@@ -259,6 +259,16 @@ HUM_ROCK_PX = 4  # 左右摇摆幅度（±设备像素）—— 比呼吸 / 微�
 HUM_NOTE_RISE_PX = 8  # 右上角小音符整个行程升起几像素（和 Z 的 9 一个量级）
 HUM_ROCK_S = HUM_ROCK_PERIOD * HUM_ROCK_CYCLES  # 满幅摇晃的总时长（秒）—— 由「一拍 × 几下」推导
 
+# ── 歪头：「被戳了，歪着脑袋看你（唔？）」────────────
+# 戳一戳是最常用的互动，却一直没有身体语言（光标 / 打字 / 摸摸头 / 搬运全都有）。
+# 歪头是最经典的「回应」姿态：被戳一下，脑袋一歪、看你一下，再直回来。
+# 它是第一条**旋转**形变（此前全是平移 / 缩放）—— 5° 在宽脸上两角高差约 50px，
+# 一眼读得出来；方向一次一换（不掷随机数 —— 理由同抽动 / 喷嚏）。
+TILT_MAX_DEG = 5.0  # 歪到多少度（±）：读得清楚，又不像要把脑袋倒过来
+TILT_RISE_S = 0.25  # 歪过去用时（秒）—— 轻快：是「唔？」不是「沉思」
+TILT_HOLD_S = 0.55  # 歪着看你一下（秒）—— 停得够长，才看得出「在看你」
+TILT_FALL_S = 0.45  # 直回来用时（秒）—— 比歪过去慢一点，像看完才收
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -276,6 +286,7 @@ class Frame:
     stretch: float = 1.0  # 好奇：看向边缘时纵向拉高（1.0 = 无）
     talk_y: int = 0  # 说话：上下弹（设备像素；0 = 不在说话）
     talk_sq: float = 1.0  # 说话：一鼓一收（1.0 = 不在说话）
+    tilt: float = 0.0  # 歪头：绕脸中心旋转的角度（度；正负 = 两个方向）
 
     @property
     def idle(self) -> bool:
@@ -289,6 +300,7 @@ class Frame:
             and self.stretch == 1.0
             and self.talk_y == 0
             and self.talk_sq == 1.0
+            and self.tilt == 0.0
         )
 
 
@@ -472,6 +484,31 @@ def hum_total() -> float:
     return HUM_EASE_IN_S + HUM_ROCK_S + HUM_EASE_OUT_S
 
 
+def tilt_amount(t_spent: float) -> float:
+    """歪头的形状（0 → 1 → 0）：歪过去 → 歪着看你一下 → 直回来 —— 三段一条线。
+
+    纯函数：三段时间线在测试里逐点钉死。歪过去（RISE）比直回来（FALL）快 ——
+    轻快的一歪是「唔？」，慢吞吞地歪像犯困。`t_spent` = 距离这次歪头开始过了
+    多久；负数 = 还没开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < TILT_RISE_S:
+        return _smooth01(t_spent / TILT_RISE_S)
+    k = t_spent - TILT_RISE_S
+    if k < TILT_HOLD_S:
+        return 1.0
+    k -= TILT_HOLD_S
+    if k < TILT_FALL_S:
+        return 1.0 - _smooth01(k / TILT_FALL_S)
+    return 0.0
+
+
+def tilt_total() -> float:
+    """一次歪头从头到尾的时长（秒）。"""
+    return TILT_RISE_S + TILT_HOLD_S + TILT_FALL_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -586,6 +623,9 @@ class Animator:
     # 哼小曲：这一次的开始时刻（-99 = 没有）；下一次的排期（None = 心情没到、没在排）
     _hum_at: float = field(default=-99.0, repr=False)
     _hum_next_at: float | None = field(default=None, repr=False)
+    # 歪头：这一次的开始时刻（-99 = 没有）；方向一次一换（不掷随机数）
+    _tilt_at: float = field(default=-99.0, repr=False)
+    _tilt_dir: int = field(default=1, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1006,6 +1046,19 @@ class Animator:
 
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
+    # ── 歪头：「被戳了，歪着脑袋看你（唔？）」────────────
+    # 戳一戳的回应：醒着被戳 → 轻快歪一下头、停一小会、再直回来。睡着被戳是
+    # 「叫醒」（哈欠那条路）—— 两条不叠着演；累趴 / 动画关也不歪。窗口那层挡。
+
+    def tilt(self, at: float) -> None:
+        """安排一次歪头（at 时刻开始）—— 窗口「戳一戳」时调它；测试也走这一条。
+
+        再来一次就重新从正位歪起（连着戳两下 = 歪两次）。方向每歪一下换一边
+        （不掷随机数 —— 一右一左像轮流打量你）。
+        """
+        self._tilt_at = float(at)
+        self._tilt_dir = -self._tilt_dir
+
     def note_talk(self, t: float, active: bool) -> None:
         """喂一次「现在在不在说话」（打字机在不在吐字）—— 窗口每帧调一次。
 
@@ -1146,6 +1199,7 @@ class Animator:
         self._sneeze_next_at = None  # 排期也是（下一次 note_sneeze 会重排）
         self._hum_at = -99.0  # 哼小曲同理：拨过时间线，旧的那段不作数
         self._hum_next_at = None  # 排期也是（下一次 note_hum 会重排）
+        self._tilt_at = -99.0  # 歪头同理：拨过时间线，旧的那下不作数
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1202,6 +1256,7 @@ class Animator:
         twitch = twitch_amount(t - self._twitch_at) if calm else 0.0
         sneeze = 0.0 if calm else sneeze_amount(t - self._sneeze_at)
         hum = 0.0 if calm else hum_amount(t - self._hum_at)
+        tilt = 0.0 if calm else self._tilt_dir * TILT_MAX_DEG * tilt_amount(t - self._tilt_at)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1293,6 +1348,7 @@ class Animator:
             stretch=stretch,
             talk_y=talk_y,
             talk_sq=talk_sq,
+            tilt=tilt,
         )
 
 
@@ -1362,6 +1418,10 @@ __all__ = [
     "TALK_SQUASH",
     "THINKING_GAZE_Y",
     "THINKING_RETARGET_MIN_S",
+    "TILT_FALL_S",
+    "TILT_HOLD_S",
+    "TILT_MAX_DEG",
+    "TILT_RISE_S",
     "TWITCH_DEFLATE",
     "TWITCH_HOLD_S",
     "TWITCH_JOLT_S",
@@ -1393,6 +1453,8 @@ __all__ = [
     "sigh_total",
     "sneeze_amount",
     "sneeze_total",
+    "tilt_amount",
+    "tilt_total",
     "twitch_amount",
     "twitch_total",
     "yawn_amount",

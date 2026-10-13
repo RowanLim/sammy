@@ -317,9 +317,13 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     横向哆嗦并进左右两条 —— 和叹息 / 点头同一套「成对」写法。
     哼小曲的摇摆（±HUM_ROCK_PX）也并进左右两条 —— 它和呼吸一样是清醒时的
     横向平移，和上面所有项都可能叠加（喷嚏是反射，可能在哼着的时候打）。
+    歪头（±TILT_MAX_DEG）是第一条**旋转**形变：把每张脸的内容外框四角按 ±θ
+    绕中心转一圈、取旋转后的外接范围，再替掉 top / bottom / left / right 折进
+    上面每条公式（戳一戳可能撞上呼吸 / 叹气 / 喷嚏任何一刻 —— 叠着算，不设
+    互斥）。唯一的例外是睡时的抽动项：歪头只在醒着，两者互斥，用原框。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
     SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
-    SNEEZE_LIFT_PX / SNEEZE_JERK_PX / HUM_ROCK_PX /
+    SNEEZE_LIFT_PX / SNEEZE_JERK_PX / HUM_ROCK_PX / TILT_MAX_DEG /
     CURIOSITY_STRETCH / PET_PURR_PX / TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
@@ -330,6 +334,19 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     box = layout.layout_dev(800, 480).face
     W, H = box.width(), box.height()
     cx, cy = W / 2.0, H / 2.0
+
+    def _rot_extents(L, T, R, B):
+        """内容外框四角按 ±TILT_MAX_DEG 绕中心转一圈后的外接范围。"""
+        th = math.radians(anim.TILT_MAX_DEG)
+        cth, sth = math.cos(th), math.sin(th)
+        xs, ys = [], []
+        for x in (L, R):
+            for y in (T, B):
+                dx, dy = x - cx, y - cy
+                xs += [cx + dx * cth - dy * sth, cx + dx * cth + dy * sth]
+                ys += [cy + dx * sth + dy * cth, cy - dx * sth + dy * cth]
+        return min(xs), min(ys), max(xs), max(ys)
+
     v = (
         (1.0 + anim.CURIOSITY_STRETCH)
         * (1.0 + anim.YAWN_STRETCH)
@@ -351,6 +368,10 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
         ]
         assert ys and xs, f"第 {idx} 张脸是空的？"
         top, bottom, left, right = min(ys), max(ys), min(xs), max(xs)
+        # 歪头是旋转形变：下面所有清醒项都用**旋转后**的外接框；睡时
+        # 抽动项（最后两条）用原框 —— 歪头只在醒着，两者互斥。
+        left0, top0, right0, bottom0 = left, top, right, bottom
+        left, top, right, bottom = _rot_extents(left0, top0, right0, bottom0)
         # 摸摸头的呼噜与呼吸同型（纵向 ±PET_PURR_PX），会叠加 —— 并进来
         move_y = (
             anim.GAZE_MAX_Y + anim.BREATH_AMPLITUDE + math.ceil(anim.TALK_BOB_Y) + anim.PET_PURR_PX
@@ -390,14 +411,14 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             # 再变化（没有弹/淡化 —— 抽动自己 ≥25 秒才有一下，远晚于睡着的瞬间）。
             # 最坏组合 = 定格凝视 + 一激灵，单独一条；不与清醒的 sway/pop 叠加
             # （两者互斥，叠出来是假需求 —— 但若把抽动并进清醒项，那条会超预算）。
-            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - left,
-            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - (W - 1 - right),
+            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - left0,
+            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - (W - 1 - right0),
         )
         if need > worst[0]:
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
-        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX / "
+        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX / TILT_MAX_DEG / "
         "SNEEZE_LIFT_PX / HUM_ROCK_PX 调小，"
         "或把 pet.FACE_REGION_PAD 调大"
     )

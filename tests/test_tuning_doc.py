@@ -25,6 +25,7 @@
 19. 第 24 节（摸摸头）的 6 个常量同样逐条对账。
 20. 第 25 节（打个喷嚏）的 10 个常量同样逐条对账。
 21. 第 26 节（哼小曲）的 9 个常量同样逐条对账。
+22. 第 27 节（歪头）的 4 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -156,6 +157,10 @@ EXPECTED_PINS = {
     "HUM_ROCK_PX",
     "THINKING_GAZE_Y",
     "THINKING_RETARGET_MIN_S",
+    "TILT_FALL_S",
+    "TILT_HOLD_S",
+    "TILT_MAX_DEG",
+    "TILT_RISE_S",
     "TWITCH_DEFLATE",
     "TWITCH_HOLD_S",
     "TWITCH_JOLT_S",
@@ -240,6 +245,7 @@ def test_decisions_and_files_are_covered():
         "摸摸头",
         "打个喷嚏",
         "哼小曲",
+        "歪头",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

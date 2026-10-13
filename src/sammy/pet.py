@@ -68,12 +68,12 @@ SLEEP_EXPR = 1
 
 # 脸重绘区域的留量（设备像素）。不是审美参数 —— **最大形变那一圈必须落在里面**，
 # 否则动画帧不刷新溢出的部分（脸会花）。最坏组合（好奇拉高 × 哈欠拉高 × 弹一下
-# + 各种平移）实测约需 15.3px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）
-# —— 比上一版多了哼小曲的左右摇摆（±4px —— 它和呼吸 / 哆嗦一样是横向平移，
-# 会叠加）；要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX /
-# PET_PURR_PX / HUM_ROCK_PX 之前先看那里（叹气的「沉底」和「压扁」是一对
-# 抵消项，净量也一起算）。
-FACE_REGION_PAD = 16
+# + 各种平移 + 歪头的旋转）实测约需 30.9px（全 35 张脸 · tests/test_yawn.py
+# 有几何判据钉着）—— 比上一版多了歪头的旋转（±5° 把宽脸的上下两角拉出去 ~28px；
+# 旋转的溢出比平移大一个量级，这是留量第一次为「转」涨）；要调大 YAWN_STRETCH /
+# CURIOSITY_STRETCH / SIGH_SINK_PX / PET_PURR_PX / HUM_ROCK_PX / TILT_MAX_DEG
+# 之前先看那里（叹气的「沉底」和「压扁」是一对抵消项，净量也一起算）。
+FACE_REGION_PAD = 32
 
 # 无聊的叹气（自选小步·第九次）：无聊过这条线、又没在忙的时候，它才会叹气。
 # 比「无聊脸」的门槛（0.65）松一点：先听见叹气、再看见耷拉脸 ——
@@ -398,6 +398,8 @@ class SammyWindow(QWidget):
         was_asleep = self.drives.asleep
         self.drives.on_interaction()
         self._yawn_if_woke(was_asleep)
+        if self.anim_on and not was_asleep and not self.drives.exhausted:
+            self.anim.tilt(self.anim_t)  # 醒着被戳：歪头看你（唔？）
         self.care.note_activity()
         self._last_interaction_at = time.time()
         self._idle_face = None
@@ -1472,6 +1474,14 @@ class SammyWindow(QWidget):
                 box.center().x() + fr.dx + fr.gx,
                 box.center().y() + fr.dy + fr.gy + fr.talk_y,
             )
+            if fr.tilt:
+                # 歪头：整张脸（连同此刻的表情）绕中心转 —— 先按老样子
+                # 压 / 拉 / 弹，再转（「转」是最外层：语义就是转动这张脸）。
+                # 取样保持**最近邻**（不开 SmoothPixmapTransform）：和全工程
+                # 一致，像素锐利优先 —— 实测 NN 转 5° 后亮像素 8020/8037
+                # 几乎与孪生相等（结构保住了），平滑会让它多糊出 ~500 个
+                # 中间调像素。5° 的行进阶梯 ~11px 一格、一格一像素，正合适。
+                p.rotate(fr.tilt)
             p.scale(fr.pop, fr.pop * fr.squash * fr.stretch * fr.talk_sq)
             p.translate(-box.center().x(), -box.center().y())
         if prev is not None and alpha < 1.0:
