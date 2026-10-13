@@ -1019,6 +1019,7 @@ class SammyWindow(QWidget):
         if self.anim_on:
             self.anim.note_bored(self.anim_t, self._bored_for_sigh())
             self.anim.note_sleepy(self.anim_t, self._sleepy_for_nod())
+            self.anim.note_asleep(self.anim_t, self.drives.asleep)  # 睡着做梦：偶尔抽一下
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存

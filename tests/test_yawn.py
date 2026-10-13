@@ -308,9 +308,11 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     内容到中心的距离上，再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高 /
     叹气下沉 / 点头下沉）。叹气与点头的「压扁」与「下沉」都是同一条曲线上的
     成对项：对下沿的净增按两端取最大（小脸是净增、大脸是净减），都算进来。
+    睡梦抽动（睡时横向一激灵）单独一条：它只在睡着时出现，那时没有 sway / 弹 /
+    淡化 —— 与清醒的组合互斥，硬叠是假需求（详见下面那条注释）。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
-    SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / CURIOSITY_STRETCH /
-    TALK_* …），先看这条测试。
+    SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
+    CURIOSITY_STRETCH / TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
 
@@ -362,12 +364,19 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             + anim.GAZE_MAX_X
             + anim.SWAY_AMPLITUDE
             - (W - 1 - right),
+            # 睡梦抽动只在**睡着**时出现：那时微动近乎静止（CALM_FACTOR）、表情也不
+            # 再变化（没有弹/淡化 —— 抽动自己 ≥25 秒才有一下，远晚于睡着的瞬间）。
+            # 最坏组合 = 定格凝视 + 一激灵，单独一条；不与清醒的 sway/pop 叠加
+            # （两者互斥，叠出来是假需求 —— 但若把抽动并进清醒项，那条会超预算）。
+            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - left,
+            anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - (W - 1 - right),
         )
         if need > worst[0]:
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
-        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX 调小，或把 pet.FACE_REGION_PAD 调大"
+        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX 调小，"
+        "或把 pet.FACE_REGION_PAD 调大"
     )
 
 

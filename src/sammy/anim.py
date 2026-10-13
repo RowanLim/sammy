@@ -171,6 +171,17 @@ TYPING_HOLD_S = 4.0  # 最后一个键之后还看多久（秒）—— 和「�
 TYPING_RETARGET_MIN_S = 0.35  # 发现你在写后的转视最小间隔（秒；别一敲字就弹）
 TYPING_GAZE_Y = GAZE_MAX_Y  # 输入框在脸的正下方：视线纵向拉满 = 看到最底下那行
 
+# ── 睡梦抽动：「睡着的时候，偶尔轻轻抽一下」────────────
+# 睡着不只是"不动 + 一个 Z"：真的活物睡着会做梦 —— 偶尔轻轻抽一下（一激灵）。
+# 这是第一条**只在睡着时**出现的通道；醒着的时候它一眼都不许有（只加不改）。
+TWITCH_MIN_GAP = 25.0  # 两次抽动之间最短（秒）
+TWITCH_MAX_GAP = 70.0  # 最长；两者之间随机 —— 别像节拍器
+TWITCH_JOLT_S = 0.07  # 抽上去用时（秒）—— 快：肌肉一激灵
+TWITCH_HOLD_S = 0.05  # 顶住的一瞬（秒）—— 让眼睛来得及看见
+TWITCH_SETTLE_S = 0.28  # 松回来用时（秒）—— 比抽上去慢得多，像又睡过去了
+TWITCH_SHIFT_PX = 3  # 横向一激灵的幅度（设备像素）—— 方向一左一右交替
+TWITCH_DEFLATE = 0.91  # 抽到顶时纵向压到 91% —— 全身一缩
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -306,6 +317,30 @@ def nod_total() -> float:
     return NOD_SAG_S + NOD_HOLD_S + NOD_SNAP_S
 
 
+def twitch_amount(t_spent: float) -> float:
+    """睡梦抽动的形状（0 → 1 → 0）：猛地一激灵 → 顶住一瞬 → 慢慢松回去。
+
+    纯函数：三段的时间线在测试里逐点钉死 —— 抽上去比松回来快得多，
+    快慢对比就是「一激灵」的读法；这是「睡着」这个状态第一次出现**专属**动作。
+    `t_spent` = 距离这次抽动开始过了多久；负数 = 还没开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < TWITCH_JOLT_S:
+        return _smooth01(t_spent / TWITCH_JOLT_S)
+    if t_spent < TWITCH_JOLT_S + TWITCH_HOLD_S:
+        return 1.0
+    k = t_spent - TWITCH_JOLT_S - TWITCH_HOLD_S
+    if k < TWITCH_SETTLE_S:
+        return 1.0 - _smooth01(k / TWITCH_SETTLE_S)
+    return 0.0
+
+
+def twitch_total() -> float:
+    """一次睡梦抽动从头到尾的时长（秒）。"""
+    return TWITCH_JOLT_S + TWITCH_HOLD_S + TWITCH_SETTLE_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -395,6 +430,11 @@ class Animator:
     _typing_at: float = field(default=float("-inf"), repr=False)
     # 打字暂停是否发生过（恢复的第一次补排程要把锚点拨到当下，见 _ensure_gaze）
     _typing_was_active: bool = field(default=False, repr=False)
+    # 睡梦抽动：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 没睡着、没在排）；
+    # 方向一左一右交替（不掷随机数 —— 见 twitch()）
+    _twitch_at: float = field(default=-99.0, repr=False)
+    _twitch_next_at: float | None = field(default=None, repr=False)
+    _twitch_dir: int = field(default=1, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -578,6 +618,41 @@ class Animator:
         self._look_retarget_t = t
         self._retarget_gaze(t, 0, TYPING_GAZE_Y)
 
+    # ── 睡梦抽动：「睡着的时候，偶尔轻轻抽一下」────────────
+    # 睡着不是"关掉了"：真的活物睡着会做梦 —— 偶尔轻轻抽一下（一激灵）。
+    # 这是第一条**只在睡着时**出现的通道：醒着 = 一眼都不许有（calm 定生死）。
+    # 方向一左一右交替（不掷随机数）：抽动本身很稀疏，看不出交替；而且不占
+    # 随机流，同种子的孪生对比（素材）才拼得上。
+
+    def twitch(self, at: float) -> None:
+        """安排一次睡梦抽动（at 时刻开始）—— 排期器（note_asleep）与测试走同一条。
+
+        再来一次就重新从抽上去开始（实际时序里两下之间隔着几十秒，
+        这条只是把语义写死、让测试能钉住）。方向每抽一下换一边。
+        """
+        self._twitch_at = float(at)
+        self._twitch_dir = -self._twitch_dir
+
+    def note_asleep(self, t: float, asleep: bool) -> None:
+        """喂一次「现在睡没睡」—— 窗口每秒调一次（和驱力钟同一拍）。
+
+        睡着时会**隔一会儿轻轻抽一下**（做梦了），间隔在
+        TWITCH_MIN_GAP~TWITCH_MAX_GAP 秒之间随机 —— 均匀得像节拍器就不像活物了。
+        - 刚睡着：先等一个间隔再抽第一下（立刻抽 = 肌肉痉挛，不是做梦）；
+        - 一直睡着：抽完接着排下一下；
+        - 醒了：排期清掉，**正在抽的那下也不再画**（醒了就有醒来该做的事，
+          比如哈欠；抽动是梦的一部分，梦跟着醒一起结束）。
+        """
+        if not asleep:
+            self._twitch_next_at = None
+            return
+        if self._twitch_next_at is None:
+            self._twitch_next_at = t + self._rng.uniform(TWITCH_MIN_GAP, TWITCH_MAX_GAP)
+            return
+        if t >= self._twitch_next_at:
+            self.twitch(t)
+            self._twitch_next_at = t + self._rng.uniform(TWITCH_MIN_GAP, TWITCH_MAX_GAP)
+
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
     def note_talk(self, t: float, active: bool) -> None:
@@ -705,6 +780,8 @@ class Animator:
         self._nod_next_at = None  # 排期也是（下一次 note_sleepy 会重排）
         self._typing_at = float("-inf")  # 打字同理：拨过时间线，旧的「在写」不作数
         self._typing_was_active = False  # 暂停标记同理
+        self._twitch_at = -99.0  # 抽动同理：拨过时间线，旧的那下不作数
+        self._twitch_next_at = None  # 排期也是（下一次 note_asleep 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -758,6 +835,7 @@ class Animator:
         squint = 0.0 if calm else yawn_squint(yawn_spent)
         sigh = 0.0 if calm else sigh_amount(t - self._sigh_at)
         nod = 0.0 if calm else nod_amount(t - self._nod_at)
+        twitch = twitch_amount(t - self._twitch_at) if calm else 0.0
 
         squash = 1.0
         if not calm:  # 睡着时闭着眼，不该再眨
@@ -772,6 +850,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - SIGH_DEFLATE) * sigh)
         if nod > 0.0:  # 点头的闭眼：沉到底时压到一半 —— 眼皮快合上
             squash = min(squash, 1.0 - (1.0 - NOD_SQUINT_MIN) * nod)
+        if twitch > 0.0:  # 做梦的抽动：全身轻轻一缩（和别的压扁取最深的那个）
+            squash = min(squash, 1.0 - (1.0 - TWITCH_DEFLATE) * twitch)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -782,6 +862,8 @@ class Animator:
         if nod > 0.0:
             dy += round(NOD_SINK_PX * nod)  # 点头：整脸往下沉一点（正 = 下）
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
+        if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
+            dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
 
         # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
         if calm:
@@ -868,6 +950,13 @@ __all__ = [
     "TALK_EASE_OUT",
     "TALK_PERIOD",
     "TALK_SQUASH",
+    "TWITCH_DEFLATE",
+    "TWITCH_HOLD_S",
+    "TWITCH_JOLT_S",
+    "TWITCH_MAX_GAP",
+    "TWITCH_MIN_GAP",
+    "TWITCH_SETTLE_S",
+    "TWITCH_SHIFT_PX",
     "TYPING_GAZE_Y",
     "TYPING_HOLD_S",
     "TYPING_RETARGET_MIN_S",
@@ -888,6 +977,8 @@ __all__ = [
     "nod_total",
     "sigh_amount",
     "sigh_total",
+    "twitch_amount",
+    "twitch_total",
     "yawn_amount",
     "yawn_squint",
     "yawn_total",
