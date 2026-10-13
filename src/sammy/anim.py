@@ -58,6 +58,15 @@
     自发动作（叹气挂无聊、点头挂犯困、喷嚏是纯反射 —— 这条是「高兴」）；
     睡着 / 被拎着 / 正在看你写字的时候不哼。
 
+15. **歪头**（自选小步·第十七次）：「被戳了，歪着脑袋看你（唔？）」——
+    戳一戳的回应：脑袋绕脸中心轻转 ±5 度、停一小会、再直回来；方向一次
+    一换（不掷随机数）。它是第一条**旋转**形变。
+
+16. **好奇歪头**（自选小步·第十八次）：「你写的时候，歪着脑袋看你在写什么」——
+    把第 15 条的旋转接进第 11 条的注视：写起来之后隔一会儿好奇地歪一下
+    脑袋（第一下 1.5~3 秒内就来），停半秒再直回去继续看你写；停手 / 发送
+    后排期作废，下一段重头起算。排期走它自己的随机流 —— 不占主随机流。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -268,6 +277,19 @@ TILT_MAX_DEG = 5.0  # 歪到多少度（±）：读得清楚，又不像要把�
 TILT_RISE_S = 0.25  # 歪过去用时（秒）—— 轻快：是「唔？」不是「沉思」
 TILT_HOLD_S = 0.55  # 歪着看你一下（秒）—— 停得够长，才看得出「在看你」
 TILT_FALL_S = 0.45  # 直回来用时（秒）—— 比歪过去慢一点，像看完才收
+
+# ── 好奇歪头：「你写的时候，歪着脑袋看你在写什么」────────────
+# 歪头（第十七次）先挂上戳一戳 ——「被戳了（唔？）」；这一条把它接进
+# 「看着你写」（第十一次）的整段：写起来了就隔一会儿好奇地歪一下脑袋，
+# 停一下再直回去接着看你写。旋转语汇（±TILT_MAX_DEG 度、绕脸中心、
+# 最近邻取样）半点新东西不加；几何预算也沿用（旋转已经折进 FACE_REGION_PAD）。
+# 排期抽数走**自己的随机流**（_rng_tilt）—— 写字的时刻表由外部事件驱动，
+# 不该把眨眼 / 凝视的主随机流带偏（写完字之后的世界要和没写过一样；
+# 理由与判据见 tests/test_typing_tilt.py 的排期随机流用例）。
+TYPING_TILT_FIRST_MIN_S = 1.5  # 写起来之后：第一下最短等多久（秒）—— 先看清你在写
+TYPING_TILT_FIRST_MAX_S = 3.0  # 最长；两者之间随机 —— 别一敲字就弹
+TYPING_TILT_MIN_GAP = 12.0  # 一直写：两下之间最短（秒）
+TYPING_TILT_MAX_GAP = 24.0  # 最长；两者之间随机 —— 别像节拍器
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -565,6 +587,7 @@ class Animator:
     seed: int | None = None
     blink_gap: tuple[float, float] = (BLINK_MIN_GAP, BLINK_MAX_GAP)
     _rng: random.Random = field(init=False, repr=False)
+    _rng_tilt: random.Random = field(init=False, repr=False)  # 好奇歪头的排期专属随机流
     _blinks: list[tuple[float, float]] = field(default_factory=list, repr=False)
     _next_at: float = field(default=0.0, repr=False)
     _pop_at: float = field(default=-99.0, repr=False)
@@ -596,6 +619,8 @@ class Animator:
     _nod_next_at: float | None = field(default=None, repr=False)
     # 打字凝视：最后一次按键的时刻（-inf = 没在写）
     _typing_at: float = field(default=float("-inf"), repr=False)
+    # 好奇歪头：这一段的排期（None = 没在排）；抽数走 _rng_tilt（不占主随机流）
+    _typing_tilt_next_at: float | None = field(default=None, repr=False)
     # 凝视漂移被「打字 / 想事情」暂停过（恢复的第一次补排程要把锚点拨到当下，见 _ensure_gaze）
     _pause_was_active: bool = field(default=False, repr=False)
     # 思考凝视：这一轮「想」的开始时刻（-99 = 没在想）；「收视线」待办；这轮抬没抬过头
@@ -629,6 +654,7 @@ class Animator:
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
+        self._rng_tilt = random.Random(self.seed)
         self._next_at = self._rng.uniform(*self.blink_gap)
         # 开场：从正中出发，1 秒多之后看第一眼
         self._gaze = [self._new_gaze(1.0 + self._rng.uniform(0.0, 1.5), 0, 0)]
@@ -796,11 +822,17 @@ class Animator:
         return float(t) - self._typing_at <= TYPING_HOLD_S
 
     def _typing_step(self, t: float) -> None:
-        """打字凝视的逐帧决策：该把视线落到输入框时就落，落定了就不动。"""
+        """打字凝视的逐帧决策：该把视线落到输入框时就落，落定了就不动。
+
+        写起来的这段里顺手排「好奇歪头」（见 _typing_tilt_step）：停手了
+        排期作废、下一段重头起算；光标（手）优先时连它一起让位。
+        """
         if not self.typing_active(t):
+            self._typing_tilt_next_at = None  # 停手了：排期作废，下一段重头起算
             return
         if t - self._cursor_active_t <= LOOK_HOLD_S:
-            return  # 手刚指过（那一眼还没过期）：光标优先，打字垫底
+            return  # 手刚指过（那一眼还没过期）：光标优先，打字垫底 —— 歪头也让位
+        self._typing_tilt_step(t)
         last = self._gaze[-1]
         if last.t <= t and (last.x, last.y) == (0, TYPING_GAZE_Y):
             return  # 已经看着输入框：不重挂指令，让缓动自己走完
@@ -819,6 +851,25 @@ class Animator:
         t = float(t)
         if t >= self._typing_at:  # 有账才销；乱序的老时间戳不作数
             self._typing_at = float("-inf")
+
+    def _typing_tilt_step(self, t: float) -> None:
+        """好奇歪头的排期：写起来了 → 隔一会儿歪一下（第一下稍早）。
+
+        和叹气 / 点头 / 哼小曲同一套排期规矩：第一下先等一个短窗口（先看清
+        你在写，不是一敲字就弹）；一直写就一直排，间隔随机 —— 别像节拍器；
+        停手 / 让位时由 _typing_step 管排期的清与留。抽数走 `_rng_tilt`：
+        这个时刻表由外部事件（你敲字）驱动，不许占用眨眼 / 凝视的主随机流。
+        """
+        if self._typing_tilt_next_at is None:
+            self._typing_tilt_next_at = t + self._rng_tilt.uniform(
+                TYPING_TILT_FIRST_MIN_S, TYPING_TILT_FIRST_MAX_S
+            )
+            return
+        if t >= self._typing_tilt_next_at:
+            self.tilt(t)
+            self._typing_tilt_next_at = t + self._rng_tilt.uniform(
+                TYPING_TILT_MIN_GAP, TYPING_TILT_MAX_GAP
+            )
 
     # ── 思考凝视：「想事情的时候，抬起头来」────────────
     # 你按下发送、它开始想（思考点转起来）的时候，视线抬到上方 —— 像人在回忆 /
@@ -1051,7 +1102,9 @@ class Animator:
     # 「叫醒」（哈欠那条路）—— 两条不叠着演；累趴 / 动画关也不歪。窗口那层挡。
 
     def tilt(self, at: float) -> None:
-        """安排一次歪头（at 时刻开始）—— 窗口「戳一戳」时调它；测试也走这一条。
+        """安排一次歪头（at 时刻开始）——「戳一戳」与「好奇歪头」都走这一条。
+
+        测试也走这一条。
 
         再来一次就重新从正位歪起（连着戳两下 = 歪两次）。方向每歪一下换一边
         （不掷随机数 —— 一右一左像轮流打量你）。
@@ -1183,6 +1236,7 @@ class Animator:
         self._nod_at = -99.0  # 点头同理：拨过时间线，旧的那下不作数
         self._nod_next_at = None  # 排期也是（下一次 note_sleepy 会重排）
         self._typing_at = float("-inf")  # 打字同理：拨过时间线，旧的「在写」不作数
+        self._typing_tilt_next_at = None  # 好奇歪头同理：拨过时间线，旧排期不作数
         self._pause_was_active = False  # 暂停标记同理（打字 / 思考共用）
         self._thinking_at = -99.0  # 思考同理：拨过时间线，旧的那轮不作数
         self._thinking_active = False
@@ -1432,6 +1486,10 @@ __all__ = [
     "TYPING_GAZE_Y",
     "TYPING_HOLD_S",
     "TYPING_RETARGET_MIN_S",
+    "TYPING_TILT_FIRST_MAX_S",
+    "TYPING_TILT_FIRST_MIN_S",
+    "TYPING_TILT_MAX_GAP",
+    "TYPING_TILT_MIN_GAP",
     "YAWN_HOLD_S",
     "YAWN_LIFT_PX",
     "YAWN_RISE_S",

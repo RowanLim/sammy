@@ -26,6 +26,7 @@
 20. 第 25 节（打个喷嚏）的 10 个常量同样逐条对账。
 21. 第 26 节（哼小曲）的 9 个常量同样逐条对账。
 22. 第 27 节（歪头）的 4 个常量同样逐条对账。
+23. 第 28 节（好奇歪头）的 4 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -171,6 +172,10 @@ EXPECTED_PINS = {
     "TYPING_HOLD_S",
     "TYPING_RETARGET_MIN_S",
     "TYPING_GAZE_Y",
+    "TYPING_TILT_FIRST_MIN_S",
+    "TYPING_TILT_FIRST_MAX_S",
+    "TYPING_TILT_MIN_GAP",
+    "TYPING_TILT_MAX_GAP",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -246,6 +251,7 @@ def test_decisions_and_files_are_covered():
         "打个喷嚏",
         "哼小曲",
         "歪头",
+        "好奇歪头",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

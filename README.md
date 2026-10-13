@@ -101,6 +101,14 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 动画关都不歪。帧带与短视频见 [docs/8h-b2/tilt-strip.png](docs/8h-b2/tilt-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 27 节。
 
+📌 第十八个自选小步：**好奇歪头「你写的时候，歪着脑袋看你在写什么」** —— 你在输入框里
+写字的那段时间不再是一动不动的注视：写起来了就隔一小会儿轻轻歪一下脑袋（第一下
+1.5~3 秒内就来，之后每隔 12~24 秒随机一下），停半秒再直回去继续看你写；停手或发送
+之后排期作废、下一段重头起算。和歪头（第十七次）共用同一条旋转（±5 度、绕脸中心、
+最近邻取样）；光标刚指过时一起让位，睡着 / 动画关不做。帧带与短视频见
+[docs/8h-b2/typing-tilt-strip.png](docs/8h-b2/typing-tilt-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 28 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：
