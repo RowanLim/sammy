@@ -41,6 +41,11 @@
     随之结束（end_typing）。优先级垫底：被叫到先看你（光标 / 打字），看够了
     接着想；睡着 / 动画关都不做。
 
+12. **摸摸头**（自选小步·第十四次）：「手停在脸上的时候，眯起眼呼噜一下」——
+    桌面宠物的「手」就是鼠标：光标**停进脸框**够久 = 在摸它；停够（PET_DWELL_S）
+    就慢慢眯起眼、配一层轻轻的呼噜起伏（比呼吸快的一上一下）；手拿开再慢慢
+    睁开。路过不算（停够才算）；睡着 / 动画关 / 被搬着都不做。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -195,6 +200,19 @@ TWITCH_HOLD_S = 0.05  # 顶住的一瞬（秒）—— 让眼睛来得及看见
 TWITCH_SETTLE_S = 0.28  # 松回来用时（秒）—— 比抽上去慢得多，像又睡过去了
 TWITCH_SHIFT_PX = 3  # 横向一激灵的幅度（设备像素）—— 方向一左一右交替
 TWITCH_DEFLATE = 0.91  # 抽到顶时纵向压到 91% —— 全身一缩
+
+# ── 摸摸头：「手停在脸上的时候，眯起眼呼噜一下」────────────
+# 桌面宠物的「手」就是鼠标：光标**停进脸框**、停够 PET_DWELL_S 秒 = 在摸它。
+# 路过 / 划过去都不算 —— 手停下来才有「被摸」的意思。摸住就慢慢眯起眼（舒服）、
+# 配一层轻轻的「呼噜」起伏；手拿开再慢慢睁开。和光标凝视的分工：光标凝视管
+# 「手在动 → 看你一眼」；摸摸头管「手停在你脸上 → 眯起眼」。睡着 / 动画关 /
+# 被搬着都不做（那时的手不是摸的手）。
+PET_DWELL_S = 0.6  # 光标在脸上停这么久才算「在摸」——路过 / 划过去不算
+PET_EASE_IN_S = 0.35  # 眯起来用时（秒）—— 停够之后慢慢眯，不是啪地合上
+PET_EASE_OUT_S = 0.55  # 手拿开、慢慢睁开用时（秒）—— 比眯起来慢一点，像舍不得
+PET_SQUINT_MIN = 0.55  # 眯到 55%（眨眼 14%、哈欠 30%、点头 50% —— 这是「舒服」，浅一点）
+PET_PURR_PERIOD = 0.9  # 呼噜的一拍（秒）—— 比呼吸（4.5s）快、比说话（0.44s）慢
+PET_PURR_PX = 2  # 呼噜的起伏（±设备像素）—— 和呼吸同幅，但节奏快
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -454,6 +472,13 @@ class Animator:
     _twitch_at: float = field(default=-99.0, repr=False)
     _twitch_next_at: float | None = field(default=None, repr=False)
     _twitch_dir: int = field(default=1, repr=False)
+    # 摸摸头：光标在不在脸上（电平）、手停上来的时刻（dwell 锚点）、立没立起
+    # 「在摸」、手拿开那一刻的档位与时刻（缓出从这里出发）
+    _pet_on: bool = field(default=False, repr=False)
+    _pet_on_since: float | None = field(default=None, repr=False)
+    _pet_active: bool = field(default=False, repr=False)
+    _pet_stop_t: float | None = field(default=None, repr=False)
+    _pet_stop_level: float = field(default=0.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -749,6 +774,50 @@ class Animator:
             self.twitch(t)
             self._twitch_next_at = t + self._rng.uniform(TWITCH_MIN_GAP, TWITCH_MAX_GAP)
 
+    # ── 摸摸头：「手停在脸上的时候，眯起眼呼噜一下」────────────
+    # 桌面宠物的「手」就是鼠标：光标停进脸框够久 = 在摸它。停够才眯（路过不算）；
+    # 手拿开从当前档位缓出（不是啪地睁回）。睡着 / 动画关 / 被搬着由窗口那层挡。
+
+    def note_pet(self, t: float, on: bool) -> None:
+        """喂一次「光标在不在脸上」—— 窗口每帧调一次。
+
+        电平信号：升沿记下「手停上来了」的时刻（dwell 从此起算）；降沿结算
+        这一轮 —— 眯着的从**当前档位**缓出去，手还没停够的什么都不留。
+        """
+        t = float(t)
+        on = bool(on)
+        if on:
+            if not self._pet_on:
+                self._pet_on = True
+                self._pet_on_since = t
+            return
+        if not self._pet_on:
+            return
+        level = self._pet_env(t)  # 先算再关：缓出从这一刻的档位出发
+        self._pet_on = False
+        self._pet_active = False
+        self._pet_stop_t = t
+        self._pet_stop_level = level
+
+    def _pet_step(self, t: float) -> None:
+        """摸摸头的逐帧决策：手停够 PET_DWELL_S 秒，就把「在摸」立起来。"""
+        if self._pet_on and not self._pet_active:
+            since = self._pet_on_since
+            if since is not None and t - since >= PET_DWELL_S:
+                self._pet_active = True
+
+    def _pet_env(self, t: float) -> float:
+        """摸摸头的包络（0 到 1）：停够之后缓入；手拿开从当时档位缓出。"""
+        if self._pet_on and self._pet_active:
+            engaged = (self._pet_on_since or 0.0) + PET_DWELL_S
+            return _smooth01((t - engaged) / PET_EASE_IN_S)
+        if self._pet_stop_t is None or self._pet_stop_level <= 0.0:
+            return 0.0
+        fade = (t - self._pet_stop_t) / PET_EASE_OUT_S
+        if fade >= 1.0:
+            return 0.0
+        return self._pet_stop_level * (1.0 - _smooth01(fade))
+
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
     def note_talk(self, t: float, active: bool) -> None:
@@ -882,6 +951,11 @@ class Animator:
         self._thinking_up = False
         self._twitch_at = -99.0  # 抽动同理：拨过时间线，旧的那下不作数
         self._twitch_next_at = None  # 排期也是（下一次 note_asleep 会重排）
+        self._pet_on = False  # 摸摸头同理：拨过时间线，手放哪儿都不作数
+        self._pet_on_since = None
+        self._pet_active = False
+        self._pet_stop_t = None
+        self._pet_stop_level = 0.0
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -937,6 +1011,10 @@ class Animator:
         nod = 0.0 if calm else nod_amount(t - self._nod_at)
         twitch = twitch_amount(t - self._twitch_at) if calm else 0.0
 
+        if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
+            self._pet_step(t)
+        pet = 0.0 if calm else self._pet_env(t)
+
         squash = 1.0
         if not calm:  # 睡着时闭着眼，不该再眨
             for start, dur in self._blinks:
@@ -952,6 +1030,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - NOD_SQUINT_MIN) * nod)
         if twitch > 0.0:  # 做梦的抽动：全身轻轻一缩（和别的压扁取最深的那个）
             squash = min(squash, 1.0 - (1.0 - TWITCH_DEFLATE) * twitch)
+        if pet > 0.0:  # 摸摸头：舒服地半眯着（比点头浅一点，和别的压扁取更深的）
+            squash = min(squash, 1.0 - (1.0 - PET_SQUINT_MIN) * pet)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -961,6 +1041,8 @@ class Animator:
             dy += round(SIGH_SINK_PX * sigh)  # 叹气：整脸往下沉一点（正 = 下）
         if nod > 0.0:
             dy += round(NOD_SINK_PX * nod)  # 点头：整脸往下沉一点（正 = 下）
+        if pet > 0.0:  # 呼噜：轻轻一上一下（和呼吸同幅、节奏更快 —— 读成「呼噜」）
+            dy -= round(PET_PURR_PX * pet * math.sin(2 * math.pi * t / PET_PURR_PERIOD))
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
         if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
@@ -1037,6 +1119,12 @@ __all__ = [
     "NOD_SINK_PX",
     "NOD_SNAP_S",
     "NOD_SQUINT_MIN",
+    "PET_DWELL_S",
+    "PET_EASE_IN_S",
+    "PET_EASE_OUT_S",
+    "PET_PURR_PERIOD",
+    "PET_PURR_PX",
+    "PET_SQUINT_MIN",
     "POP_DURATION",
     "SIGH_DEFLATE",
     "SIGH_HOLD_S",

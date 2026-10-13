@@ -68,10 +68,11 @@ SLEEP_EXPR = 1
 
 # 脸重绘区域的留量（设备像素）。不是审美参数 —— **最大形变那一圈必须落在里面**，
 # 否则动画帧不刷新溢出的部分（脸会花）。最坏组合（好奇拉高 × 哈欠拉高 × 弹一下
-# + 各种平移）实测约需 10.4px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）；
-# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX 之前先看那里
-# （叹气的「沉底」和「压扁」是一对抵消项，净量也在那条几何判据里一起算）。
-FACE_REGION_PAD = 12
+# + 各种平移）实测约需 12.4px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）
+# —— 比上一版多了摸摸头的呼噜（±2px：它和呼吸一样是纵向平移，会叠加）；
+# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX / PET_PURR_PX
+# 之前先看那里（叹气的「沉底」和「压扁」是一对抵消项，净量也一起算）。
+FACE_REGION_PAD = 13
 
 # 无聊的叹气（自选小步·第九次）：无聊过这条线、又没在忙的时候，它才会叹气。
 # 比「无聊脸」的门槛（0.65）松一点：先听见叹气、再看见耷拉脸 ——
@@ -860,9 +861,10 @@ class SammyWindow(QWidget):
 
         留量（FACE_REGION_PAD）是**量出来的、不是拍的**：最费的组合是
         「好奇拉高 × 哈欠拉高 × 弹一下」再叠上各种平移（呼吸 / 说话 /
-        凝视 / 哈欠拔高）。实测全 35 张脸在最坏组合下最多约 10.4px，12 够用
-        （tests/test_yawn.py 按常数钉着）。框留小了，动画帧不会刷新溢出的
-        那一圈：脸会花、哈欠的额头画出去（和 Z 位置那条坑同源）。
+        凝视 / 哈欠拔高 / 摸摸头的呼噜）。实测全 35 张脸在最坏组合下最多
+        约 12.4px，13 够用（tests/test_yawn.py 按常数钉着）。框留小了，
+        动画帧不会刷新溢出的那一圈：脸会花、哈欠的额头画出去
+        （和 Z 位置那条坑同源）。
 
         用**版面里的脸**（`self.lay.face`），不是设计位 —— face-only 下脸不在
         设计位置上，写死脸框会让动画只刷新一小块（脸会花）；顺带修掉 kiosk
@@ -920,17 +922,30 @@ class SammyWindow(QWidget):
         """把全局光标换算成"相对脸中心"的设备像素，喂给动画层（每帧一次）。
 
         「它在看着你」：光标动了就转过去看，停下 LOOK_HOLD_S 秒后回去发自己的呆。
-        关掉开关（SAMMY_LOOK 设 off）时连读都不读 —— 关就该关彻底。
+        顺手喂「摸摸头」：光标**停进脸框**够久 = 在摸它（停够与缓动归动画层）。
+        关掉开关（SAMMY_LOOK 设 off）时连读都不读 —— 关就该关彻底（摸摸头一并关）；
+        动画关着时不喂（没有时间线，就没有这回事）。
         """
         if not self.look_on:
+            if self.anim_on:
+                self.anim.note_pet(self.anim_t, False)  # 光标功能关了：手一并拿开
             return
         if self._drag is not None:
-            return  # 正在被搬动：鼠标是「拿着它」的手，不是「看着」的目标
+            if self.anim_on:
+                self.anim.note_pet(self.anim_t, False)  # 拎起来的手不是摸的手
+            return
         local = self.mapFromGlobal(self._cursor_now())
         c = self.lay.face.center()
         dx = (local.x() - self._offset[0]) / self.scale - c.x()
         dy = (local.y() - self._offset[1]) / self.scale - c.y()
         self.anim.note_cursor(dx, dy, self.anim_t)
+        if self.anim_on:
+            # 摸摸头：光标停进脸框（设备坐标）并且醒着时，算「手在摸」
+            px = (local.x() - self._offset[0]) / self.scale
+            py = (local.y() - self._offset[1]) / self.scale
+            self.anim.note_pet(
+                self.anim_t, self.lay.face.contains(int(px), int(py)) and not self.drives.asleep
+            )
 
     def _note_carry(self, delta: QPoint) -> None:
         """窗口被搬动：位移换算成设备像素喂给动画层（「被带去哪儿就看哪儿」）。

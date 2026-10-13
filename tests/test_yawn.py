@@ -310,9 +310,11 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     成对项：对下沿的净增按两端取最大（小脸是净增、大脸是净减），都算进来。
     睡梦抽动（睡时横向一激灵）单独一条：它只在睡着时出现，那时没有 sway / 弹 /
     淡化 —— 与清醒的组合互斥，硬叠是假需求（详见下面那条注释）。
+    摸摸头的呼噜（±PET_PURR_PX）和呼吸同型、是清醒时的纵向平移，与上面所有项
+    都可能叠加 —— 并进 move_y 一起算（它的眯眼是「压扁」，往下只会更安全）。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
     SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
-    CURIOSITY_STRETCH / TALK_* …），先看这条测试。
+    CURIOSITY_STRETCH / PET_PURR_PX / TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
 
@@ -343,7 +345,10 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
         ]
         assert ys and xs, f"第 {idx} 张脸是空的？"
         top, bottom, left, right = min(ys), max(ys), min(xs), max(xs)
-        move_y = anim.GAZE_MAX_Y + anim.BREATH_AMPLITUDE + math.ceil(anim.TALK_BOB_Y)
+        # 摸摸头的呼噜与呼吸同型（纵向 ±PET_PURR_PX），会叠加 —— 并进来
+        move_y = (
+            anim.GAZE_MAX_Y + anim.BREATH_AMPLITUDE + math.ceil(anim.TALK_BOB_Y) + anim.PET_PURR_PX
+        )
         # 叹气：下沉（+SIGH_SINK_PX）与压扁（×SIGH_DEFLATE）同一时刻到顶 ——
         # 对下沿的净增按两端取最大；上沿只需要「不下沉」的那一支（下沉是往下
         # 推的，对上沿只会更安全）。

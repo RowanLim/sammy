@@ -34,6 +34,7 @@ help:
 	@echo "make typing-media  重生成打字凝视素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make twitch-media  重生成睡梦抽动素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make thinking-media 重生成思考凝视素材（帧带 + 短视频，进 docs/8h-b2/）"
+	@echo "make petting-media 重生成摸摸头素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -204,8 +205,12 @@ twitch-media:
 thinking-media:
 	$(VENV) scripts/thinking_preview.py
 
+# 摸摸头素材（「手停在脸上的时候，眯起眼呼噜一下」：帧带 + 短视频）
+petting-media:
+	$(VENV) scripts/petting_preview.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media

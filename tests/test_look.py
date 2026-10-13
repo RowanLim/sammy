@@ -433,8 +433,11 @@ def test_window_gaze_leans_toward_the_cursor():
         cur_r, cur_l = _FakeCursor(w_r), _FakeCursor(w_l)
         w_r._cursor_now = cur_r
         w_l._cursor_now = cur_l
-        _sweep(w_r, cur_r, -200.0, 200.0)
-        _sweep(w_l, cur_l, 200.0, -200.0)
+        # 收尾端点停在脸框之外（±260）：脸框上停久了会招来「摸摸头」——
+        # 这条盯的是凝视，停在脸外，画面里就只剩视线一个变量（路过脸框
+        # 那一段的摸摸头会在下面 settle 之前缓出完，见 tests/test_petting.py）。
+        _sweep(w_r, cur_r, -260.0, 260.0)
+        _sweep(w_l, cur_l, 260.0, -260.0)
         assert _settle_clean(w_r).gx == anim.GAZE_MAX_X
         assert _settle_clean(w_l).gx == -anim.GAZE_MAX_X
         mr, ml = _lit_mask(w_r), _lit_mask(w_l)
@@ -484,8 +487,9 @@ def test_look_off_and_static_cursor_render_the_identical_baseline():
             cur = _FakeCursor(w)
             w._cursor_now = cur
             if moving:
-                _sweep(w, cur, -200.0, 200.0)
+                _sweep(w, cur, -260.0, 260.0)
             else:
+                cur.dx = -400.0  # 停在脸框之外很远：脸框上停久了会招来「摸摸头」
                 for _ in range(67):
                     _step(w)
             _settle_clean(w)  # 三条同款变体走到的干净帧时刻一致
