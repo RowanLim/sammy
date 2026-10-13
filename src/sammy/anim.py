@@ -67,6 +67,11 @@
     脑袋（第一下 1.5~3 秒内就来），停半秒再直回去继续看你写；停手 / 发送
     后排期作废，下一段重头起算。排期走它自己的随机流 —— 不占主随机流。
 
+17. **入睡的一下**（自选小步·第十九次）：「撑不住了」—— 醒着→睡着的那一刻
+    不再是瞬移：整脸慢慢往下沉、眼睛合上、屏一会儿（睡实了）、再松回睡姿，
+    2.6 秒演完；它**就是进入 calm 的那一下**（只在睡着这一瞬演，醒着没有）。
+    它是「睡着」的入口 —— 和哈欠（「醒来」的出口）对称。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -290,6 +295,19 @@ TYPING_TILT_FIRST_MIN_S = 1.5  # 写起来之后：第一下最短等多久（�
 TYPING_TILT_FIRST_MAX_S = 3.0  # 最长；两者之间随机 —— 别一敲字就弹
 TYPING_TILT_MIN_GAP = 12.0  # 一直写：两下之间最短（秒）
 TYPING_TILT_MAX_GAP = 24.0  # 最长；两者之间随机 —— 别像节拍器
+
+# ── 入睡的一下：「撑不住了（头一沉，睡过去）」────────────
+# 醒来有哈欠（第八次）、睡着有 Z 和抽动（第七 / 十二次）—— 唯独「真的睡过去」
+# 那一下此前是瞬移：睡脸直接切过来（一次交叉淡化），没有过程。这一条把它补上：
+# 撑不住 → 整脸慢慢往下沉、眼合上 → 屏一会儿（睡实了）→ 慢慢松回睡姿。
+# 它只在「醒着 → 睡着」那一刻由窗口安排一次，**就是进入 calm 的那一下** ——
+# 和抽动同一套规矩：calm 里运行，醒着一眼都不许有（calm 定生死）。
+# 至此昼夜动作链闭合：困（点头）→ 睡着（这一下）→ 睡相（Z / 抽动）→ 醒（哈欠）。
+DOZEOFF_SINK_S = 1.1  # 头沉下去用时（秒）—— 全家族里最慢的「塌」：撑不住了，不是点头
+DOZEOFF_HOLD_S = 0.6  # 沉到底屏住的一小段（秒）—— 睡实了的那一瞬（比点头的 0.3 长）
+DOZEOFF_SETTLE_S = 0.9  # 松回睡姿用时（秒）—— 放弃式的放松，比沉下去干脆
+DOZEOFF_SINK_PX = 6  # 整脸往下沉几像素（比点头的 5 更深 —— 这一下是真的睡过去）
+DOZEOFF_SQUINT_MIN = 0.45  # 沉到底压到 45%（点头 50% —— 同一族、再合一点：眼皮是真落下了）
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -531,6 +549,32 @@ def tilt_total() -> float:
     return TILT_RISE_S + TILT_HOLD_S + TILT_FALL_S
 
 
+def dozeoff_amount(t_spent: float) -> float:
+    """入睡的一下的形状（0 → 1 → 0）：沉下去 → 屏住（睡实了）→ 松回睡姿。
+
+    纯函数：三段的时间线在测试里逐点钉死。沉下去（慢慢塌）比松回来慢 ——
+    撑是慢的、放弃是干脆的；两头精确为 0。它不掷随机数、不占随机流。这是「睡着」这个状态第一次
+    有**入口**（此前只有哈欠管出口）。`t_spent` = 距离这一下开始过了多久；
+    负数 = 还没开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < DOZEOFF_SINK_S:
+        return _smooth01(t_spent / DOZEOFF_SINK_S)
+    k = t_spent - DOZEOFF_SINK_S
+    if k < DOZEOFF_HOLD_S:
+        return 1.0
+    k -= DOZEOFF_HOLD_S
+    if k < DOZEOFF_SETTLE_S:
+        return 1.0 - _smooth01(k / DOZEOFF_SETTLE_S)
+    return 0.0
+
+
+def dozeoff_total() -> float:
+    """一次入睡的一下从头到尾的时长（秒）。"""
+    return DOZEOFF_SINK_S + DOZEOFF_HOLD_S + DOZEOFF_SETTLE_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -651,6 +695,8 @@ class Animator:
     # 歪头：这一次的开始时刻（-99 = 没有）；方向一次一换（不掷随机数）
     _tilt_at: float = field(default=-99.0, repr=False)
     _tilt_dir: int = field(default=1, repr=False)
+    # 入睡的一下：「醒着 → 睡着」那一刻的开始时刻（-99 = 没有）；一段睡觉只有一次
+    _dozeoff_at: float = field(default=-99.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1112,6 +1158,19 @@ class Animator:
         self._tilt_at = float(at)
         self._tilt_dir = -self._tilt_dir
 
+    # ── 入睡的一下：「撑不住了（头一沉，睡过去）」────────────
+    # 「醒着 → 睡着」那一刻：整脸慢慢往下沉、眼合上、屏一会儿，再松回睡姿。
+    # 窗口（pet._tick）在驱力跨过睡着线的那一刻安排一次；calm 里运行（它
+    # 就是进入 calm 的那一下）；抽动要 ≥25 秒才有第一下 —— 两条睡眠通道互斥。
+
+    def dozeoff(self, at: float) -> None:
+        """安排一次「撑不住了」（at 时刻开始）—— 窗口在睡着那一刻调。
+
+        再来一次就重新从沉下去起步（实际时序里每段睡觉只来一次 —— 这条只把
+        语义写死、让测试能钉住）。不掷随机数、不占随机流（理由同抽动）。
+        """
+        self._dozeoff_at = float(at)
+
     def note_talk(self, t: float, active: bool) -> None:
         """喂一次「现在在不在说话」（打字机在不在吐字）—— 窗口每帧调一次。
 
@@ -1254,6 +1313,7 @@ class Animator:
         self._hum_at = -99.0  # 哼小曲同理：拨过时间线，旧的那段不作数
         self._hum_next_at = None  # 排期也是（下一次 note_hum 会重排）
         self._tilt_at = -99.0  # 歪头同理：拨过时间线，旧的那下不作数
+        self._dozeoff_at = -99.0  # 入睡的一下同理：拨过时间线，旧的那下不作数
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1311,6 +1371,9 @@ class Animator:
         sneeze = 0.0 if calm else sneeze_amount(t - self._sneeze_at)
         hum = 0.0 if calm else hum_amount(t - self._hum_at)
         tilt = 0.0 if calm else self._tilt_dir * TILT_MAX_DEG * tilt_amount(t - self._tilt_at)
+        # 入睡的一下：只在 calm（睡着）里演 —— 它本来就是「进入 calm」的那一刻；
+        # 醒着的时候一眼都不许有（和抽动同一套：calm 定生死）
+        dozeoff = dozeoff_amount(t - self._dozeoff_at) if calm else 0.0
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1335,6 +1398,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - PET_SQUINT_MIN) * pet)
         if sneeze > 0.0:  # 喷嚏：皱脸到用力闭上（比眨眼 14% 还紧一点）
             squash = min(squash, 1.0 - (1.0 - SNEEZE_SQUINT_MIN) * sneeze)
+        if dozeoff > 0.0:  # 入睡的一下：眼睛合上（沉到底 20% —— 这一刻它是真闭上了）
+            squash = min(squash, 1.0 - (1.0 - DOZEOFF_SQUINT_MIN) * dozeoff)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -1348,6 +1413,8 @@ class Animator:
             dy -= round(PET_PURR_PX * pet * math.sin(2 * math.pi * t / PET_PURR_PERIOD))
         if sneeze > 0.0:  # 喷嚏：整脸往上窜一点（负 = 上）——「啾」的那一下
             dy -= round(SNEEZE_LIFT_PX * sneeze)
+        if dozeoff > 0.0:  # 入睡的一下：整脸往下沉（撑不住的「塌」—— 比点头更深）
+            dy += round(DOZEOFF_SINK_PX * dozeoff)
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
         if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
@@ -1415,6 +1482,11 @@ __all__ = [
     "CARRY_MOVE_MIN",
     "CARRY_RETARGET_MIN_S",
     "CURIOSITY_STRETCH",
+    "DOZEOFF_HOLD_S",
+    "DOZEOFF_SETTLE_S",
+    "DOZEOFF_SINK_PX",
+    "DOZEOFF_SINK_S",
+    "DOZEOFF_SQUINT_MIN",
     "FADE_DURATION",
     "GAZE_EASE",
     "GAZE_MAX_GAP",
@@ -1503,6 +1575,8 @@ __all__ = [
     "Frame",
     "carry_target",
     "cursor_target",
+    "dozeoff_amount",
+    "dozeoff_total",
     "hum_amount",
     "hum_total",
     "nod_amount",

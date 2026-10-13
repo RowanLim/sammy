@@ -109,6 +109,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/typing-tilt-strip.png](docs/8h-b2/typing-tilt-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 28 节。
 
+📌 第十九个自选小步：**入睡的一下「撑不住了」** —— 从醒到睡不再是瞬间换脸：
+真正睡过去的那一刻，整脸慢慢沉下去（6px）、眼睛合上（压到 45%），屏一会儿（睡实了）、
+再松回睡姿，2.6 秒演完；只在睡着那一瞬演（醒着一眼都没有）、动画关不演。
+至此昼夜动作链闭合：困（点头）→ 睡着（这一下）→ 睡相（Z / 抽动）→ 醒（哈欠）。
+帧带与短视频见 [docs/8h-b2/dozeoff-strip.png](docs/8h-b2/dozeoff-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 29 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

@@ -1059,6 +1059,7 @@ class SammyWindow(QWidget):
         was_asleep = self.drives.asleep  # 哈欠看的是「睡着 → 醒着」这条边
         self.drives.tick()
         self._yawn_if_woke(was_asleep)
+        self._dozeoff_if_slept(was_asleep)  # 反向那条边：「醒着 → 睡着」的撑不住
         if self.anim_on:
             self.anim.note_bored(self.anim_t, self._bored_for_sigh())
             self.anim.note_sleepy(self.anim_t, self._sleepy_for_nod())
@@ -1127,6 +1128,19 @@ class SammyWindow(QWidget):
         """
         if was_asleep and not self.drives.asleep and self.anim_on:
             self.anim.yawn(self.anim_t)
+
+    def _dozeoff_if_slept(self, was_asleep: bool) -> None:
+        """刚「醒着 → 睡着」的那一刻：撑不住的一下（头一沉，睡过去）。
+
+        和哈欠同一条边的反向：哈欠管「睡着 → 醒着」（醒来），这条管进入睡眠。
+        只有**自己熬到睡着**会走这里（`_tick` 里驱力跨线）—— 戳 / 说话都只会
+        唤醒它，那些走哈欠那条边，两条不叠着演。动画关着时不演（没有时间轴，
+        也就没有这回事）。触发与睡脸切换同拍：`_refresh_idle_look` 在这一次
+        `_tick` 之内就会把脸换成睡脸，`calm` 从这一拍起为真 —— 这一下就演在
+        睡脸刚亮起来的那几秒里（动画层按 calm 门内运行，见 anim.frame_at）。
+        """
+        if not was_asleep and self.drives.asleep and self.anim_on:
+            self.anim.dozeoff(self.anim_t)
 
     def _typing_recent(self) -> bool:
         """你（刚）在输入框里敲字 —— 「它在听你写」。写字这段不叹气、不栽头。

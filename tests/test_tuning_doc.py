@@ -27,6 +27,7 @@
 21. 第 26 节（哼小曲）的 9 个常量同样逐条对账。
 22. 第 27 节（歪头）的 4 个常量同样逐条对账。
 23. 第 28 节（好奇歪头）的 4 个常量同样逐条对账。
+24. 第 29 节（入睡的一下）的 5 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -84,6 +85,11 @@ EXPECTED_PINS = {
     "GAZE_MAX_X",
     "GAZE_MAX_Y",
     "CURIOSITY_STRETCH",
+    "DOZEOFF_HOLD_S",
+    "DOZEOFF_SETTLE_S",
+    "DOZEOFF_SINK_PX",
+    "DOZEOFF_SINK_S",
+    "DOZEOFF_SQUINT_MIN",
     "FADE_DURATION",
     "POP_DURATION",
     "POWER_DUR",
@@ -252,6 +258,7 @@ def test_decisions_and_files_are_covered():
         "哼小曲",
         "歪头",
         "好奇歪头",
+        "入睡的一下",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

@@ -321,10 +321,16 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     绕中心转一圈、取旋转后的外接范围，再替掉 top / bottom / left / right 折进
     上面每条公式（戳一戳可能撞上呼吸 / 叹气 / 喷嚏任何一刻 —— 叠着算，不设
     互斥）。唯一的例外是睡时的抽动项：歪头只在醒着，两者互斥，用原框。
+    入睡的一下（撑不住了）在 **calm 里**演（「醒着 → 睡着」那一刻）——
+    和抽动一样是睡时通道、与清醒项互斥，但它叠得上「定格凝视 + 换表情的弹
+    + 好奇拉高」：下沉（加 DOZEOFF_SINK_PX）与压合（压到 DOZEOFF_SQUINT_MIN 倍）
+    成对算净量（和叹气 / 点头 / 喷嚏同一套）；纵向另加定格凝视的纵向偏移。
+    抽动至少 25 秒才有第一下、这一下 3 秒以内就演完 —— 两条互斥，各自算。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
     SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
     SNEEZE_LIFT_PX / SNEEZE_JERK_PX / HUM_ROCK_PX / TILT_MAX_DEG /
-    CURIOSITY_STRETCH / PET_PURR_PX / TALK_* …），先看这条测试。
+    DOZEOFF_SINK_PX / DOZEOFF_SQUINT_MIN / CURIOSITY_STRETCH / PET_PURR_PX /
+    TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
 
@@ -353,6 +359,9 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
         * (1.0 + anim.POP_AMPLITUDE)
         * (1.0 + anim.TALK_SQUASH)
     )
+    # 入睡的一下在 calm 里演：那一刻的队友 = 定格凝视 + 换表情的弹 + 好奇拉高
+    # （哈欠 / 说话 / 微动都被 calm 关掉；抽动至少 25 秒才有第一下 —— 互斥）。
+    v_sleep = (1.0 + anim.CURIOSITY_STRETCH) * (1.0 + anim.POP_AMPLITUDE)
     worst = (0.0, "")
     for idx in sorted(faces.EXPR_NAMES):
         img = faces.face_pixmap(idx, QSize(W, H)).toImage()
@@ -413,13 +422,21 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             # （两者互斥，叠出来是假需求 —— 但若把抽动并进清醒项，那条会超预算）。
             anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - left0,
             anim.GAZE_MAX_X + anim.TWITCH_SHIFT_PX - (W - 1 - right0),
+            # 入睡的一下同理用原框（旋转只在醒着，与睡时互斥）：下沉与压合
+            # 成对算 —— 对下沿取两端的最大净增（满压合 + 满下沉同刻，另加定格
+            # 凝视的纵向偏移）；上沿按压合收益 + 定格凝视可能的上抬拼一条。
+            (cy - top0) * (v_sleep * anim.DOZEOFF_SQUINT_MIN - 1.0) + anim.GAZE_MAX_Y - top0,
+            (bottom0 - cy) * (v_sleep * anim.DOZEOFF_SQUINT_MIN - 1.0)
+            + anim.GAZE_MAX_Y
+            + anim.DOZEOFF_SINK_PX
+            - (H - 1 - bottom0),
         )
         if need > worst[0]:
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
         "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX / TILT_MAX_DEG / "
-        "SNEEZE_LIFT_PX / HUM_ROCK_PX 调小，"
+        "SNEEZE_LIFT_PX / HUM_ROCK_PX / DOZEOFF_SINK_PX 调小，"
         "或把 pet.FACE_REGION_PAD 调大"
     )
 
