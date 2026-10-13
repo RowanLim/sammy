@@ -116,6 +116,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 帧带与短视频见 [docs/8h-b2/dozeoff-strip.png](docs/8h-b2/dozeoff-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 29 节。
 
+📌 第二十个自选小步：**上电环顾「自检播完，先看一圈」** —— 开机自检交班之后，
+它不再当场开始发呆乱看：先站定 0.35 秒，抬着头把左右两边各看一眼（横到满幅、
+探头拉高），再收回正中交给随机漂移，整段 3.7 秒；点一下跳过自检也照样看。
+复用既有凝视盒与缓动（半点新几何不加）、不掷随机数；动画关 / 睡着不排。
+帧带与短视频见 [docs/8h-b2/survey-strip.png](docs/8h-b2/survey-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 30 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

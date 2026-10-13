@@ -714,10 +714,15 @@ class SammyWindow(QWidget):
         return boot.frame_at(t, len(self._boot_lines))
 
     def _finish_boot(self) -> None:
-        """跳过 / 播完的收尾：交班给正常绘画（输入框回来）。"""
+        """跳过 / 播完的收尾：交班给正常绘画（输入框回来），并安排上电环顾。"""
         self._boot_t0 = None
         if not self.face_only:
             self.input.show()
+        if self.anim_on and not self.drives.asleep:
+            # 上电环顾（自选小步·第二十次）：自检播完（或被人点跳过），先看一圈
+            # 再开始发自己的呆。动画关不做（没有时间轴）；睡着不做（醒来那一下
+            # 走哈欠那条边 —— 别叠着演）。
+            self.anim.survey(self.anim_t)
         self.update()
 
     # ── 关机序列（退场）──────────────────────────

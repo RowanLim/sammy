@@ -309,6 +309,20 @@ DOZEOFF_SETTLE_S = 0.9  # 松回睡姿用时（秒）—— 放弃式的放松�
 DOZEOFF_SINK_PX = 6  # 整脸往下沉几像素（比点头的 5 更深 —— 这一下是真的睡过去）
 DOZEOFF_SQUINT_MIN = 0.45  # 沉到底压到 45%（点头 50% —— 同一族、再合一点：眼皮是真落下了）
 
+# ── 上电环顾：「自检播完，先看一圈」────────────
+# 开机自检（终端行滚完、画面淡入）之后，脸不是当场就开始发呆乱看：先站定一下，
+# 抬着头把左右两边各看一眼、再回正中 —— 「刚上电，看看自己在哪儿」。它是凝视
+# 时间表里的三条**固定目标**：复用既有凝视盒与缓动，半点新几何不加（横向扫到
+# 满幅，好奇拉高自然到满 —— 探着头看）；也不掷随机数，同种子孪生对账靠它。
+SURVEY_LEAD_S = 0.35  # 交班之后先站定多久才看第一眼（秒）—— 画面刚稳住
+SURVEY_DWELL_S = 1.4  # 每一边停留到下一次转向（秒）；含 0.55 秒缓动，看定约占 0.85 秒
+SURVEY_LIFT_PX = 2  # 两侧都比正中略抬眼（设备像素；负号方向 = 竖着往上）
+SURVEY_TARGETS: tuple[tuple[int, int], ...] = (
+    (-GAZE_MAX_X, -SURVEY_LIFT_PX),  # 先看左边（横到满幅，探头）
+    (GAZE_MAX_X, -SURVEY_LIFT_PX),  # 再看右边
+    (0, 0),  # 回正中 —— 之后交给随机漂移
+)
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -575,6 +589,11 @@ def dozeoff_total() -> float:
     return DOZEOFF_SINK_S + DOZEOFF_HOLD_S + DOZEOFF_SETTLE_S
 
 
+def survey_total() -> float:
+    """上电环顾整段时长：第一条指令到回中缓动结束（秒）。"""
+    return SURVEY_LEAD_S + (len(SURVEY_TARGETS) - 1) * SURVEY_DWELL_S + GAZE_EASE
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -812,6 +831,27 @@ class Animator:
         if (x, y) == (last.x, last.y) and t >= last.t + GAZE_EASE:
             return
         self._gaze.append(_Gaze(t=t, x=x, y=y, fx=fx, fy=fy))
+
+    # ── 上电环顾：「自检播完，先看一圈」──────────
+    # 由窗口在 boot 交班那一刻（_finish_boot）安排一次：站定、左一眼、右一眼、
+    # 回正中。固定目标、不掷随机数；之后光标 / 打字 / 思考 / 搬运这些互动照常
+    # 抢占 —— 它只是凝视时间表里的三条普通指令，不设防。
+
+    def survey(self, at: float) -> None:
+        """安排一次上电环顾（at 时刻站定，随后左、右、回中）。
+
+        清掉更晚的旧目标、从**当前实际位置**起步 —— 和 _retarget_gaze 同一条
+        纪律（中途改向不跳）；动画关 / 睡着了不该走到这里（窗口那层挡）。
+        """
+        t0 = float(at)
+        kept = [g for g in self._gaze if g.t <= t0]
+        self._gaze = kept or [_Gaze(t=0.0, x=0, y=0, fx=0, fy=0)]
+        fx, fy = _pos_from(self._gaze, t0)
+        for i, (x, y) in enumerate(SURVEY_TARGETS):
+            self._gaze.append(
+                _Gaze(t=t0 + SURVEY_LEAD_S + i * SURVEY_DWELL_S, x=x, y=y, fx=fx, fy=fy)
+            )
+            fx, fy = x, y
 
     # ── 搬运凝视：「被带去哪儿就看哪儿」────────────
 
@@ -1536,6 +1576,10 @@ __all__ = [
     "SNEEZE_SQUINT_MIN",
     "SNEEZE_WINDUP",
     "SNEEZE_WINDUP_S",
+    "SURVEY_DWELL_S",
+    "SURVEY_LEAD_S",
+    "SURVEY_LIFT_PX",
+    "SURVEY_TARGETS",
     "SWAY_AMPLITUDE",
     "TALK_BOB_Y",
     "TALK_EASE_IN",
@@ -1585,6 +1629,7 @@ __all__ = [
     "sigh_total",
     "sneeze_amount",
     "sneeze_total",
+    "survey_total",
     "tilt_amount",
     "tilt_total",
     "twitch_amount",

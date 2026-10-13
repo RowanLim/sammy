@@ -374,8 +374,10 @@ def test_click_skips_boot_and_lands_on_the_steady_frame(monkeypatch):
     assert booted._boot_t0 is None, "没跳过"
     assert not booted.input.isHidden()
 
-    booted.anim_t = 4.0
-    twin.anim_t = 4.0
+    # 交班后**立刻**对账：环顾（第二十次）的第一眼在交班 0.35 秒之后才起步，
+    # 所以跳过后的下一帧仍该与「从没开过机」的孪生逐像素一致；之后它看一圈
+    # 是那之后的事（走位判据在 tests/test_survey.py 里）。
+    twin.anim_t = booted.anim_t
     assert _diff_count(_img(booted), _img(twin)) == 0
     booted.close()
     twin.close()
@@ -438,17 +440,18 @@ def test_faceonly_boot_also_works(monkeypatch):
 # ── 集成与素材 ─────────────────────────────────────
 
 
-def test_only_the_run_path_and_the_preview_may_start_the_boot():
-    """开机序列只许两处触发：真启动路径 + 开机素材脚本。
+def test_only_the_run_path_and_the_previews_may_start_the_boot():
+    """开机序列只许三处触发：真启动路径 + 两个开机相关素材脚本。
 
-    别的入口（快照、自检、各类素材脚本）一律不许调 —— 否则拍到的
-    素材会带着开机画面，验收就说不清哪张是"稳态"。
+    别的入口（快照、自检、其余素材脚本）一律不许调 —— 否则拍到的
+    素材会带着开机画面，验收就说不清哪张是"稳态"。第二个素材脚本是
+    上电环顾（第二十次）：它拍的就是「自检交班之后」的收尾，必须真开机。
     """
     root = pathlib.Path(__file__).resolve().parent.parent
     hits = {p.name for p in (root / "src").rglob("*.py") if ".begin_boot(" in _read(p)}
     assert hits == {"__main__.py"}, hits
     scripts = {p.name for p in (root / "scripts").rglob("*.py") if ".begin_boot(" in _read(p)}
-    assert scripts == {"boot_preview.py"}, scripts
+    assert scripts == {"boot_preview.py", "survey_preview.py"}, scripts
     assert ".begin_boot(" in _read(root / "tests" / "test_boot.py")
 
 
