@@ -256,6 +256,7 @@ class SammyWindow(QWidget):
         self.drives = drives if drives is not None else (Drives.load() if autoconnect else Drives())
         self._idle_face: int | None = None
         self._last_interaction_at = 0.0
+        self._last_typing_at = 0.0  # 你最近一次在输入框里敲字（打字凝视与它的闸门用）
         self._save_ticks = 0
         self._started_at = time.time()
 
@@ -294,6 +295,7 @@ class SammyWindow(QWidget):
         self.input = QLineEdit(self)
         self.input.setPlaceholderText("跟我说点什么…（回车发送）")
         self.input.returnPressed.connect(self.send)
+        self.input.textChanged.connect(self._on_typing)
         self._layout_input()
 
         # CRT 质感层（U4）：扫描线 + 暗角盖在最上面（连输入框一起盖）。
@@ -383,6 +385,19 @@ class SammyWindow(QWidget):
         self.sammy_line = random.choice(POKE_QUIPS)
         self._hold_line()  # face-only 的那一行也先显示这句话
         self.my_line = ""
+
+    def _on_typing(self, text: str) -> None:
+        """你在输入框里敲字 —— 它转过去看输入框（「看着你写」）。
+
+        只认「有字」的变化：发送 / 删光（空文本）不算一次「在写」。
+        睡着时不喂动画层（它还没醒 —— 醒来那一下是 send / poke 的事，别抢）；
+        动画关着也不喂（没有时间轴，就没有这回事）。
+        """
+        if not text:
+            return
+        self._last_typing_at = time.time()
+        if self.anim_on and not self.drives.asleep:
+            self.anim.note_typing(self.anim_t)
 
     # ── 对话 ────────────────────────────────────
 
@@ -1067,12 +1082,21 @@ class SammyWindow(QWidget):
         if was_asleep and not self.drives.asleep and self.anim_on:
             self.anim.yawn(self.anim_t)
 
+    def _typing_recent(self) -> bool:
+        """你（刚）在输入框里敲字 —— 「它在听你写」。写字这段不叹气、不栽头。
+
+        窗口和动画层的打字凝视用同一个长度（anim.TYPING_HOLD_S）：脸正看着
+        输入框、人正写着，这时候叹气 / 栽头就是自相矛盾。
+        """
+        return time.time() - self._last_typing_at < anim.TYPING_HOLD_S
+
     def _bored_for_sigh(self) -> bool:
         """「有点无聊、又没在忙」—— 这种时候它才叹气（演不演归动画层）。
 
         闸门（和别的空闲行为同一套规矩）：
         - 睡着 / 累趴：不叹（calm 优先）；
         - 刚交互完的 5 秒：不叹（别对着刚说完话的人叹气）；
+        - 正在（刚在）写它：不叹 —— 它在看着输入框（打字凝视）；
         - 不够无聊（驱力没到线）：不叹。
         思考中不用管 —— `_tick` 在思考时整个不跑。
         """
@@ -1080,6 +1104,8 @@ class SammyWindow(QWidget):
             return False
         if time.time() - self._last_interaction_at < 5:
             return False
+        if self._typing_recent():
+            return False  # 人在给你写字：它在听你写，别对着写字的人叹气
         return self.drives.boredom > SIGH_BOREDOM_ABOVE
 
     def _sleepy_for_nod(self) -> bool:
@@ -1089,13 +1115,16 @@ class SammyWindow(QWidget):
         - 睡着了不点（那是睡相 Z 的事）；
         - 不够困不点 —— 门槛直接用驱力自己的定义（drives.sleepy），和脸、状态行
           是同一条线，不会出现「字说在线、脸却在打盹」的自相矛盾；
-        - 刚交互完的 5 秒不点（别让刚说完话的人看见它栽头）。
+        - 刚交互完的 5 秒不点（别让刚说完话的人看见它栽头）；
+        - 正在（刚在）写它：不点 —— 它正看着输入框，这时候栽头就是自相矛盾。
         思考中不用管 —— `_tick` 在思考时整个不跑。
         """
         if self.drives.asleep:
             return False
         if not self.drives.sleepy:
             return False
+        if self._typing_recent():
+            return False  # 人在给你写字：它正看着输入框，这时候栽头就是自相矛盾
         return time.time() - self._last_interaction_at >= 5
 
     def _save_drives(self) -> None:

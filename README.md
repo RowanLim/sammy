@@ -55,6 +55,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/nod-strip.png](docs/8h-b2/nod-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 20 节。
 
+📌 第十一个自选小步：**打字凝视「看着你写」** —— 你在输入框里敲字的时候，
+它把四处看的视线收回来、落到输入框上（正下方）；你停手 4 秒才回去发自己的呆。
+和光标凝视共用同一条凝视盒与缓动，光标刚指过时先让路；睡着 / 动画关不做；
+写字时不叹气、不栽头。帧带与短视频见
+[docs/8h-b2/typing-strip.png](docs/8h-b2/typing-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 21 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

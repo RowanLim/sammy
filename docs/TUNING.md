@@ -283,3 +283,21 @@ tests/test_sigh.py（逐点对账）。素材重生成：`make sigh-media`（帧
 想调幅度：先看 tests/test_yawn.py 的几何判据（脸的重绘区留量按最大形变钉着 ——
 点头通道也在里面）与 tests/test_nod.py（逐点对账）。素材重生成：
 `make nod-media`（帧带 + 短视频，进 docs/8h-b2/）。
+
+## 21. 打字凝视「看着你写」（自选小步·第十一次）
+
+文件：src/sammy/anim.py（凝视与节奏）；喂它的是 src/sammy/pet.py 的 `_on_typing`
+（输入框 textChanged 真信号链）。
+
+你在输入框里敲字 = 在跟它说话（还没说完）：它把四处看的视线收回来，落到
+输入框上（正下方）；你停手 `TYPING_HOLD_S` 秒，它才回去发自己的呆。优先级：
+光标（手在指东西）第一 —— 刚指过的那一眼先看够，打字垫底；睡着 / 动画关不做；
+写字这段时间不叹气、不栽头（两条空闲闸门也钉着）。
+
+- TYPING_HOLD_S = 4（最后一个键之后还看多久，秒 —— 和「刚交互 5 秒」一个量级）
+- TYPING_RETARGET_MIN_S = 0.35（发现你在写后的转视最小间隔，秒；别一敲字就弹）
+- TYPING_GAZE_Y = 6（视线落点：纵向拉满凝视盒 = 看正下方那行；输入框就在脸正下方）
+
+想让它「看一眼就回来」：调小 TYPING_HOLD_S；想让它更早/更迟转过去：动
+TYPING_RETARGET_MIN_S；想看得别那么低：调小 TYPING_GAZE_Y（0 = 回正中）。
+素材重生成：`make typing-media`（帧带 + 短视频，进 docs/8h-b2/）。

@@ -30,6 +30,11 @@
    note_sleepy 里）。和 Z（睡着）、哈欠（醒来）、叹气（无聊）同一条思路：
    **状态要能被眼睛读出来** —— 这条补上「困」。
 
+10. **打字凝视**（自选小步·第十一次）：「看着你写」—— 你在输入框里敲字
+    （= 在跟它说话、还没说完）的时候，它把四处看的视线收回来，落到输入框上；
+    你停手 TYPING_HOLD_S 秒，它才回去发自己的呆。优先级：光标（手在指东西）
+    与搬运在前，打字垫底；睡着 / 动画关都不做。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -157,6 +162,14 @@ NOD_HOLD_S = 0.30  # 沉住的那一小段（秒）——「睡着了一瞬」
 NOD_SNAP_S = 0.28  # 弹回来用时（秒）—— 猛地惊醒，比沉下去快一个量级
 NOD_SQUINT_MIN = 0.50  # 沉到底时压到 50%（眼皮快合上；眨眼 14%、哈欠眯眼 30%）
 NOD_SINK_PX = 5  # 整脸往下沉几像素：和压扁叠在一起读成「头一点」
+
+# 打字凝视（自选小步·第十一次）——「看着你写」：你在输入框里敲字 = 在跟它说话
+# （还没说完），此刻它不再四处看，视线落到输入框上 —— 和「点一下输入框瞥一眼」
+# 同向，但你在写多久它就守多久；你停手 TYPING_HOLD_S 秒，它才回去发自己的呆。
+# 光标（手在指东西）优先：刚指过的那一眼先看够（LOOK_HOLD_S），打字垫底。
+TYPING_HOLD_S = 4.0  # 最后一个键之后还看多久（秒）—— 和「刚交互 5 秒」一个量级
+TYPING_RETARGET_MIN_S = 0.35  # 发现你在写后的转视最小间隔（秒；别一敲字就弹）
+TYPING_GAZE_Y = GAZE_MAX_Y  # 输入框在脸的正下方：视线纵向拉满 = 看到最底下那行
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -378,6 +391,10 @@ class Animator:
     # 困得点头：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 不困、没在排）
     _nod_at: float = field(default=-99.0, repr=False)
     _nod_next_at: float | None = field(default=None, repr=False)
+    # 打字凝视：最后一次按键的时刻（-inf = 没在写）
+    _typing_at: float = field(default=float("-inf"), repr=False)
+    # 打字暂停是否发生过（恢复的第一次补排程要把锚点拨到当下，见 _ensure_gaze）
+    _typing_was_active: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -412,13 +429,25 @@ class Animator:
         )
 
     def _ensure_gaze(self, t: float) -> None:
+        rebase = self._typing_was_active  # 刚打完字：这次补排程把锚点拨到当下
         while self._gaze[-1].t < t + 1.0:
+            if self.typing_active(t):
+                self._typing_was_active = True
+                return  # 打字中：漂移暂停 —— 别把「看别处」排进写字这段时间
             last = self._gaze[-1]
+            # 正常顺排：从 last.t 往后。**唯一例外**是「打字暂停刚结束」的第一次：
+            # 暂停期间不排程，时间表在它身上空了一段；要是还从暂停前顺排，会一次
+            # 塞进好几条落在过去的指令，恢复的第一帧就往「早就该在的位置」跳一下。
+            # 锚点取 max(last.t, t)：恢复后从当下重排（这条缺口只有打字暂停会常规
+            # 地制造 —— 别的路径全部保持原行为，金色基线一个字节都不许动）。
+            anchor = max(last.t, t) if rebase else last.t
             self._gaze.append(
                 self._new_gaze(
-                    last.t + self._rng.uniform(GAZE_MIN_GAP, GAZE_MAX_GAP), last.x, last.y
+                    anchor + self._rng.uniform(GAZE_MIN_GAP, GAZE_MAX_GAP), last.x, last.y
                 )
             )
+            rebase = False  # 只拨这一次，后面回到正常顺排
+        self._typing_was_active = False
 
     def gaze_times(self, until: float) -> list[float]:
         """已安排 / 将要安排的凝视起点（测试与调试用）。"""
@@ -515,6 +544,39 @@ class Animator:
         self._carry_acc = (0.0, 0.0)
         self._look_retarget_t = t
         self._retarget_gaze(t, *carry_target(ax, ay))
+
+    # ── 打字凝视：「看着你写」────────────────────────
+    # 你在输入框里敲字 = 在跟它说话（还没说完）。此刻把「四处看」收掉，视线落到
+    # 输入框上 —— 和「点一下输入框瞥一眼」（光标凝视）同向，但你在写多久它就守多久。
+    # 优先级：先看手 —— 刚指过的先看够（光标），正被搬的让路（共用限速），打字垫底。
+
+    def note_typing(self, t: float) -> None:
+        """喂一次「刚敲了个键」（窗口在输入框 textChanged 时调）。
+
+        只记时间（单调不减）；看不看、看多久全在 _typing_step 里定 ——
+        和 note_cursor 一样，喂进来的是原始事件，决策是纯函数。
+        """
+        t = float(t)
+        if t > self._typing_at:
+            self._typing_at = t
+
+    def typing_active(self, t: float) -> bool:
+        """t 时刻算不算「正在写」（最后一次按键之后 TYPING_HOLD_S 秒内）。"""
+        return float(t) - self._typing_at <= TYPING_HOLD_S
+
+    def _typing_step(self, t: float) -> None:
+        """打字凝视的逐帧决策：该把视线落到输入框时就落，落定了就不动。"""
+        if not self.typing_active(t):
+            return
+        if t - self._cursor_active_t <= LOOK_HOLD_S:
+            return  # 手刚指过（那一眼还没过期）：光标优先，打字垫底
+        last = self._gaze[-1]
+        if last.t <= t and (last.x, last.y) == (0, TYPING_GAZE_Y):
+            return  # 已经看着输入框：不重挂指令，让缓动自己走完
+        if t < self._look_retarget_t + TYPING_RETARGET_MIN_S:
+            return  # 刚转过视：隔一小会再轮到打字（和光标共用一条限速）
+        self._look_retarget_t = t
+        self._retarget_gaze(t, 0, TYPING_GAZE_Y)
 
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
@@ -641,6 +703,8 @@ class Animator:
         self._sigh_next_at = None  # 排期也是（下一次 note_bored 会重排）
         self._nod_at = -99.0  # 点头同理：拨过时间线，旧的那下不作数
         self._nod_next_at = None  # 排期也是（下一次 note_sleepy 会重排）
+        self._typing_at = float("-inf")  # 打字同理：拨过时间线，旧的「在写」不作数
+        self._typing_was_active = False  # 暂停标记同理
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -730,6 +794,7 @@ class Animator:
                 self._unfreeze(t, frozen)
             self._look_step(t)
             self._carry_step(t)
+            self._typing_step(t)
             gx, gy = self._gaze_pos(t)
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
@@ -803,6 +868,9 @@ __all__ = [
     "TALK_EASE_OUT",
     "TALK_PERIOD",
     "TALK_SQUASH",
+    "TYPING_GAZE_Y",
+    "TYPING_HOLD_S",
+    "TYPING_RETARGET_MIN_S",
     "YAWN_HOLD_S",
     "YAWN_LIFT_PX",
     "YAWN_RISE_S",
