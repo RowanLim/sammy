@@ -29,6 +29,7 @@ help:
 	@echo "make talk-media    重生成说话动脸素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make doze-media    重生成作息与睡相素材（帧带 + Z 循环短视频，进 docs/8h-b2/）"
 	@echo "make yawn-media    重生成醒来哈欠素材（帧带 + 哈欠短视频，进 docs/8h-b2/）"
+	@echo "make sigh-media    重生成无聊叹气素材（帧带 + 叹气短视频，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -179,8 +180,12 @@ doze-media:
 yawn-media:
 	$(VENV) scripts/yawn_preview.py
 
+# 无聊叹气素材（「没人理的时候，隔一会儿叹一口气」：帧带 + 短视频）
+sigh-media:
+	$(VENV) scripts/sigh_preview.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media

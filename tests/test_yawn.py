@@ -300,14 +300,16 @@ def test_yawn_is_deterministic():
 # ── 几何：最坏形变不许冒出重绘区 ──────────────────
 
 
-def test_yawn_peak_geometry_fits_the_repaint_pad(qapp):
+def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     """几何契约：所有形变同时顶格，脸内容也不冒出重绘区（否则那圈不刷新 → 脸会花）。
 
     算法：脸的位图内容在框里本来留着一圈空边（量出来的）；最坏情况 =
-    「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收」乘在内容到中心的距离上，
-    再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高）。只要「需要的留量 ≤
-    FACE_REGION_PAD」，_face_region 就盖得住 —— 调大任何一道形变常数
-    （尤其 YAWN_STRETCH），先看这条测试。
+    「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收 × 叹气压扁」乘在内容到中心的
+    距离上，再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高 / 叹气下沉）。
+    叹气的「压扁」与「下沉」是同一条曲线上的成对项：对下沿的净增按两端取
+    最大（小脸是净增、大脸是净减），都算进来。
+    这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
+    SIGH_DEFLATE / CURIOSITY_STRETCH / TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
 
@@ -339,9 +341,16 @@ def test_yawn_peak_geometry_fits_the_repaint_pad(qapp):
         assert ys and xs, f"第 {idx} 张脸是空的？"
         top, bottom, left, right = min(ys), max(ys), min(xs), max(xs)
         move_y = anim.GAZE_MAX_Y + anim.BREATH_AMPLITUDE + math.ceil(anim.TALK_BOB_Y)
+        # 叹气：下沉（+SIGH_SINK_PX）与压扁（×SIGH_DEFLATE）同一时刻到顶 ——
+        # 对下沿的净增按两端取最大；上沿只需要「不下沉」的那一支（下沉是往下
+        # 推的，对上沿只会更安全）。
         need = max(
             (cy - top) * (v - 1) + anim.YAWN_LIFT_PX + move_y - top,
             (bottom - cy) * (v - 1) + move_y - (H - 1 - bottom),
+            (bottom - cy) * (v * anim.SIGH_DEFLATE - 1.0)
+            + move_y
+            + anim.SIGH_SINK_PX
+            - (H - 1 - bottom),
             (cx - left) * anim.POP_AMPLITUDE + anim.GAZE_MAX_X + anim.SWAY_AMPLITUDE - left,
             (right - cx) * anim.POP_AMPLITUDE
             + anim.GAZE_MAX_X
@@ -352,7 +361,7 @@ def test_yawn_peak_geometry_fits_the_repaint_pad(qapp):
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
-        "把 YAWN_STRETCH 调小，或把 pet.FACE_REGION_PAD 调大"
+        "把 YAWN_STRETCH / SIGH_SINK_PX 调小，或把 pet.FACE_REGION_PAD 调大"
     )
 
 

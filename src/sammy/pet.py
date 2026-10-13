@@ -69,8 +69,14 @@ SLEEP_EXPR = 1
 # 脸重绘区域的留量（设备像素）。不是审美参数 —— **最大形变那一圈必须落在里面**，
 # 否则动画帧不刷新溢出的部分（脸会花）。最坏组合（好奇拉高 × 哈欠拉高 × 弹一下
 # + 各种平移）实测约需 10.4px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）；
-# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH 之前先看那里。
+# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX 之前先看那里
+# （叹气的「沉底」和「压扁」是一对抵消项，净量也在那条几何判据里一起算）。
 FACE_REGION_PAD = 12
+
+# 无聊的叹气（自选小步·第九次）：无聊过这条线、又没在忙的时候，它才会叹气。
+# 比「无聊脸」的门槛（0.65）松一点：先听见叹气、再看见耷拉脸 ——
+# 「气先叹出来、脸再耷拉下去」的次序。
+SIGH_BOREDOM_ABOVE = 0.55
 
 # 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
 # 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
@@ -995,6 +1001,8 @@ class SammyWindow(QWidget):
         was_asleep = self.drives.asleep  # 哈欠看的是「睡着 → 醒着」这条边
         self.drives.tick()
         self._yawn_if_woke(was_asleep)
+        if self.anim_on:
+            self.anim.note_bored(self.anim_t, self._bored_for_sigh())
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1057,6 +1065,21 @@ class SammyWindow(QWidget):
         """
         if was_asleep and not self.drives.asleep and self.anim_on:
             self.anim.yawn(self.anim_t)
+
+    def _bored_for_sigh(self) -> bool:
+        """「有点无聊、又没在忙」—— 这种时候它才叹气（演不演归动画层）。
+
+        闸门（和别的空闲行为同一套规矩）：
+        - 睡着 / 累趴：不叹（calm 优先）；
+        - 刚交互完的 5 秒：不叹（别对着刚说完话的人叹气）；
+        - 不够无聊（驱力没到线）：不叹。
+        思考中不用管 —— `_tick` 在思考时整个不跑。
+        """
+        if self.drives.asleep or self.drives.exhausted:
+            return False
+        if time.time() - self._last_interaction_at < 5:
+            return False
+        return self.drives.boredom > SIGH_BOREDOM_ABOVE
 
     def _save_drives(self) -> None:
         try:
