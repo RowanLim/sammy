@@ -1,0 +1,560 @@
+"""醒来的哈欠（自选小步·第八次）——「睡醒了先伸个懒腰、打个哈欠」。
+
+动机：睡相（第七次）让「睡着」看得出来（那个慢慢冒的 Z）；可**醒**是瞬间的 ——
+睡脸直接切回暖脸，读起来像换了张贴纸。哈欠把「醒来」变成一个过程：
+先抻起来（伸懒腰）→ 眼睛眯上撑一小会（呵——）→ 慢慢松开、落回常态。
+
+两条曲线（第一版把眯眼和拉高揉在同一条曲线上，实测翻车：整脸被压成
+一条小横杠 —— 因为 bitmap 脸的「眯眼」就是整脸压扁，DEVLOG 有记）：
+- 拉高曲线 yawn_amount：撑起来 → 撑住 → 收回去，管纵向拉高 + 拔高；
+- 眯眼曲线 yawn_squint：晚一拍起步（先抻后眯），管压扁（眼睛合上）。
+
+四层判据：
+1. 纯函数：两条曲线的时间线逐点对账、峰谷锟死、只加不改、睡着不哈欠、
+   中途重开 / reset 都换新；
+2. 几何：全 35 张脸在最坏形变组合下也不冒出重绘区（冒出去那圈动画帧
+   不会刷新 —— 脸会花，和 Z 位置那条坑同源）；真渲染再验一遍；
+3. 渲染（真窗口离屏抓图，scale 1.0 双胞胎）：先抻（高 +8px 以上、顶沿上抬）、
+   再眯（压到一半以下）、收完与孪生逐字节一致；
+4. 链路：三条唤醒路（自己睡饱 / 被戳 / 被叫）各触发一次哈欠；醒着不排、
+   动画关着谁都不打。
+
+（设计数字：九个 YAWN_* 常量都在 anim.py 顶部；调参速查表第 18 节也有。）
+"""
+
+from __future__ import annotations
+
+import math
+import pathlib
+import sys
+import time
+from itertools import pairwise
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
+
+from sammy import anim, drives
+from sammy.anim import Animator
+
+pytestmark = pytest.mark.usefixtures("qapp")  # 窗口层要 QApplication
+
+T0 = 30.0  # 热身后的时刻（初始凝视 / 眨眼早已跑起来）
+
+
+@pytest.fixture(autouse=True)
+def _isolate_state(tmp_path, monkeypatch):
+    """别碰用户真实的状态文件（和 test_pet / test_talk 同一套隔离）。"""
+    from sammy import attention, care
+
+    monkeypatch.setattr(attention, "STATE_FILE", tmp_path / "attention.json")
+    monkeypatch.setattr(drives, "STATE_FILE", tmp_path / "drives.json")
+    monkeypatch.setattr(care, "STATE_FILE", tmp_path / "care.json")
+
+
+def _walk(a: Animator, t0: float, t1: float, step: float = 0.05):
+    """走时间轴，返回 [(t, frame)]，步长固定、确定性。"""
+    n = round((t1 - t0) / step)
+    out = []
+    for i in range(n + 1):
+        t = round(t0 + i * step, 6)
+        out.append((t, a.frame_at(t)))
+    return out
+
+
+def _blink_squash(a: Animator, t: float) -> float:
+    """按眨眼时间表复算这一刻的 squash（没有哈欠成分）—— 对账用。"""
+    s = 1.0
+    for start in a.blink_times(t):
+        if start <= t <= start + anim.BLINK_DURATION:
+            s = min(
+                s,
+                1.0
+                - (1.0 - anim.BLINK_MIN_SQUASH) * anim._envelope((t - start) / anim.BLINK_DURATION),
+            )
+    return s
+
+
+# ── 纯函数层：时间线与峰谷 ────────────────────────
+
+
+def test_yawn_constants_stay_subtle():
+    """常量必须停在「轻微」量级，而且两条曲线的先后关系得成立（先抻后眯）。"""
+    total = anim.yawn_total()
+    assert 1.0 <= total <= 2.5, f"整段 {total}s —— 太短看不见过程，太长像慢动作"
+    assert 0.2 <= anim.YAWN_RISE_S <= 1.0
+    assert 0.0 <= anim.YAWN_HOLD_S <= 0.8
+    assert 0.3 <= anim.YAWN_SETTLE_S <= 1.5
+    assert 0.05 <= anim.YAWN_STRETCH <= 0.15, "拉高要看得见，又不能把脸扯变形"
+    assert 1 <= anim.YAWN_LIFT_PX <= 6, "拔高是像素级的小动作"
+    assert 0.2 <= anim.YAWN_SQUINT_DELAY_S <= 1.0, "眯眼晚一拍可以，晚太多就不是一个动作了"
+    assert 0.1 <= anim.YAWN_SQUINT_RISE_S <= 0.8
+    assert 0.2 <= anim.YAWN_SQUINT_FALL_S <= 1.2, "松开比合上慢 —— 像慢慢睁眼"
+    assert 0.15 <= anim.YAWN_SQUINT_MIN <= 0.6, "哈欠的眯眼比眨眼浅（眨眼到 0.14）"
+    # 先抻后眯：眯眼起步要晚于拉高；满眯时拉高已经到位（撑住段或紧跟着的尾巴）
+    assert anim.YAWN_SQUINT_DELAY_S >= anim.YAWN_RISE_S * 0.8
+    peak = anim.YAWN_SQUINT_DELAY_S + anim.YAWN_SQUINT_RISE_S
+    assert anim.YAWN_RISE_S <= peak <= anim.YAWN_RISE_S + anim.YAWN_HOLD_S + 0.25
+    # 两条曲线同一条终点：眯眼松开和拉高收完都落在总时长里
+    end = anim.YAWN_SQUINT_DELAY_S + anim.YAWN_SQUINT_RISE_S + anim.YAWN_SQUINT_FALL_S
+    assert abs(end - total) <= 0.2, f"眯眼曲线到 {end}s，拉高到 {total}s —— 两条腿不一样长"
+
+
+def test_yawn_shape_opens_holds_and_settles():
+    """拉高曲线三段拼一条时间线：撑起来 → 撑住 → 收回去；两头精确为 0。"""
+    assert anim.yawn_amount(-0.1) == 0.0, "还没开始就不该有"
+    assert anim.yawn_amount(0.0) == 0.0, "从静息起步"
+    assert anim.yawn_amount(anim.YAWN_RISE_S / 2) == pytest.approx(0.5), "撑到一半正好一半"
+    assert anim.yawn_amount(anim.YAWN_RISE_S) == pytest.approx(1.0)
+    assert anim.yawn_amount(anim.YAWN_RISE_S + anim.YAWN_HOLD_S / 2) == 1.0, "撑住段是满的"
+    k = anim.YAWN_RISE_S + anim.YAWN_HOLD_S
+    assert anim.yawn_amount(k + anim.YAWN_SETTLE_S / 2) == pytest.approx(0.5)
+    assert anim.yawn_amount(anim.yawn_total()) == 0.0, "收完就该是零"
+    assert anim.yawn_amount(anim.yawn_total() + 5.0) == 0.0
+    up = [anim.yawn_amount(anim.YAWN_RISE_S * i / 20) for i in range(21)]
+    assert all(b >= a for a, b in pairwise(up)), "撑起来段不单调"
+    down = [anim.yawn_amount(k + anim.YAWN_SETTLE_S * i / 20) for i in range(21)]
+    assert all(b <= a for a, b in pairwise(down)), "收回去段不单调"
+
+
+def test_yawn_squint_shape_is_staggered():
+    """眯眼曲线：晚一拍起步、合上、松开；两头精确为 0，升 / 降段单调。"""
+    d, r, f = anim.YAWN_SQUINT_DELAY_S, anim.YAWN_SQUINT_RISE_S, anim.YAWN_SQUINT_FALL_S
+    assert anim.yawn_squint(d - 0.01) == 0.0, "起步之前不该眯"
+    assert anim.yawn_squint(0.0) == 0.0
+    assert anim.yawn_squint(d + r / 2) == pytest.approx(0.5), "合到一半正好一半"
+    assert anim.yawn_squint(d + r) == pytest.approx(1.0), "该满眯的那一刻没满"
+    assert anim.yawn_squint(d + r + f / 2) == pytest.approx(0.5)
+    assert anim.yawn_squint(d + r + f + 0.5) == 0.0, "松开走完就该是零"
+    up = [anim.yawn_squint(d + r * i / 12) for i in range(13)]
+    assert all(b >= a for a, b in pairwise(up)), "合上段不单调"
+    down = [anim.yawn_squint(d + r + f * i / 12) for i in range(13)]
+    assert all(b <= a for a, b in pairwise(down)), "松开段不单调"
+
+
+def test_yawn_starts_from_rest_and_peak_is_pinned():
+    """起点零形变（静息起步）；拉高峰值 / 满眯时刻的通道值逐个锟死。"""
+    a = Animator(seed=7)
+    _walk(a, 0.0, T0)
+    a.yawn(T0)
+    f0 = a.frame_at(T0)
+    e0 = min(1.0, abs(f0.gx) / anim.GAZE_MAX_X)
+    assert f0.stretch == pytest.approx(1.0 + anim.CURIOSITY_STRETCH * e0 * e0), "起点不该有拉高"
+    assert f0.dy == round(
+        anim.BREATH_AMPLITUDE * math.sin(2 * math.pi * T0 / anim.BREATH_PERIOD)
+    ), "起点不该有拔高"
+
+    tall = T0 + anim.YAWN_RISE_S  # 刚抻满、眯眼还没上来
+    f = a.frame_at(tall)
+    e = min(1.0, abs(f.gx) / anim.GAZE_MAX_X)
+    assert f.stretch == pytest.approx(
+        (1.0 + anim.CURIOSITY_STRETCH * e * e) * (1.0 + anim.YAWN_STRETCH)
+    )
+    assert f.dy == round(
+        anim.BREATH_AMPLITUDE * math.sin(2 * math.pi * tall / anim.BREATH_PERIOD)
+    ) - (anim.YAWN_LIFT_PX)
+    assert f.squash == pytest.approx(_blink_squash(a, tall)), "这下还没轮到眯眼"
+
+    shut = T0 + anim.YAWN_SQUINT_DELAY_S + anim.YAWN_SQUINT_RISE_S  # 满眯
+    fs = a.frame_at(shut)
+    assert fs.squash == pytest.approx(min(_blink_squash(a, shut), anim.YAWN_SQUINT_MIN)), (
+        "满眯不是满的"
+    )
+    assert fs.stretch == pytest.approx(
+        (1.0 + anim.CURIOSITY_STRETCH * min(1.0, abs(fs.gx) / anim.GAZE_MAX_X) ** 2)
+        * (1.0 + anim.YAWN_STRETCH * anim.yawn_amount(shut - T0))
+    ), "满眯时拉高不该提前收了"
+
+
+def test_yawn_matches_formula_point_by_point():
+    """整段逐点对账（0.02 秒网格）：两条曲线的三个通道都按公式对齐。"""
+    a = Animator(seed=11)
+    _walk(a, 0.0, T0)
+    a.yawn(T0)
+    live_tall = live_squint = 0
+    for i in range(131):
+        t = round(T0 + i * 0.02, 6)
+        tau = t - T0
+        f = a.frame_at(t)
+        m = anim.yawn_amount(tau)
+        q = anim.yawn_squint(tau)
+        e = min(1.0, abs(f.gx) / anim.GAZE_MAX_X)
+        assert f.stretch == pytest.approx(
+            (1.0 + anim.CURIOSITY_STRETCH * e * e) * (1.0 + anim.YAWN_STRETCH * m)
+        ), t
+        assert f.dy == round(
+            anim.BREATH_AMPLITUDE * math.sin(2 * math.pi * t / anim.BREATH_PERIOD)
+        ) - round(anim.YAWN_LIFT_PX * m), t
+        assert f.squash == pytest.approx(
+            min(_blink_squash(a, t), 1.0 - (1.0 - anim.YAWN_SQUINT_MIN) * q)
+        ), t
+        if m > 0:
+            live_tall += 1
+        if q > 0:
+            live_squint += 1
+    assert live_tall >= 60, f"拉高窗口里只有 {live_tall} 帧在动"
+    assert live_squint >= 40, f"眯眼窗口里只有 {live_squint} 帧在动"
+
+
+def test_yawn_only_adds_other_channels_do_not_move():
+    """只打了哈欠的一方与完全没打的孪生：别的通道一个都不许动；窗外全等。"""
+    a, b = Animator(seed=7), Animator(seed=7)
+    _walk(a, 0.0, T0)
+    _walk(b, 0.0, T0)
+    a.yawn(T0)
+    live = 0
+    for i in range(1, 141):
+        t = round(T0 + i * 0.02, 6)
+        fa, fb = a.frame_at(t), b.frame_at(t)
+        assert (fa.dx, fa.pop, fa.gx, fa.gy, fa.talk_y, fa.talk_sq) == (
+            fb.dx,
+            fb.pop,
+            fb.gx,
+            fb.gy,
+            fb.talk_y,
+            fb.talk_sq,
+        ), f"{t} 时别的通道被哈欠带偏了"
+        if t < T0 + anim.yawn_total():
+            if (fa.squash, fa.dy, fa.stretch) != (fb.squash, fb.dy, fb.stretch):
+                live += 1
+        else:
+            assert (fa.squash, fa.dy, fa.stretch) == (
+                fb.squash,
+                fb.dy,
+                fb.stretch,
+            ), f"{t} 收完之后还没回到常态"
+    assert live >= 30, f"窗口里只有 {live} 帧真的变了 —— 哈欠没打起来"
+
+
+def test_yawn_is_suppressed_when_calm():
+    """睡着不哈欠（定格优先）：calm 期间三个通道与孪生逐点全等；醒来接着打。"""
+    a, b = Animator(seed=15), Animator(seed=15)
+    _walk(a, 0.0, T0)
+    _walk(b, 0.0, T0)
+    a.yawn(T0)
+    for i in range(1, 41):
+        t = round(T0 + i * 0.05, 6)
+        fa = a.frame_at(t, calm=True)
+        fb = b.frame_at(t, calm=True)
+        assert (fa.squash, fa.dy, fa.stretch) == (fb.squash, fb.dy, fb.stretch), (
+            f"{t} 睡着时哈欠漏出来了"
+        )
+    tall = T0 + anim.YAWN_RISE_S
+    woke = [a.frame_at(round(tall + i * 0.02, 6)) for i in range(6)]
+    assert any(f.stretch > 1.0 + anim.CURIOSITY_STRETCH for f in woke), "醒了不接着打，哈欠就哑了"
+
+
+def test_yawn_restart_starts_fresh():
+    """中途再排一次：从撑起来重新起步 —— 与「只在这一刻开始」的孪生全等。"""
+    a, d = Animator(seed=13), Animator(seed=13)
+    _walk(a, 0.0, T0)
+    _walk(d, 0.0, T0)
+    a.yawn(T0)
+    fa = a.frame_at(T0 + 0.3)
+    fd = d.frame_at(T0 + 0.3)
+    assert fa.stretch != fd.stretch, "前提不成立：a 没有在打"
+    t2 = T0 + 0.5
+    a.yawn(t2)  # 中途重开
+    d.yawn(t2)  # 只在这一刻开始打
+    for tau in (0.0, 0.1, 0.35, 0.7, 1.0, 1.55, 2.0):
+        t = round(t2 + tau, 6)
+        fa, fd = a.frame_at(t), d.frame_at(t)
+        assert (fa.squash, fa.dy, fa.stretch) == (fd.squash, fd.dy, fd.stretch), (
+            f"{t} 重开后没有从头起步"
+        )
+
+
+def test_yawn_reset_clears_state():
+    """时间线被拨动（reset）：旧的那次哈欠不作数，与从未打过的一方全等。"""
+    a, b = Animator(seed=16), Animator(seed=16)
+    _walk(a, 0.0, T0)
+    _walk(b, 0.0, T0)
+    a.yawn(T0)
+    a.reset(T0 + 0.2)
+    b.reset(T0 + 0.2)
+    for tau in (0.1, 0.4, 0.9, 1.4):
+        t = round(T0 + 0.2 + tau, 6)
+        fa, fb = a.frame_at(t), b.frame_at(t)
+        assert (fa.squash, fa.dy, fa.stretch) == (fb.squash, fb.dy, fb.stretch), (
+            f"{t} reset 之后旧哈欠还在"
+        )
+
+
+def test_yawn_is_deterministic():
+    """同一条序列跑两遍逐值相等（种子相同 = 演出相同）。"""
+
+    def run():
+        a = Animator(seed=17)
+        out = []
+        for i in range(1, 141):
+            t = round(i * 0.05, 6)
+            if i == 40:
+                a.yawn(t)
+            f = a.frame_at(t)
+            out.append((round(f.squash, 12), f.dy, round(f.stretch, 12), f.gx, f.gy))
+        return out
+
+    assert run() == run()
+
+
+# ── 几何：最坏形变不许冒出重绘区 ──────────────────
+
+
+def test_yawn_peak_geometry_fits_the_repaint_pad(qapp):
+    """几何契约：所有形变同时顶格，脸内容也不冒出重绘区（否则那圈不刷新 → 脸会花）。
+
+    算法：脸的位图内容在框里本来留着一圈空边（量出来的）；最坏情况 =
+    「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收」乘在内容到中心的距离上，
+    再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高）。只要「需要的留量 ≤
+    FACE_REGION_PAD」，_face_region 就盖得住 —— 调大任何一道形变常数
+    （尤其 YAWN_STRETCH），先看这条测试。
+    """
+    from PySide6.QtCore import QSize
+
+    from sammy import faces, layout
+    from sammy.pet import FACE_REGION_PAD
+
+    box = layout.layout_dev(800, 480).face
+    W, H = box.width(), box.height()
+    cx, cy = W / 2.0, H / 2.0
+    v = (
+        (1.0 + anim.CURIOSITY_STRETCH)
+        * (1.0 + anim.YAWN_STRETCH)
+        * (1.0 + anim.POP_AMPLITUDE)
+        * (1.0 + anim.TALK_SQUASH)
+    )
+    worst = (0.0, "")
+    for idx in sorted(faces.EXPR_NAMES):
+        img = faces.face_pixmap(idx, QSize(W, H)).toImage()
+        ys = [
+            y
+            for y in range(0, H, 2)
+            if any(img.pixelColor(x, y).alpha() > 8 for x in range(0, W, 2))
+        ]
+        xs = [
+            x
+            for x in range(0, W, 2)
+            if any(img.pixelColor(x, y).alpha() > 8 for y in range(0, H, 2))
+        ]
+        assert ys and xs, f"第 {idx} 张脸是空的？"
+        top, bottom, left, right = min(ys), max(ys), min(xs), max(xs)
+        move_y = anim.GAZE_MAX_Y + anim.BREATH_AMPLITUDE + math.ceil(anim.TALK_BOB_Y)
+        need = max(
+            (cy - top) * (v - 1) + anim.YAWN_LIFT_PX + move_y - top,
+            (bottom - cy) * (v - 1) + move_y - (H - 1 - bottom),
+            (cx - left) * anim.POP_AMPLITUDE + anim.GAZE_MAX_X + anim.SWAY_AMPLITUDE - left,
+            (right - cx) * anim.POP_AMPLITUDE
+            + anim.GAZE_MAX_X
+            + anim.SWAY_AMPLITUDE
+            - (W - 1 - right),
+        )
+        if need > worst[0]:
+            worst = (need, f"第 {idx} 张")
+    assert worst[0] <= FACE_REGION_PAD, (
+        f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
+        "把 YAWN_STRETCH 调小，或把 pet.FACE_REGION_PAD 调大"
+    )
+
+
+# ── 渲染层：真窗口离屏抓图 ─────────────────────────
+
+from PySide6.QtCore import QRect  # noqa: E402
+from PySide6.QtGui import QImage  # noqa: E402
+
+from sammy.pet import SammyWindow  # noqa: E402
+
+SEED_YAWN = 7
+
+
+def _mk(scale: float = 1.0) -> SammyWindow:
+    """稳态窗口：种子 / 表情 / 时间轴全钉住 —— 只留哈欠这一个变量。"""
+    w = SammyWindow(autoconnect=False)
+    for tm in (w.timer, w.anim_timer, w.heart, w.night):
+        tm.stop()
+    w.scale = scale
+    w._offset = (0, 0)
+    w.resize(round(800 * scale), round(480 * scale))
+    w._relayout()
+    w.anim = anim.Animator(seed=SEED_YAWN)
+    w.look_on = False  # 光标不参与（盯的是哈欠这一件事）
+    w.set_expression(9)  # 吐舌：没有动图，画面里动的只有脸自己
+    w.finish_typing()
+    w.sammy_line = ""
+    w.my_line = ""
+    w.anim_t = 8.0
+    return w
+
+
+def _img_bytes(w: SammyWindow) -> bytes:
+    img = w.grab().toImage().convertToFormat(QImage.Format_ARGB32)
+    return bytes(img.constBits())
+
+
+def _lit_bbox(w: SammyWindow, clip: QRect) -> tuple[int, int, int, int]:
+    """clip 里的「不透明亮像素」外接框。
+
+    两条件缺一不可：颜色接近 faces.LIT（从常量读，换配色不用改测试）
+    且 **不透明**（alpha ≥ 200）—— 面板描边是半透明白，只看颜色会把它
+    当成脸（第一版就栽在这：量到的是整圈边框）。
+    """
+    from sammy import faces
+
+    img = w.grab().toImage().convertToFormat(QImage.Format_ARGB32)
+    buf = bytes(img.constBits())
+    stride = img.bytesPerLine()
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
+    x0 = y0 = 10**9
+    x1 = y1 = -1
+    for y in range(clip.top(), clip.bottom() + 1):
+        row = y * stride
+        for x in range(clip.left(), clip.right() + 1):
+            i = row + x * 4
+            b, g, r, a = buf[i], buf[i + 1], buf[i + 2], buf[i + 3]
+            if a >= 200 and abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70:
+                x0 = min(x0, x)
+                x1 = max(x1, x)
+                y0 = min(y0, y)
+                y1 = max(y1, y)
+    assert x1 >= 0, "clip 里一个亮像素都没有 —— 区域搞错了？"
+    return x0, y0, x1, y1
+
+
+def test_yawn_stretches_the_face_and_settles_back(qapp):
+    """scale 1.0 双胞胎：先抻（高 +8px 以上、顶沿上抬），再眯（压到一半以下），收完逐字节归零。"""
+    a, b = _mk(), _mk()
+    try:
+        a.anim.yawn(8.5)
+        box = a.lay.face
+        clip = QRect(box.left() - 60, 6, box.width() + 120, 235)
+
+        def look(w: SammyWindow, t: float):
+            w.anim_t = t
+            return _lit_bbox(w, clip)
+
+        _, y0b, _, y1b = look(b, 8.3)
+        _, y0a0, _, y1a0 = look(a, 8.3)
+        assert (y0a0, y1a0) == (y0b, y1b), "哈欠开始前两边就该一模一样"
+        mid = round(8.5 + anim.YAWN_RISE_S * 0.5, 6)
+        _, y0m, _, y1m = look(a, mid)
+        tall = round(8.5 + anim.YAWN_RISE_S, 6)  # 刚抻满、还没眯
+        x0t, y0t, x1t, y1t = look(a, tall)
+        x0bt, y0bt, x1bt, y1bt = look(b, tall)
+        shut = round(8.5 + anim.YAWN_SQUINT_DELAY_S + anim.YAWN_SQUINT_RISE_S, 6)
+        x0s, y0s, x1s, y1s = look(a, shut)
+        x0bs, _, x1bs, _ = look(b, shut)  # 只比宽度：高度那两格用不上
+        h_mid, h_tall, h_shut = y1m - y0m, y1t - y0t, y1s - y0s
+        h_b = y1bt - y0bt
+        assert h_tall - h_b >= 8, f"抻起来只高了 {h_tall - h_b}px —— 拉高太小"
+        assert h_b < h_mid < h_tall, "抻起来不是渐进的"
+        assert y0bt - y0t >= 4, f"顶沿没抬起来：{y0bt - y0t}px"
+        assert h_shut <= h_b * 0.5, f"眯眼没眯下去：{h_shut} vs {h_b}"
+        assert h_shut >= 25, f"眯得只剩 {h_shut}px —— 这是把脸画没了？"
+        assert (x1t - x0t) - (x1bt - x0bt) <= 2, "抻高不该改变宽度（变宽是「飘」不是哈欠）"
+        assert (x1s - x0s) - (x1bs - x0bs) <= 2, "眯眼也该只动高度"
+        after = round(8.5 + anim.yawn_total() + 0.4, 6)
+        a.anim_t = after
+        b.anim_t = after
+        assert _img_bytes(a) == _img_bytes(b), "哈欠收完还不回到常态"
+    finally:
+        a.close()
+        b.close()
+
+
+def test_yawn_key_moments_stay_inside_the_repainted_region(qapp):
+    """哈欠的关键两帧（抻最满 / 眯到底）必须落在局部重绘区里 —— 在外面那圈不刷新（会花）。"""
+    w = _mk()
+    try:
+        w.anim.yawn(8.5)
+        box = w.lay.face
+        clip = QRect(box.left() - 60, 6, box.width() + 120, 235)
+        region = w._face_region()
+        for label, t in (
+            ("抻最满", round(8.5 + anim.YAWN_RISE_S, 6)),
+            ("眯到底", round(8.5 + anim.YAWN_SQUINT_DELAY_S + anim.YAWN_SQUINT_RISE_S, 6)),
+        ):
+            w.anim_t = t
+            x0, y0, x1, y1 = _lit_bbox(w, clip)
+            deformed = QRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+            assert region.contains(deformed), f"{label} 时脸 {deformed} 冒出重绘区 {region}"
+    finally:
+        w.close()
+
+
+# ── 链路：三条唤醒路各打一次哈欠 ──────────────────
+
+
+def test_wake_by_itself_schedules_one_yawn(qapp):
+    """自己睡饱了醒（_tick 里的作息结算）：醒来那一刻排一次哈欠。"""
+    w = _mk()
+    try:
+        w.drives.asleep = True
+        w.drives.energy = 0.9
+        w.drives.last_update = time.time() - 2 * 3600  # 睡了两小时 → 自己醒了
+        w.anim_t = 33.0
+        w._tick()
+        assert w.drives.asleep is False, "前提：它该睡饱自己醒"
+        assert w.anim._yawn_at == 33.0, "醒来没排哈欠"
+    finally:
+        w.close()
+
+
+def test_woken_by_poke_or_message_schedules_one_yawn(qapp):
+    """被戳醒 / 被叫醒：同样在醒来那一刻排一次哈欠。"""
+    a = _mk()
+    try:
+        a.drives.asleep = True
+        a.drives.energy = 0.5
+        a.anim_t = 12.0
+        a.poke()
+        assert a.drives.asleep is False
+        assert a.anim._yawn_at == 12.0, "被戳醒没排哈欠"
+    finally:
+        a.close()
+    b = _mk()
+    try:
+        b.drives.asleep = True
+        b.drives.energy = 0.5
+        b.anim_t = 20.0
+        b.input.setText("早啊")
+        b.send()
+        assert b.drives.asleep is False
+        assert b.anim._yawn_at == 20.0, "被叫醒没排哈欠"
+    finally:
+        b.close()
+
+
+def test_no_yawn_when_awake_or_anim_off(qapp):
+    """醒着被戳不排哈欠；动画关着（没有时间轴）连醒来都不打。"""
+    a = _mk()
+    try:
+        a.anim_t = 5.0
+        a.poke()
+        assert a.anim._yawn_at == -99.0, "醒着被戳也打哈欠？"
+    finally:
+        a.close()
+    b = _mk()
+    try:
+        b.anim_on = False
+        b.drives.asleep = True
+        b.drives.energy = 0.9
+        b.drives.last_update = time.time() - 2 * 3600
+        b.anim_t = 7.0
+        b._tick()
+        assert b.drives.asleep is False
+        assert b.anim._yawn_at == -99.0, "动画关着还排哈欠"
+    finally:
+        b.close()
+
+
+# ── 纪律与素材 ────────────────────────────────────
+
+
+def test_yawn_media_and_script_are_shipped():
+    """素材要能一条命令重生成，而且要真在仓库里（网页上直接能看）。"""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    assert (root / "scripts" / "yawn_preview.py").is_file()
+    assert "yawn-media" in (root / "Makefile").read_text(encoding="utf-8")
+    for name in ("yawn-strip.png", "yawn-demo.mp4"):
+        p = root / "docs" / "8h-b2" / name
+        assert p.is_file(), f"缺素材：{name}"
+        assert p.stat().st_size > 10_000, f"素材太小，像空壳：{name}"

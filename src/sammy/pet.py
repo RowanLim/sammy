@@ -66,6 +66,12 @@ POKE_FACES = [4, 8, 21, 29, 7]
 # 睡着时的表情编号（1=睡眠）。这个状态下动画要收敛：睡着还晃来晃去就不像睡着了
 SLEEP_EXPR = 1
 
+# 脸重绘区域的留量（设备像素）。不是审美参数 —— **最大形变那一圈必须落在里面**，
+# 否则动画帧不刷新溢出的部分（脸会花）。最坏组合（好奇拉高 × 哈欠拉高 × 弹一下
+# + 各种平移）实测约需 10.4px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）；
+# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH 之前先看那里。
+FACE_REGION_PAD = 12
+
 # 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
 # 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
 # 和整块界面的像素语言对不上；手画还保证不依赖字体加载成功与否。
@@ -361,7 +367,9 @@ class SammyWindow(QWidget):
         if self.thinking:
             return
         self.idle_seconds = 0
+        was_asleep = self.drives.asleep
         self.drives.on_interaction()
+        self._yawn_if_woke(was_asleep)
         self.care.note_activity()
         self._last_interaction_at = time.time()
         self._idle_face = None
@@ -378,7 +386,9 @@ class SammyWindow(QWidget):
             return
         self.input.clear()
         self.idle_seconds = 0
+        was_asleep = self.drives.asleep
         self.drives.on_interaction(greeted=True)
+        self._yawn_if_woke(was_asleep)
         self.care.note_activity()
         self._last_interaction_at = time.time()
         self._idle_face = None
@@ -822,13 +832,21 @@ class SammyWindow(QWidget):
                 return
 
     def _face_region(self) -> QRect:
-        """脸在窗口里的像素区域（向外留余量，盖住呼吸位移和弹的那一下）。
+        """脸在窗口里的像素区域（向外留余量，盖住**所有**形变）。
+
+        留量（FACE_REGION_PAD）是**量出来的、不是拍的**：最费的组合是
+        「好奇拉高 × 哈欠拉高 × 弹一下」再叠上各种平移（呼吸 / 说话 /
+        凝视 / 哈欠拔高）。实测全 35 张脸在最坏组合下最多约 10.4px，12 够用
+        （tests/test_yawn.py 按常数钉着）。框留小了，动画帧不会刷新溢出的
+        那一圈：脸会花、哈欠的额头画出去（和 Z 位置那条坑同源）。
 
         用**版面里的脸**（`self.lay.face`），不是设计位 —— face-only 下脸不在
         设计位置上，写死脸框会让动画只刷新一小块（脸会花）；顺带修掉 kiosk
         上的同一处旧错：画布变宽后脸被重新居中过，旧写法刷的是老位置。
         """
-        r = self.lay.face.adjusted(-12, -12, 12, 12)
+        r = self.lay.face.adjusted(
+            -FACE_REGION_PAD, -FACE_REGION_PAD, FACE_REGION_PAD, FACE_REGION_PAD
+        )
         s = self.scale
         return QRect(
             int(r.x() * s) + self._offset[0],
@@ -974,7 +992,9 @@ class SammyWindow(QWidget):
         if self.thinking:
             return
         self.idle_seconds += 1
+        was_asleep = self.drives.asleep  # 哈欠看的是「睡着 → 醒着」这条边
         self.drives.tick()
+        self._yawn_if_woke(was_asleep)
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1027,6 +1047,16 @@ class SammyWindow(QWidget):
         if self.status_ok:
             # 大脑没接通时保留那行错误提示，别用"在线"把它盖掉
             self.status = status_text(self.drives)
+
+    def _yawn_if_woke(self, was_asleep: bool) -> None:
+        """刚「睡着 → 醒着」的那一刻：打一个哈欠（「睡醒了先伸个懒腰」）。
+
+        三条唤醒路共用这一条：自己睡饱了（_tick）、被戳醒、被叫醒（poke / send）。
+        调用方在改动 drives **之前**记下 was_asleep，改完再调这里。
+        动画关着时不打 —— 没有时间轴，也就没有这回事（关就该关彻底）。
+        """
+        if was_asleep and not self.drives.asleep and self.anim_on:
+            self.anim.yawn(self.anim_t)
 
     def _save_drives(self) -> None:
         try:

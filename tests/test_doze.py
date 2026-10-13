@@ -27,6 +27,21 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from sammy import anim, drives
 from sammy.pet import FG, SammyWindow
 
+
+@pytest.fixture(autouse=True)
+def _isolate_state(tmp_path, monkeypatch):
+    """别碰用户真实的状态文件（和 test_pet / test_talk 同一套隔离）。
+
+    2026-10-13 补：这个文件当初漏了这道隔离 —— 每次跑测试都会把
+    data/drives.json 等真实状态文件重写一遍（mtime 出卖了它）。
+    """
+    from sammy import attention, care
+
+    monkeypatch.setattr(attention, "STATE_FILE", tmp_path / "attention.json")
+    monkeypatch.setattr(drives, "STATE_FILE", tmp_path / "drives.json")
+    monkeypatch.setattr(care, "STATE_FILE", tmp_path / "care.json")
+
+
 # ── 作息：夜里掉得更快 ────────────────────────────────
 
 

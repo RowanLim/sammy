@@ -16,6 +16,7 @@
 10. 第 14 节（光标凝视）的 3 个常量同样逐条对账。
 11. 第 15 节（搬运凝视）的 3 个常量同样逐条对账。
 12. 第 16 节（说话动脸）的 5 个常量同样逐条对账。
+13. 第 18 节（醒来的哈欠）的 9 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -96,6 +97,15 @@ EXPECTED_PINS = {
     "TALK_SQUASH",
     "TALK_EASE_IN",
     "TALK_EASE_OUT",
+    "YAWN_RISE_S",
+    "YAWN_HOLD_S",
+    "YAWN_SETTLE_S",
+    "YAWN_STRETCH",
+    "YAWN_LIFT_PX",
+    "YAWN_SQUINT_DELAY_S",
+    "YAWN_SQUINT_RISE_S",
+    "YAWN_SQUINT_FALL_S",
+    "YAWN_SQUINT_MIN",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -160,6 +170,8 @@ def test_decisions_and_files_are_covered():
         "光标凝视",
         "搬运凝视",
         "说话动脸",
+        "作息与睡相",
+        "醒来的哈欠",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

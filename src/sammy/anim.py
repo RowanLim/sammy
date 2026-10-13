@@ -17,6 +17,9 @@
 6. **说话动脸**（自选小步·第六次）：打字机在吐字时，脸按说话节奏轻轻起伏
    （上下弹 ±2.6 设备像素 + 极轻的一鼓一收 ±2%）—— 「字在往外冒，脸跟着动」；
    字停了脸也停（缓入 0.18 秒、收口 0.26 秒）。
+7. **醒来的哈欠**（自选小步·第八次）：睡醒那一刻打一个哈欠 ——
+   整脸缓慢拉高（伸懒腰）、眼睛眯起来撑住（呵——）、再慢慢收回去；
+   睡着时不做（calm 优先），只在「睡着 → 醒着」那一刻由窗口安排一次。
 
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
@@ -104,6 +107,23 @@ TALK_SQUASH = 0.02  # 一鼓一收（正负 2 个百分点）：整脸没有嘴�
 TALK_EASE_IN = 0.18  # 开口：包络从 0 涨到满用多久（秒）
 TALK_EASE_OUT = 0.26  # 收口：从停下到完全静下来用多久（秒）—— 比开口慢一点，像松开
 
+# 醒来的哈欠（自选小步·第八次）——「睡醒了先伸个懒腰、打个哈欠」
+# 睡相（第七次）解决了「睡着看得出来」，可**醒**是瞬间的：睡脸直接切回暖脸，
+# 读起来像换了张贴纸。哈欠把「醒来」变成一个过程：先抻起来（伸懒腰）→
+# 眼睛眯上撑一小会（呵——）→ 慢慢松开、落回常态（清醒了）。
+# 两条曲线各管一摊：拉高曲线（RISE/HOLD/SETTLE）管「抻 + 拔高」；
+# 眯眼曲线（SQUINT_*）比它晚一拍起步 —— 先抻后眯才像哈欠，
+# 两条一起开始会像被从中间捏住（第一版就是这么翻车的，DEVLOG 有记）。
+YAWN_RISE_S = 0.45  # 拉高曲线：撑起来用时（秒）
+YAWN_HOLD_S = 0.45  # 拉高曲线：撑住的那一小段（秒）—— 要够长，先让人看清「抻起来了」再眯眼
+YAWN_SETTLE_S = 0.70  # 拉高曲线：收回去用时（秒）
+YAWN_STRETCH = 0.10  # 纵向拉高上限（10%）：比好奇的 7% 更明显 —— 这是全身的劲
+YAWN_LIFT_PX = 3  # 整脸往上顶几像素：伸懒腰的「拔高」
+YAWN_SQUINT_DELAY_S = 0.55  # 眯眼曲线：比拉高晚多久起步（秒）：先抻后眯
+YAWN_SQUINT_RISE_S = 0.35  # 眯眼曲线：合上用时（秒）
+YAWN_SQUINT_FALL_S = 0.70  # 眯眼曲线：松开用时（秒）—— 比合上慢，像慢慢睁开
+YAWN_SQUINT_MIN = 0.30  # 眯到原来的 30%（眨眼是 14% —— 哈欠的眯眼浅一点、慢一点）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -148,6 +168,47 @@ def _smooth01(p: float) -> float:
     """0→1 的平滑缓动（两端速度为 0）—— 凝视转场与交叉淡化共用这一条曲线。"""
     p = min(1.0, max(0.0, p))
     return 0.5 * (1.0 - math.cos(math.pi * p))
+
+
+def yawn_amount(t_spent: float) -> float:
+    """哈欠的形状（0 → 1 → 0）：撑起来、撑住、收回去 —— 三段拼成一条时间线。
+
+    纯函数：每段多长、峰值在哪，测试里逐点钉死。
+    `t_spent` = 距离这次哈欠开始过了多久；负数 = 还没开始（0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < YAWN_RISE_S:
+        return _smooth01(t_spent / YAWN_RISE_S)
+    if t_spent < YAWN_RISE_S + YAWN_HOLD_S:
+        return 1.0
+    k = t_spent - YAWN_RISE_S - YAWN_HOLD_S
+    if k < YAWN_SETTLE_S:
+        return 1.0 - _smooth01(k / YAWN_SETTLE_S)
+    return 0.0
+
+
+def yawn_squint(t_spent: float) -> float:
+    """哈欠里「眯眼」那一口（0 → 1 → 0）—— 比拉高晚一拍起步。
+
+    先抻后眯：两条曲线一起动会像被从中间捏住（第一版实测），
+    分开动才是「伸懒腰伸到位了、眼睛跟着眯上」的顺序。
+    峰值落在拉高的撑住段尾巴上（0.55 + 0.35 = 0.90 ∈ [0.45, 0.90]）。
+    """
+    t = t_spent - YAWN_SQUINT_DELAY_S
+    if t < 0:
+        return 0.0
+    if t < YAWN_SQUINT_RISE_S:
+        return _smooth01(t / YAWN_SQUINT_RISE_S)
+    k = t - YAWN_SQUINT_RISE_S
+    if k < YAWN_SQUINT_FALL_S:
+        return 1.0 - _smooth01(k / YAWN_SQUINT_FALL_S)
+    return 0.0
+
+
+def yawn_total() -> float:
+    """一次哈欠从头到尾的时长（秒）。"""
+    return YAWN_RISE_S + YAWN_HOLD_S + YAWN_SETTLE_S
 
 
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
@@ -227,6 +288,8 @@ class Animator:
     _talk_t0: float = field(default=0.0, repr=False)
     _talk_stop_t: float | None = field(default=None, repr=False)
     _talk_stop_level: float = field(default=0.0, repr=False)
+    # 醒来的哈欠：开始时刻；-99 = 没有（很远的过去，不会碰巧命中）
+    _yawn_at: float = field(default=-99.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -399,6 +462,16 @@ class Animator:
             return 0.0
         return self._talk_stop_level * (1.0 - _smooth01(fade))
 
+    # ── 醒来的哈欠：「睡醒了先伸个懒腰」──────────────
+
+    def yawn(self, at: float) -> None:
+        """安排一次哈欠（at 时刻开始）—— 窗口在它从睡着变回醒着那一刻调用。
+
+        再来一次就重新从撑起来开始；实际时序里两次醒来隔着几小时，
+        这条只是把语义写死、让测试能钉住。
+        """
+        self._yawn_at = float(at)
+
     def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
         """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
         kept = [g for g in self._gaze if g.t <= t]
@@ -417,6 +490,7 @@ class Animator:
         self._talk_active = False  # 说话状态同理：时间线被拨动，别抱着旧包络
         self._talk_stop_t = None
         self._talk_stop_level = 0.0
+        self._yawn_at = -99.0  # 哈欠同理：拨过时间线，旧的那一次不作数
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -464,6 +538,11 @@ class Animator:
         t = max(0.0, float(t))  # 坏时间自愈：负数会让 sin 出怪值
         self._ensure(t)
 
+        # 醒来的哈欠：抻起来 / 眯上眼两条曲线。睡着时不做（calm 冻结一切）。
+        yawn_spent = t - self._yawn_at
+        yawn = 0.0 if calm else yawn_amount(yawn_spent)
+        squint = 0.0 if calm else yawn_squint(yawn_spent)
+
         squash = 1.0
         if not calm:  # 睡着时闭着眼，不该再眨
             for start, dur in self._blinks:
@@ -471,9 +550,13 @@ class Animator:
                     squash = min(
                         squash, 1.0 - (1.0 - BLINK_MIN_SQUASH) * _envelope((t - start) / dur)
                     )
+        if squint > 0.0:  # 哈欠里的眯眼：和眨眼取更眯的那个（同一时刻也画得对）
+            squash = min(squash, 1.0 - (1.0 - YAWN_SQUINT_MIN) * squint)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
+        if yawn > 0.0:
+            dy -= round(YAWN_LIFT_PX * yawn)  # 伸懒腰：整脸往上顶一点（负 = 上）
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
 
         # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
@@ -491,7 +574,7 @@ class Animator:
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
         edge = min(1.0, abs(gx) / GAZE_MAX_X)
-        stretch = 1.0 + CURIOSITY_STRETCH * edge * edge
+        stretch = (1.0 + CURIOSITY_STRETCH * edge * edge) * (1.0 + YAWN_STRETCH * yawn)
 
         pop = 1.0
         spent = t - self._pop_at
@@ -546,8 +629,20 @@ __all__ = [
     "TALK_EASE_OUT",
     "TALK_PERIOD",
     "TALK_SQUASH",
+    "YAWN_HOLD_S",
+    "YAWN_LIFT_PX",
+    "YAWN_RISE_S",
+    "YAWN_SETTLE_S",
+    "YAWN_SQUINT_DELAY_S",
+    "YAWN_SQUINT_FALL_S",
+    "YAWN_SQUINT_MIN",
+    "YAWN_SQUINT_RISE_S",
+    "YAWN_STRETCH",
     "Animator",
     "Frame",
     "carry_target",
     "cursor_target",
+    "yawn_amount",
+    "yawn_squint",
+    "yawn_total",
 ]

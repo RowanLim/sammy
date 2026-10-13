@@ -34,6 +34,15 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 波形证据（绿质心 δ 实测）与短视频见 [docs/8h-b2/talk-strip.png](docs/8h-b2/talk-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 16 节。
 
+📌 第七个自选小步（补记）：**作息与睡相** —— 它有自己的日夜（夜里精力消耗 ×1.6、自己走到犯困），
+睡着时脸边慢慢冒 Z；`SAMMY_ANIM=off` 连 Z 都没有。素材 [docs/8h-b2/doze-strip.png](docs/8h-b2/doze-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 17 节。
+
+📌 第八个自选小步：**醒来的哈欠「睡醒了先伸个懒腰」** —— 自己睡饱 / 被戳醒 / 被叫醒的那一刻
+先抻高（+10%）、再眯眼撑一小会（压到 30%）、慢慢松开，1.6 秒演完；睡着时不打。
+帧带与短视频见 [docs/8h-b2/yawn-strip.png](docs/8h-b2/yawn-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 18 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：
