@@ -406,6 +406,9 @@ class SammyWindow(QWidget):
         if not text:
             return
         self.input.clear()
+        if self.anim_on:
+            # 发送 = 写字阶段结束：视线别再停在输入框上（交给思考凝视 / 漂移）
+            self.anim.end_typing(self.anim_t)
         self.idle_seconds = 0
         was_asleep = self.drives.asleep
         self.drives.on_interaction(greeted=True)
@@ -887,6 +890,10 @@ class SammyWindow(QWidget):
         self._poll_cursor()
         if self.anim_on:
             self.anim.note_talk(self.anim_t, self._talking_now())
+            # 思考凝视：想事情（思考点转着）时抬头 —— 睡着 / 被搬着时不喂
+            self.anim.note_thinking(
+                self.anim_t, self.thinking and not self.drives.asleep and self._drag is None
+            )
         if self._boot_t0 is not None:
             # 开机序列：整窗都在动；播到头就收尾交班（输入框回来、正常刷新接管）
             if self.anim_t - self._boot_t0 >= boot.total_seconds(len(self._boot_lines)):

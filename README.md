@@ -68,6 +68,12 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/twitch-strip.png](docs/8h-b2/twitch-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 22 节。
 
+📌 第十三个自选小步：**思考凝视「想事情的时候，抬起头来」** —— 你按下发送、它开始想的时候，
+视线抬到正上方（像人在回忆 / 盘算）；想完了收回来（缓动回正中）；发送那一刻
+「看着你写」的阶段也一并结束。优先级垫底（光标 / 打字都优先），睡着 / 动画关不做。
+帧带与短视频见 [docs/8h-b2/thinking-strip.png](docs/8h-b2/thinking-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 23 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

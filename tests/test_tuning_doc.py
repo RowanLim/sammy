@@ -21,6 +21,7 @@
 15. 第 20 节（困得点头）的 7 个常量同样逐条对账。
 16. 第 21 节（打字凝视）的 3 个常量同样逐条对账。
 17. 第 22 节（睡梦抽动）的 7 个常量同样逐条对账。
+18. 第 23 节（思考凝视）的 2 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -125,6 +126,8 @@ EXPECTED_PINS = {
     "NOD_SNAP_S",
     "NOD_SQUINT_MIN",
     "NOD_SINK_PX",
+    "THINKING_GAZE_Y",
+    "THINKING_RETARGET_MIN_S",
     "TWITCH_DEFLATE",
     "TWITCH_HOLD_S",
     "TWITCH_JOLT_S",
@@ -205,6 +208,7 @@ def test_decisions_and_files_are_covered():
         "困得点头",
         "打字凝视",
         "睡梦抽动",
+        "思考凝视",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

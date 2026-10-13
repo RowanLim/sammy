@@ -35,6 +35,12 @@
     你停手 TYPING_HOLD_S 秒，它才回去发自己的呆。优先级：光标（手在指东西）
     与搬运在前，打字垫底；睡着 / 动画关都不做。
 
+11. **思考凝视**（自选小步·第十三次）：「想事情的时候，抬起头来」——
+    你按下发送、它开始想（思考点转起来）的时候，视线抬到上方（像人在回忆 /
+    盘算）；想完了把视线收回来（看回正中）。发送那一刻「看着你写」的阶段也
+    随之结束（end_typing）。优先级垫底：被叫到先看你（光标 / 打字），看够了
+    接着想；睡着 / 动画关都不做。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -170,6 +176,14 @@ NOD_SINK_PX = 5  # 整脸往下沉几像素：和压扁叠在一起读成「头�
 TYPING_HOLD_S = 4.0  # 最后一个键之后还看多久（秒）—— 和「刚交互 5 秒」一个量级
 TYPING_RETARGET_MIN_S = 0.35  # 发现你在写后的转视最小间隔（秒；别一敲字就弹）
 TYPING_GAZE_Y = GAZE_MAX_Y  # 输入框在脸的正下方：视线纵向拉满 = 看到最底下那行
+
+# 思考凝视（自选小步·第十三次）——「想事情的时候，抬起头来」：你按下发送、它开始
+# 想（思考点转起来）的时候，视线抬到上方 —— 像人回忆 / 盘算时那样；想完了把视线
+# 收回来（看回正中 = 看回你）。发送那一刻「在写」的阶段就结束了（end_typing）——
+# 它开始想你写的东西，而不是继续盯着输入框。
+# 优先级垫底（光标 > 打字 > 思考）：被叫到先看你，看够 / 你停手之后接着想。
+THINKING_RETARGET_MIN_S = 0.35  # 想 / 收两次转视的最小间隔（秒；和光标/打字共用一条限速）
+THINKING_GAZE_Y = -GAZE_MAX_Y  # 抬头的落点：纵向拉满凝视盒（负 = 看上方），对称于打字的「看正下方」
 
 # ── 睡梦抽动：「睡着的时候，偶尔轻轻抽一下」────────────
 # 睡着不只是"不动 + 一个 Z"：真的活物睡着会做梦 —— 偶尔轻轻抽一下（一激灵）。
@@ -428,8 +442,13 @@ class Animator:
     _nod_next_at: float | None = field(default=None, repr=False)
     # 打字凝视：最后一次按键的时刻（-inf = 没在写）
     _typing_at: float = field(default=float("-inf"), repr=False)
-    # 打字暂停是否发生过（恢复的第一次补排程要把锚点拨到当下，见 _ensure_gaze）
-    _typing_was_active: bool = field(default=False, repr=False)
+    # 凝视漂移被「打字 / 想事情」暂停过（恢复的第一次补排程要把锚点拨到当下，见 _ensure_gaze）
+    _pause_was_active: bool = field(default=False, repr=False)
+    # 思考凝视：这一轮「想」的开始时刻（-99 = 没在想）；「收视线」待办；这轮抬没抬过头
+    _thinking_at: float = field(default=-99.0, repr=False)
+    _thinking_active: bool = field(default=False, repr=False)
+    _thinking_break: bool = field(default=False, repr=False)
+    _thinking_up: bool = field(default=False, repr=False)
     # 睡梦抽动：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 没睡着、没在排）；
     # 方向一左一右交替（不掷随机数 —— 见 twitch()）
     _twitch_at: float = field(default=-99.0, repr=False)
@@ -469,17 +488,17 @@ class Animator:
         )
 
     def _ensure_gaze(self, t: float) -> None:
-        rebase = self._typing_was_active  # 刚打完字：这次补排程把锚点拨到当下
+        rebase = self._pause_was_active  # 刚被打字 / 想事情暂停过：这次补排程把锚点拨到当下
         while self._gaze[-1].t < t + 1.0:
-            if self.typing_active(t):
-                self._typing_was_active = True
-                return  # 打字中：漂移暂停 —— 别把「看别处」排进写字这段时间
+            if self.typing_active(t) or self.thinking_active(t):
+                self._pause_was_active = True
+                return  # 打字 / 想事情中：漂移暂停 —— 别把「看别处」排进这段时间
             last = self._gaze[-1]
-            # 正常顺排：从 last.t 往后。**唯一例外**是「打字暂停刚结束」的第一次：
-            # 暂停期间不排程，时间表在它身上空了一段；要是还从暂停前顺排，会一次
-            # 塞进好几条落在过去的指令，恢复的第一帧就往「早就该在的位置」跳一下。
-            # 锚点取 max(last.t, t)：恢复后从当下重排（这条缺口只有打字暂停会常规
-            # 地制造 —— 别的路径全部保持原行为，金色基线一个字节都不许动）。
+            # 正常顺排：从 last.t 往后。**唯一例外**是「暂停刚结束」的第一次：暂停期间
+            # 不排程，时间表在它身上空了一段；要是还从暂停前顺排，会一次塞进好几条
+            # 落在过去的指令，恢复的第一帧就往「早就该在的位置」跳一下。
+            # 锚点取 max(last.t, t)：恢复后从当下重排（常规制造缺口的只有「打字 /
+            # 思考」这两条暂停 —— 别的路径全部保持原行为，金色基线一个字节都不许动）。
             anchor = max(last.t, t) if rebase else last.t
             self._gaze.append(
                 self._new_gaze(
@@ -487,7 +506,7 @@ class Animator:
                 )
             )
             rebase = False  # 只拨这一次，后面回到正常顺排
-        self._typing_was_active = False
+        self._pause_was_active = False
 
     def gaze_times(self, until: float) -> list[float]:
         """已安排 / 将要安排的凝视起点（测试与调试用）。"""
@@ -617,6 +636,83 @@ class Animator:
             return  # 刚转过视：隔一小会再轮到打字（和光标共用一条限速）
         self._look_retarget_t = t
         self._retarget_gaze(t, 0, TYPING_GAZE_Y)
+
+    def end_typing(self, t: float) -> None:
+        """「写完了、发出去了」—— 输入框清空（发送）时窗口调一次。
+
+        发送那一刻，看输入框的意义就结束了（那句话已经交出去、开始被想）：
+        把保持窗口作废，视线交给下一个阶段（思考凝视 / 漂移）。只作废**当前**
+        这一笔；之后你又敲字，note_typing 会重新开始窗口。
+        """
+        t = float(t)
+        if t >= self._typing_at:  # 有账才销；乱序的老时间戳不作数
+            self._typing_at = float("-inf")
+
+    # ── 思考凝视：「想事情的时候，抬起头来」────────────
+    # 你按下发送、它开始想（思考点转起来）的时候，视线抬到上方 —— 像人在回忆 /
+    # 盘算；想完了把视线收回来（看回正中 = 看回你）。优先级垫底（光标 > 打字 >
+    # 思考）：被叫到先看你，看够 / 你停手之后接着想；睡着 / 动画关都不做。
+
+    def note_thinking(self, t: float, active: bool) -> None:
+        """喂一次「现在在不在想事情」—— 窗口每帧调一次（和 note_talk 同一拍）。
+
+        电平信号：升沿记下「开始想」，降沿把「把视线收回来」记成待办；
+        又在升沿上清掉没收完的半拍（想 → 停 → 又想：收尾别跨两轮）。
+        喂进来的只是状态；看不看、收不收，决策全在 _thinking_step 里。
+        """
+        t = float(t)
+        active = bool(active)
+        if active and not self._thinking_active:
+            self._thinking_at = t  # 升沿：这一轮「想」从此刻开始
+            self._thinking_break = False
+        elif not active and self._thinking_active:
+            self._thinking_break = True  # 降沿：想完了 —— 轮到「收视线」
+        self._thinking_active = active
+
+    def thinking_active(self, t: float) -> bool:
+        """t 时刻算不算「正在想事情」（思考点转着的那段）。"""
+        return self._thinking_active
+
+    def _thinking_step(self, t: float) -> None:
+        """思考凝视的逐帧决策：想事情时抬头；想完了把视线收回来。
+
+        优先级垫底：光标（手在指东西）与你正写的话都优先 —— 让位不抢戏。
+        收视线只在「确实抬过头、且视线还在上方」时进行（被别的通道拿走就算了）。
+        """
+        if self.thinking_active(t):
+            if t - self._cursor_active_t <= LOOK_HOLD_S:
+                return  # 手刚指过：那一眼先看够（光标优先）
+            if self.typing_active(t):
+                return  # 你正在写：看输入框优先（说话的人比它自己想什么要紧）
+            self._thinking_up = True
+            last = self._gaze[-1]
+            if last.t <= t and (last.x, last.y) == (0, THINKING_GAZE_Y):
+                return  # 已经看着上方：不重挂指令
+            if t < self._look_retarget_t + THINKING_RETARGET_MIN_S:
+                return  # 刚转过视：隔一小会（和光标 / 打字共用一条限速）
+            self._look_retarget_t = t
+            self._retarget_gaze(t, 0, THINKING_GAZE_Y)
+            return
+        if not self._thinking_break:
+            return
+        # 想完了：把视线收回来（缓动回正中 —— 看回你）
+        if not self._thinking_up:
+            self._thinking_break = False
+            return  # 这轮一直没轮到抬头（都在让位）：没什么可收的
+        if _pos_from(self._gaze, t) != (0, THINKING_GAZE_Y):
+            self._thinking_break = False
+            self._thinking_up = False
+            return  # 视线已经被别的通道挪走：不是我们说了算，别抢
+        if t - self._cursor_active_t <= LOOK_HOLD_S:
+            return  # 手刚指过：等它看够再收
+        if self.typing_active(t):
+            return  # 你又在写：让路（看输入框要紧）
+        if t < self._look_retarget_t + THINKING_RETARGET_MIN_S:
+            return  # 刚转过视：隔一小会
+        self._thinking_break = False
+        self._thinking_up = False
+        self._look_retarget_t = t
+        self._retarget_gaze(t, 0, 0)
 
     # ── 睡梦抽动：「睡着的时候，偶尔轻轻抽一下」────────────
     # 睡着不是"关掉了"：真的活物睡着会做梦 —— 偶尔轻轻抽一下（一激灵）。
@@ -779,7 +875,11 @@ class Animator:
         self._nod_at = -99.0  # 点头同理：拨过时间线，旧的那下不作数
         self._nod_next_at = None  # 排期也是（下一次 note_sleepy 会重排）
         self._typing_at = float("-inf")  # 打字同理：拨过时间线，旧的「在写」不作数
-        self._typing_was_active = False  # 暂停标记同理
+        self._pause_was_active = False  # 暂停标记同理（打字 / 思考共用）
+        self._thinking_at = -99.0  # 思考同理：拨过时间线，旧的那轮不作数
+        self._thinking_active = False
+        self._thinking_break = False
+        self._thinking_up = False
         self._twitch_at = -99.0  # 抽动同理：拨过时间线，旧的那下不作数
         self._twitch_next_at = None  # 排期也是（下一次 note_asleep 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
@@ -877,6 +977,7 @@ class Animator:
             self._look_step(t)
             self._carry_step(t)
             self._typing_step(t)
+            self._thinking_step(t)
             gx, gy = self._gaze_pos(t)
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
@@ -950,6 +1051,8 @@ __all__ = [
     "TALK_EASE_OUT",
     "TALK_PERIOD",
     "TALK_SQUASH",
+    "THINKING_GAZE_Y",
+    "THINKING_RETARGET_MIN_S",
     "TWITCH_DEFLATE",
     "TWITCH_HOLD_S",
     "TWITCH_JOLT_S",
