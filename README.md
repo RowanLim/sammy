@@ -31,7 +31,7 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 
 📌 第六个自选小步：**说话动脸「字在往外冒，脸跟着动」** —— 打字机在吐字时脸跟着弹
 （一拍 0.44 秒、±2.6 设备像素），字停了脸也停；`SAMMY_ANIM=off` 连时间轴都不给。
-波形证据（绿质心 δ 实测）与短视频见 [docs/8h-b2/talk-strip.png](docs/8h-b2/talk-strip.png)；
+波形证据（亮像素质心 δ 实测）与短视频见 [docs/8h-b2/talk-strip.png](docs/8h-b2/talk-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 16 节。
 
 📌 第七个自选小步（补记）：**作息与睡相** —— 它有自己的日夜（夜里精力消耗 ×1.6、自己走到犯困），
@@ -114,7 +114,7 @@ Sammy/
 │   ├── brain.py           独立大脑（豆包，一次调用拿回复+情绪）
 │   ├── memory.py          记忆（槽位 + 日记 + 夜间整理，SQLite）
 │   ├── expressions.py     表情目录 + 情绪→表情映射
-│   ├── faces.py           渲染层（BMP → 荧光绿像素）
+│   ├── faces.py           渲染层（BMP → 亮像素）
 │   └── pet.py             窗口（透明浮窗 + 交互 + 空闲行为 + 记忆接线）
 ├── assets/expressions/    35 张 OLED 表情 BMP（继承自旧项目）
 └── scripts/               自检 / 凭证迁移 / 连通性验证

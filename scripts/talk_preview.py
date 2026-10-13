@@ -11,7 +11,7 @@
 
 纪律：一条命令全部重生成；窗口随机全部钉种子（seed=7，与 tests/test_talk.py 同一个）；
 「在不在说话」走窗口自己的 _talking_now（真判定），画面走真绘制代码 —— 素材不是摆拍；
-双胞胎对照（打字窗 vs 同种子已拨到尾的孪生）逐帧量绿质心差 δ；放大一律最近邻。
+双胞胎对照（打字窗 vs 同种子已拨到尾的孪生）逐帧量亮像素质心差 δ（判据按 faces.LIT 读）；放大一律最近邻。
 """
 
 from __future__ import annotations
@@ -49,10 +49,13 @@ TEXT = "今天的风挺舒服的，我陪你坐一会儿。" * 2
 
 _app = QApplication.instance() or QApplication([])
 
-from sammy import anim, layout, typewriter
+from sammy import anim, faces, layout, typewriter
 from sammy.pet import SammyWindow
 
 layout.load_fonts()
+
+# 亮像素前景色（单一来源）：检测与曲线装饰都读它 ——换配色时这里自动跟上
+LIT_RGB = (faces.LIT.red(), faces.LIT.green(), faces.LIT.blue())
 
 
 def _fresh(typing: bool):
@@ -82,29 +85,43 @@ def _feed(w) -> None:
     w.anim.note_talk(w.anim_t, w._talking_now())
 
 
-def _centroid_y(img: QImage, face_rect: QRect) -> float:
-    """绿质心 y（与 tests/test_talk.py 同一口径）—— δ 的证据来源。"""
-    rgb = img.convertToFormat(QImage.Format_RGB32)
-    buf = bytes(rgb.constBits())
-    stride = rgb.bytesPerLine()
-    r = face_rect.adjusted(-10, -10, 10, 2)
-    clip = r.intersected(QRect(0, 0, rgb.width(), rgb.height()))
+def _is_lit(r: int, g: int, b: int) -> bool:
+    """是不是「脸上亮着的像素」——判据从 faces.LIT 读（**别写死色相**：
+    2026-10-12 前景由荧光绿改白，写死绿色的话这里会静默量到 0）。"""
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
+    return abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70
+
+
+def _centroid_y(w) -> float:
+    """亮像素质心 y（与 tests/test_talk.py 同一口径）—— δ 的证据来源。"""
+    img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
+    buf = bytes(img.constBits())
+    stride = img.bytesPerLine()
+    r = w.lay.face.adjusted(-10, -10, 10, 2)
+    clip = QRect(
+        int(r.x() * w.scale) + w._offset[0],
+        int(r.y() * w.scale) + w._offset[1],
+        int(r.width() * w.scale) + 2,
+        int(r.height() * w.scale) + 2,
+    ).intersected(QRect(0, 0, img.width(), img.height()))
     n = sy = 0
     for y in range(clip.top(), clip.bottom() + 1):
         row = y * stride
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, rr = buf[i], buf[i + 1], buf[i + 2]
-            if g > 80 and g > 2 * rr and g > 2 * b:
+            if _is_lit(rr, g, b):
                 n += 1
                 sy += y
-    return sy / n if n else 0.0
+    # 眨眼帧整脸压扁，亮像素会掉到一千以下 —— 视频逐帧扫能碰上；0 才是「检测坏了」的信号
+    assert n > 300, "抓到的亮像素太少，区域搞错了？"
+    return sy / n
 
 
 def _shot(w):
-    """抓一帧：(整幅图, 绿质心 y)。"""
+    """抓一帧：(整幅图, 亮像素质心 y)。"""
     img = w.grab().toImage()
-    return img, _centroid_y(img, w.lay.face)
+    return img, _centroid_y(w)
 
 
 def _crop2x(img: QImage) -> QImage:
@@ -117,7 +134,7 @@ def _crop2x(img: QImage) -> QImage:
 def _ghost(base: QImage, twin: QImage) -> QImage:
     """把孪生（安静时）的脸用琥珀色勾出来 —— 只涂「两边不一样」的月牙边。
 
-    重叠处保持原样：亮绿的脸是此刻（在动）的脸，琥珀月牙说明它安静时在哪儿；
+    重叠处保持原样：亮着的脸是此刻（在动）的脸，琥珀月牙说明它安静时在哪儿；
     两张脸完全重合时（打完/收口后）琥珀一点都不会出现。
     """
     out = base.convertToFormat(QImage.Format_ARGB32)
@@ -133,14 +150,14 @@ def _ghost(base: QImage, twin: QImage) -> QImage:
     p.setPen(pen)
     w, h = out.width(), out.height()
 
-    def green(buf, stride, x, y):
+    def lit(buf, stride, x, y):
         i = y * stride + x * 4
         bb, g, rr = buf[i], buf[i + 1], buf[i + 2]
-        return g > 80 and g > 2 * rr and g > 2 * bb
+        return _is_lit(rr, g, bb)
 
     for y in range(h):
         for x in range(w):
-            if green(ts, stride_t, x, y) and not green(as_, stride_a, x, y):
+            if lit(ts, stride_t, x, y) and not lit(as_, stride_a, x, y):
                 p.drawPoint(x, y)
     p.end()
     return out
@@ -189,7 +206,7 @@ def _grid(title: str, subtitle: str, panels: list[QImage], cols: int, out: Path)
 
 
 def _curve_panel(samples: list[tuple[float, float]], reveal: float, marks: list[tuple]) -> QImage:
-    """δ 波形轨迹：横轴时间、纵轴「它 − 孪生」的绿质心差。"""
+    """δ 波形轨迹：横轴时间、纵轴「它 − 孪生」的亮像素质心差。"""
     img = QImage(880, 472, QImage.Format_ARGB32)
     img.fill(BG)
     p = QPainter(img)
@@ -206,9 +223,7 @@ def _curve_panel(samples: list[tuple[float, float]], reveal: float, marks: list[
         return mid - d * unit
 
     # 打字段底色 + 边界线
-    p.fillRect(
-        QRect(int(px(0)), top, int(px(reveal) - px(0)), bottom - top), QColor(61, 220, 90, 22)
-    )
+    p.fillRect(QRect(int(px(0)), top, int(px(reveal) - px(0)), bottom - top), QColor(*LIT_RGB, 22))
     pen = QPen(AMB, 1, Qt.DashLine)
     p.setPen(pen)
     p.drawLine(left, int(mid), right, int(mid))  # 零线
@@ -225,8 +240,8 @@ def _curve_panel(samples: list[tuple[float, float]], reveal: float, marks: list[
         p.drawLine(x, top, x, bottom)
     p.setPen(SUB)
     p.drawText(right - 150, bottom + 32, "虚线 = 一拍 0.44 秒 · 琥珀 = 零线")
-    # 曲线：打字段亮绿、静默段灰
-    p.setPen(QPen(QColor("#3ddc5a"), 3))
+    # 曲线：打字段亮白、静默段灰
+    p.setPen(QPen(QColor(*LIT_RGB), 3))
     seq = [(px(t), py(d)) for t, d in samples if t <= reveal]
     for (x1, y1), (x2, y2) in pairwise(seq):
         p.drawLine(x1, y1, x2, y2)
@@ -263,7 +278,7 @@ def _numbers_panel(
     lines = [
         "一拍 0.44 秒 · 弹幅 ±2.6 设备像素（四舍五入到 ±3）· 鼓收 ±2%",
         "开口缓入 0.18 秒 · 收口缓出 0.26 秒（说完不是啪地停）",
-        "打字中绿质心的 δ：峰值 +" + f"{peak:.2f}" + " / 谷值 " + f"{trough:.2f}" + " 像素",
+        "打字中亮像素质心的 δ：峰值 +" + f"{peak:.2f}" + " / 谷值 " + f"{trough:.2f}" + " 像素",
         "相邻帧最大位移 " + f"{per_step:.2f}" + " 像素（不瞬移；判据上限 3）",
         "打完 + 收口后 δ = " + f"{quiet:.3f}" + " 像素 —— 与孪生逐像素一致",
         "打字时长（这句 34 字） " + f"{reveal:.3f}" + " 秒 · " + frames_note,
@@ -273,7 +288,11 @@ def _numbers_panel(
         p.drawText(24, 96 + i * 34, line)
     p.setFont(QFont("", 11))
     p.setPen(SUB)
-    p.drawText(24, 430, "口径：同种子双胞胎（打字窗 vs 拨到尾的孪生），量脸上荧光绿像素的质心")
+    p.drawText(
+        24,
+        430,
+        "口径：同种子双胞胎（打字窗 vs 拨到尾的孪生），量脸上亮像素（前景色 faces.LIT）的质心",
+    )
     p.end()
     return img
 
@@ -355,7 +374,7 @@ def build_strip() -> str:
             _tile(
                 _curve_panel(samples, reveal, marks),
                 "（⑦）δ 波形轨迹",
-                "亮绿 = 打字中 · 灰 = 静默 · 每 0.44 秒一拍",
+                "亮白 = 打字中 · 灰 = 静默 · 每 0.44 秒一拍",
             )
         )
         typing_ds = [d for t, d in samples if t <= reveal]
@@ -375,7 +394,7 @@ def build_strip() -> str:
                 "每个数都能在 tests/test_talk.py 里找到同款判据",
             )
         )
-        print("  数字（设备像素 / 绿质心）:")
+        print("  数字（设备像素 / 亮像素质心）:")
         for tag, t, fy, d in notes:
             print(f"    {tag}: τ={t:.3f}s talk_y={fy:+d} δ={d:+.3f}px")
         print(

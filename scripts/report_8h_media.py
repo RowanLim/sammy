@@ -29,7 +29,7 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
-from sammy import expressions, layout
+from sammy import expressions, faces, layout
 from sammy import screen as screen_mod
 from sammy.pet import SammyWindow
 
@@ -219,16 +219,24 @@ def _encode(frames_dir: Path, out: Path, total: int) -> str:
     return f"{out.name}: {total} 帧 / {total / FPS:.1f} 秒 / {kb} KB"
 
 
+def _is_lit(r: int, g: int, b: int, a: int) -> bool:
+    """是不是「脸上亮着的像素」——判据从 faces.LIT 读（**别写死色相**：
+    2026-10-12 前景由荧光绿改白，写死绿色的话这里会静默量到 0）；
+    半透明的描边不算（alpha ≥ 200）—— 这一层是半透明面板，按颜色找像素必须把 alpha 当条件。"""
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
+    return a >= 200 and abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70
+
+
 def _stats_png(path: Path) -> str:
-    """粗略数一下'亮绿点'（脸描线），跟 T3 的逐像素验证同一个思路。"""
+    """粗略数一下'亮像素点'（脸描线），跟 T3 的逐像素验证同一个思路。"""
     img = QImage(str(path))
     lit = 0
     for y in range(0, img.height(), 3):
         for x in range(0, img.width(), 3):
             c = img.pixelColor(x, y)
-            if c.green() > 120 and c.green() > c.red() + 30:
+            if _is_lit(c.red(), c.green(), c.blue(), c.alpha()):
                 lit += 1
-    return f"{path.name}: {img.width()}x{img.height()}，绿点约 {lit}（步长 3 采样）"
+    return f"{path.name}: {img.width()}x{img.height()}，亮像素点约 {lit}（步长 3 采样）"
 
 
 def main(argv: list[str] | None = None) -> int:

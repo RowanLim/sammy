@@ -40,12 +40,12 @@ ZOOM = 2  # 整窗放大倍数
 BG = QColor("#0a120d")
 TITLE = QColor("#c8e6cf")
 SUB = QColor("#5f8a6c")
-CUR = QColor(232, 192, 90, 235)  # 搬运标记：琥珀色（和脸的绿区分开）
+CUR = QColor(232, 192, 90, 235)  # 搬运标记：琥珀色（和脸的亮色区分开）
 SEED = 7  # 和 tests/test_carry.py 同一个种子：图与判据对得上
 
 _app = QApplication.instance() or QApplication([])
 
-from sammy import anim, layout
+from sammy import anim, faces, layout
 from sammy.pet import SammyWindow
 
 layout.load_fonts()
@@ -128,8 +128,15 @@ def _settle_clean(w, max_steps: int = 600):
     raise SystemExit("等不到干净帧")
 
 
-def _green_stats(w):
-    """(绿像素数, 质心 x, 质心 y) —— 和测试同一套口径，用来报数。"""
+def _is_lit(r: int, g: int, b: int) -> bool:
+    """是不是「脸上亮着的像素」——判据从 faces.LIT 读（**别写死色相**：
+    2026-10-12 前景由荧光绿改白，写死绿色的话这里会静默量到 0）。"""
+    lr, lg, lb = faces.LIT.red(), faces.LIT.green(), faces.LIT.blue()
+    return abs(r - lr) < 70 and abs(g - lg) < 70 and abs(b - lb) < 70
+
+
+def _lit_stats(w):
+    """(亮像素数, 质心 x, 质心 y) —— 和测试同一套口径（判据从 faces.LIT 读），用来报数。"""
     img = w.grab().toImage().convertToFormat(QImage.Format_RGB32)
     buf = bytes(img.constBits())
     stride = img.bytesPerLine()
@@ -147,11 +154,12 @@ def _green_stats(w):
         for x in range(clip.left(), clip.right() + 1):
             i = row + x * 4
             b, g, rr = buf[i], buf[i + 1], buf[i + 2]
-            if g > 80 and g > 2 * rr and g > 2 * b:
+            if _is_lit(rr, g, b):
                 n += 1
                 sx += x
                 sy += y
-    return n, (sx / n if n else 0.0), (sy / n if n else 0.0)
+    assert n > 1500, "抓到的亮像素太少，区域搞错了？"
+    return n, sx / n, sy / n
 
 
 def _mark(img: QImage, w, ox: float, oy: float) -> None:
@@ -249,7 +257,7 @@ def build_strip() -> str:
         for _ in range(24):  # 让收尾的缓动走完再抓（火候要到「定格」）
             _step(w)
         f = _settle_clean(w)
-        n, cx, cy = _green_stats(w)
+        n, cx, cy = _lit_stats(w)
         panels.append(
             _tile(
                 _grab2x_marked(w, grab.ox, grab.oy),
@@ -278,17 +286,17 @@ def build_strip() -> str:
 
     one(
         "① 被搬向右 → 看向右",
-        "窗口右移 260 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 绿质心 x={cx:.1f}",
+        "窗口右移 260 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 亮像素质心 x={cx:.1f}",
         drag_right,
     )
     one(
         "② 被搬向左 → 看向左",
-        "窗口左移 260 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 绿质心 x={cx:.1f}",
+        "窗口左移 260 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 亮像素质心 x={cx:.1f}",
         drag_left,
     )
     one(
         "③ 被搬向上 → 抬头",
-        "窗口上移 160 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 绿质心 y={cy:.1f}",
+        "窗口上移 160 屏幕像素 · 凝视 ({f.gx:+d}, {f.gy:+d}) · 亮像素质心 y={cy:.1f}",
         drag_up,
     )
     one(
@@ -325,7 +333,7 @@ def build_strip() -> str:
         look_on=False,
     )
 
-    print("  数字（设备像素与绿质心）:")
+    print("  数字（设备像素与亮像素质心）:")
     for title, f, (n, cx, cy), extra in notes:
         print(
             f"    {title}: gx={f.gx:+d} gy={f.gy:+d} px={n} cx={cx:.1f} cy={cy:.1f} extra={extra}"
