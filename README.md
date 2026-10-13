@@ -81,6 +81,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/petting-strip.png](docs/8h-b2/petting-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 24 节。
 
+📌 第十五个自选小步：**打个喷嚏「偶尔呛一下的小家伙（哈啾）」** —— 醒着的时候，
+隔一阵没来由地一个喷嚏：脸先皱起来（「哈——」的酝酿）、猛地一缩闭上眼
+（压到 12%、上窜 3px、横向一哆嗦）、再慢慢松回来，0.64 秒演完；
+喷嚏是反射不是态度 —— 不躲着交互（跟人说着话照样打），躲的只有睡着 / 被拎着 /
+动画关。帧带与短视频见 [docs/8h-b2/sneeze-strip.png](docs/8h-b2/sneeze-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 25 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

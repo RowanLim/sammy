@@ -312,8 +312,12 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     淡化 —— 与清醒的组合互斥，硬叠是假需求（详见下面那条注释）。
     摸摸头的呼噜（±PET_PURR_PX）和呼吸同型、是清醒时的纵向平移，与上面所有项
     都可能叠加 —— 并进 move_y 一起算（它的眯眼是「压扁」，往下只会更安全）。
+    喷嚏（上窜 + 用力闭上同刻）成对算：压扁把顶沿收回来的收益远大于上窜
+    3px 的风险，所以上窜按满量、压扁按 SNEEZE_SQUINT_MIN 拼一条（对顶沿），
+    横向哆嗦并进左右两条 —— 和叹息 / 点头同一套「成对」写法。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
     SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
+    SNEEZE_LIFT_PX / SNEEZE_JERK_PX /
     CURIOSITY_STRETCH / PET_PURR_PX / TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
@@ -364,10 +368,19 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             + move_y
             + anim.NOD_SINK_PX
             - (H - 1 - bottom),
-            (cx - left) * anim.POP_AMPLITUDE + anim.GAZE_MAX_X + anim.SWAY_AMPLITUDE - left,
+            # 喷嚏（上窜 + 用力闭上同刻）：压扁把上下都收进来的收益远大于
+            # 上窜的风险 —— 上窜按满量、压扁按 SNEEZE_SQUINT_MIN 成对
+            # 算（对顶沿）。（下沿只有收益：上窜往上走、不动下边。）
+            (cy - top) * (v * anim.SNEEZE_SQUINT_MIN - 1.0) + anim.SNEEZE_LIFT_PX + move_y - top,
+            (cx - left) * anim.POP_AMPLITUDE
+            + anim.GAZE_MAX_X
+            + anim.SWAY_AMPLITUDE
+            + anim.SNEEZE_JERK_PX
+            - left,
             (right - cx) * anim.POP_AMPLITUDE
             + anim.GAZE_MAX_X
             + anim.SWAY_AMPLITUDE
+            + anim.SNEEZE_JERK_PX
             - (W - 1 - right),
             # 睡梦抽动只在**睡着**时出现：那时微动近乎静止（CALM_FACTOR）、表情也不
             # 再变化（没有弹/淡化 —— 抽动自己 ≥25 秒才有一下，远晚于睡着的瞬间）。
@@ -380,7 +393,8 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
-        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX 调小，"
+        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX / "
+        "SNEEZE_LIFT_PX 调小，"
         "或把 pet.FACE_REGION_PAD 调大"
     )
 

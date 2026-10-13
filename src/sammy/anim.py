@@ -46,6 +46,11 @@
     就慢慢眯起眼、配一层轻轻的呼噜起伏（比呼吸快的一上一下）；手拿开再慢慢
     睁开。路过不算（停够才算）；睡着 / 动画关 / 被搬着都不做。
 
+13. **打个喷嚏**（自选小步·第十五次）：「偶尔呛一下」—— 老机器里的小家伙
+    也会呛着：没来由地打个喷嚏 —— 脸先皱起来（压到七成）、猛地一缩闭上眼
+    （压到 12%）、往上窜一点再慢慢松回来。它是**反射不是态度**：不躲着
+    交互（跟人说着话照样打）；躲的只有睡着 / 被拎着 / 动画关。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -214,6 +219,23 @@ PET_SQUINT_MIN = 0.55  # 眯到 55%（眨眼 14%、哈欠 30%、点头 50% —�
 PET_PURR_PERIOD = 0.9  # 呼噜的一拍（秒）—— 比呼吸（4.5s）快、比说话（0.44s）慢
 PET_PURR_PX = 2  # 呼噜的起伏（±设备像素）—— 和呼吸同幅，但节奏快
 
+# ── 打个喷嚏：「偶尔呛一下的小家伙（哈啾）」────────────
+# 第一条**没有前置情绪**的自发动作（不挂驱力 —— 谁都有没来由打个喷嚏的
+# 时候）：先皱起脸（「哈——」的酝酿）、猛地一缩闭上眼并往上窜一点
+# （「啾！」）、再慢慢松回来。它也是第一条**不躲着交互**的（喷嚏是反射
+# 不是态度 —— 跟人说着话照样打）。躲的只有：睡着（梦里的抽动是另一条
+# 通道）、被拎着的手上（搬运凝视在管那段）、动画关。
+SNEEZE_MIN_GAP = 90.0  # 两次喷嚏之间最短（秒）
+SNEEZE_MAX_GAP = 240.0  # 最长；两者之间随机 —— 别像节拍器
+SNEEZE_WINDUP_S = 0.22  # 「哈——」：皱起脸、往上抬一点用时（秒）
+SNEEZE_WINDUP = 0.35  # 酝酿段顶到满量的多少 —— 看得见的预兆，但不抢戏
+SNEEZE_BURST_S = 0.07  # 「啾！」：闭眼一缩那一瞬用时（秒）—— 短，才是冲击感
+SNEEZE_HOLD_S = 0.05  # 顶住的一瞬（秒）—— 让眼睛来得及看见
+SNEEZE_SETTLE_S = 0.30  # 松回来用时（秒）—— 打完总要缓一下
+SNEEZE_SQUINT_MIN = 0.12  # 爆发时压到 12%（眨眼 14% —— 喷嚏还要紧一点：用力闭）
+SNEEZE_LIFT_PX = 3  # 爆发时整脸往上窜几像素（设备像素）
+SNEEZE_JERK_PX = 2  # 爆发时横向一哆嗦的幅度（方向一次一换，不掷随机数）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -373,6 +395,35 @@ def twitch_total() -> float:
     return TWITCH_JOLT_S + TWITCH_HOLD_S + TWITCH_SETTLE_S
 
 
+def sneeze_amount(t_spent: float) -> float:
+    """喷嚏的形状（0 → 1 → 0）：皱脸酝酿 → 骤然爆发 → 顶住 → 松回来。
+
+    纯函数：四段的时间线在测试里逐点钉死 —— 酝酿段慢（「哈——」）、爆发段
+    短（「啾！」），快慢对比就是「喷嚏」的读法；它不挂任何驱力（第一条没有
+    前置情绪的自发动作）。`t_spent` = 距离这次喷嚏开始过了多久；负数 = 还没
+    开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < SNEEZE_WINDUP_S:
+        return SNEEZE_WINDUP * _smooth01(t_spent / SNEEZE_WINDUP_S)
+    k = t_spent - SNEEZE_WINDUP_S
+    if k < SNEEZE_BURST_S:
+        return SNEEZE_WINDUP + (1.0 - SNEEZE_WINDUP) * _smooth01(k / SNEEZE_BURST_S)
+    k -= SNEEZE_BURST_S
+    if k < SNEEZE_HOLD_S:
+        return 1.0
+    k -= SNEEZE_HOLD_S
+    if k < SNEEZE_SETTLE_S:
+        return 1.0 - _smooth01(k / SNEEZE_SETTLE_S)
+    return 0.0
+
+
+def sneeze_total() -> float:
+    """一次喷嚏从头到尾的时长（秒）。"""
+    return SNEEZE_WINDUP_S + SNEEZE_BURST_S + SNEEZE_HOLD_S + SNEEZE_SETTLE_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -479,6 +530,11 @@ class Animator:
     _pet_active: bool = field(default=False, repr=False)
     _pet_stop_t: float | None = field(default=None, repr=False)
     _pet_stop_level: float = field(default=0.0, repr=False)
+    # 打个喷嚏：这一次的开始时刻（-99 = 没有）；下一次的排期（None = 没在排）；
+    # 方向一次一换（不掷随机数 —— 理由同 twitch）
+    _sneeze_at: float = field(default=-99.0, repr=False)
+    _sneeze_next_at: float | None = field(default=None, repr=False)
+    _sneeze_dir: int = field(default=1, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -818,6 +874,41 @@ class Animator:
             return 0.0
         return self._pet_stop_level * (1.0 - _smooth01(fade))
 
+    # ── 打个喷嚏：「偶尔呛一下的小家伙（哈啾）」────────────
+    # 第一条没有前置情绪的自发动作：不挂驱力（谁都有没来由打个喷嚏的时候）；
+    # 也是第一条**不躲着交互**的（喷嚏是反射不是态度 —— 跟人说着话照样打）。
+    # 睡着 / 被拎着 / 动画关由窗口那层挡。
+
+    def sneeze(self, at: float) -> None:
+        """安排一次喷嚏（at 时刻开始）—— 排期器（note_sneeze）与测试走同一条。
+
+        再来一次就重新从皱脸开始（实际时序里两下之间隔着几分钟，
+        这条只是把语义写死、让测试能钉住）。方向每打一下换一边。
+        """
+        self._sneeze_at = float(at)
+        self._sneeze_dir = -self._sneeze_dir
+
+    def note_sneeze(self, t: float, ok: bool) -> None:
+        """喂一次「现在可以呛一下不」—— 窗口每秒调一次（和驱力钟同一拍）。
+
+        会**隔一会儿没来由地打一个喷嚏**，间隔在 SNEEZE_MIN_GAP~SNEEZE_MAX_GAP
+        秒之间随机 —— 均匀得像节拍器就不像活物了。和叹气 / 点头同一套排期：
+        - 刚能打（醒来 / 被放下）：先等一个间隔再打第一个（立刻打 = 反射弧
+          太短，像被掐了一下）；
+        - 一直醒着：打完接着排下一个；
+        - 不能打了（睡着 / 被拎起来）：排期清掉（**正在打的那个让它打完** ——
+          喷嚏打一半掐掉像噎住）。
+        """
+        if not ok:
+            self._sneeze_next_at = None
+            return
+        if self._sneeze_next_at is None:
+            self._sneeze_next_at = t + self._rng.uniform(SNEEZE_MIN_GAP, SNEEZE_MAX_GAP)
+            return
+        if t >= self._sneeze_next_at:
+            self.sneeze(t)
+            self._sneeze_next_at = t + self._rng.uniform(SNEEZE_MIN_GAP, SNEEZE_MAX_GAP)
+
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
     def note_talk(self, t: float, active: bool) -> None:
@@ -956,6 +1047,8 @@ class Animator:
         self._pet_active = False
         self._pet_stop_t = None
         self._pet_stop_level = 0.0
+        self._sneeze_at = -99.0  # 喷嚏同理：拨过时间线，旧的那个不作数
+        self._sneeze_next_at = None  # 排期也是（下一次 note_sneeze 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1010,6 +1103,7 @@ class Animator:
         sigh = 0.0 if calm else sigh_amount(t - self._sigh_at)
         nod = 0.0 if calm else nod_amount(t - self._nod_at)
         twitch = twitch_amount(t - self._twitch_at) if calm else 0.0
+        sneeze = 0.0 if calm else sneeze_amount(t - self._sneeze_at)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1032,6 +1126,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - TWITCH_DEFLATE) * twitch)
         if pet > 0.0:  # 摸摸头：舒服地半眯着（比点头浅一点，和别的压扁取更深的）
             squash = min(squash, 1.0 - (1.0 - PET_SQUINT_MIN) * pet)
+        if sneeze > 0.0:  # 喷嚏：皱脸到用力闭上（比眨眼 14% 还紧一点）
+            squash = min(squash, 1.0 - (1.0 - SNEEZE_SQUINT_MIN) * sneeze)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -1043,9 +1139,13 @@ class Animator:
             dy += round(NOD_SINK_PX * nod)  # 点头：整脸往下沉一点（正 = 下）
         if pet > 0.0:  # 呼噜：轻轻一上一下（和呼吸同幅、节奏更快 —— 读成「呼噜」）
             dy -= round(PET_PURR_PX * pet * math.sin(2 * math.pi * t / PET_PURR_PERIOD))
+        if sneeze > 0.0:  # 喷嚏：整脸往上窜一点（负 = 上）——「啾」的那一下
+            dy -= round(SNEEZE_LIFT_PX * sneeze)
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
         if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
+        if sneeze > 0.0:  # 喷嚏：横向一哆嗦（方向一次一换，不占随机流）
+            dx += self._sneeze_dir * round(SNEEZE_JERK_PX * sneeze)
 
         # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
         if calm:
@@ -1133,6 +1233,16 @@ __all__ = [
     "SIGH_RISE_S",
     "SIGH_SINK_PX",
     "SIGH_SINK_S",
+    "SNEEZE_BURST_S",
+    "SNEEZE_HOLD_S",
+    "SNEEZE_JERK_PX",
+    "SNEEZE_LIFT_PX",
+    "SNEEZE_MAX_GAP",
+    "SNEEZE_MIN_GAP",
+    "SNEEZE_SETTLE_S",
+    "SNEEZE_SQUINT_MIN",
+    "SNEEZE_WINDUP",
+    "SNEEZE_WINDUP_S",
     "SWAY_AMPLITUDE",
     "TALK_BOB_Y",
     "TALK_EASE_IN",
@@ -1168,6 +1278,8 @@ __all__ = [
     "nod_total",
     "sigh_amount",
     "sigh_total",
+    "sneeze_amount",
+    "sneeze_total",
     "twitch_amount",
     "twitch_total",
     "yawn_amount",

@@ -1042,6 +1042,7 @@ class SammyWindow(QWidget):
             self.anim.note_bored(self.anim_t, self._bored_for_sigh())
             self.anim.note_sleepy(self.anim_t, self._sleepy_for_nod())
             self.anim.note_asleep(self.anim_t, self.drives.asleep)  # 睡着做梦：偶尔抽一下
+            self.anim.note_sneeze(self.anim_t, self._sneeze_ok())  # 偶尔呛一下（喷嚏）
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1149,6 +1150,18 @@ class SammyWindow(QWidget):
         if self._typing_recent():
             return False  # 人在给你写字：它正看着输入框，这时候栽头就是自相矛盾
         return time.time() - self._last_interaction_at >= 5
+
+    def _sneeze_ok(self) -> bool:
+        """「现在可以呛一下不」—— 喷嚏是反射，不是态度。
+
+        所以它**不躲着交互**（跟人说着话照样打喷嚏 —— 和叹气 / 点头的
+        规矩相反，那两个是情绪表达，得挑时机）。躲的只有：
+        - 睡着（梦里的抽动是另一条通道，各归各演）；
+        - 被拎着的手上（搬运凝视在管那段 —— 等放下来再呛）；
+        - 动画关（`_tick` 里就不喂 —— 没有时间轴，也就没有这回事）。
+        思考中不用管 —— `_tick` 在思考时整个不跑。
+        """
+        return not self.drives.asleep and self._drag is None
 
     def _save_drives(self) -> None:
         try:
