@@ -49,6 +49,12 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/sigh-strip.png](docs/8h-b2/sigh-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 19 节。
 
+📌 第十个自选小步：**困得点头「困了的时候，一点一点地打盹」** —— 犯困（还没睡着）时，
+隔一会儿小鸡啄米：脸慢慢沉下去（5px）、眼皮掉下来（压到一半）、撑住一下再猛地弹回来；
+每 35~90 秒一下、2 秒演完，睡着 / 刚说完话时都不点。帧带与短视频见
+[docs/8h-b2/nod-strip.png](docs/8h-b2/nod-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 20 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

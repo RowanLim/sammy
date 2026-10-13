@@ -1003,6 +1003,7 @@ class SammyWindow(QWidget):
         self._yawn_if_woke(was_asleep)
         if self.anim_on:
             self.anim.note_bored(self.anim_t, self._bored_for_sigh())
+            self.anim.note_sleepy(self.anim_t, self._sleepy_for_nod())
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1080,6 +1081,22 @@ class SammyWindow(QWidget):
         if time.time() - self._last_interaction_at < 5:
             return False
         return self.drives.boredom > SIGH_BOREDOM_ABOVE
+
+    def _sleepy_for_nod(self) -> bool:
+        """「困了、还醒着、没在忙」—— 这种时候它会隔一会儿点一下头（演不演归动画层）。
+
+        闸门（和别的空闲行为同一套规矩）：
+        - 睡着了不点（那是睡相 Z 的事）；
+        - 不够困不点 —— 门槛直接用驱力自己的定义（drives.sleepy），和脸、状态行
+          是同一条线，不会出现「字说在线、脸却在打盹」的自相矛盾；
+        - 刚交互完的 5 秒不点（别让刚说完话的人看见它栽头）。
+        思考中不用管 —— `_tick` 在思考时整个不跑。
+        """
+        if self.drives.asleep:
+            return False
+        if not self.drives.sleepy:
+            return False
+        return time.time() - self._last_interaction_at >= 5
 
     def _save_drives(self) -> None:
         try:

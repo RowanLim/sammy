@@ -25,6 +25,11 @@
    再慢慢回起来；不无聊了就停（排期在 note_bored 里）。和 Z（睡着）、
    哈欠（醒来）同一条思路：**状态要能被眼睛读出来**。
 
+9. **困得点头**（自选小步·第十次）：犯困、还没睡着的时候，隔一会儿小鸡啄米 ——
+   脸慢慢沉下去、眼皮掉下来、撑住一下，再猛地弹回来；不困了就停（排期在
+   note_sleepy 里）。和 Z（睡着）、哈欠（醒来）、叹气（无聊）同一条思路：
+   **状态要能被眼睛读出来** —— 这条补上「困」。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -140,6 +145,19 @@ SIGH_RISE_S = 1.10  # 慢慢回起来用时（秒）—— 比沉下去慢：撒
 SIGH_DEFLATE = 0.94  # 沉到底时纵向压到 94%（撒气那一下的「瘪」）
 SIGH_SINK_PX = 4  # 整脸往下沉几像素（设备像素）：和压扁叠在一起读成「塌下来」
 
+# 困得点头（自选小步·第十次）——「困了的时候，一点一点地打盹」
+# 犯困（energy 低于驱力的犯困线）原先只写在状态行和一张静态脸里；一个真的
+# 活物快扛不住睡意时会**小鸡啄米**：脸慢慢沉下去、眼皮掉下来、撑住一下，
+# 再猛地弹回来。和 Z（睡着）、哈欠（醒来）、叹气（无聊）同一条思路：
+# 状态要能被眼睛读出来 —— 这条补上「困」。
+NOD_MIN_GAP = 35.0  # 两次点头之间最短（秒）
+NOD_MAX_GAP = 90.0  # 最长；两者之间随机 —— 别像节拍器
+NOD_SAG_S = 1.40  # 沉下去用时（秒）—— 慢：是「扛不住」，不是「点头称是」
+NOD_HOLD_S = 0.30  # 沉住的那一小段（秒）——「睡着了一瞬」
+NOD_SNAP_S = 0.28  # 弹回来用时（秒）—— 猛地惊醒，比沉下去快一个量级
+NOD_SQUINT_MIN = 0.50  # 沉到底时压到 50%（眼皮快合上；眨眼 14%、哈欠眯眼 30%）
+NOD_SINK_PX = 5  # 整脸往下沉几像素：和压扁叠在一起读成「头一点」
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -251,6 +269,30 @@ def sigh_total() -> float:
     return SIGH_SINK_S + SIGH_HOLD_S + SIGH_RISE_S
 
 
+def nod_amount(t_spent: float) -> float:
+    """点头打盹的形状（0 → 1 → 0）：沉下去 → 撑住 → 猛地弹回来。
+
+    纯函数：三段的时间线在测试里逐点钉死 —— 前两段慢、最后一段快，
+    快慢对比就是「惊醒」的读法；这是「困」这个状态第一次变成看得见的动作。
+    `t_spent` = 距离这次点头开始过了多久；负数 = 还没开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < NOD_SAG_S:
+        return _smooth01(t_spent / NOD_SAG_S)
+    if t_spent < NOD_SAG_S + NOD_HOLD_S:
+        return 1.0
+    k = t_spent - NOD_SAG_S - NOD_HOLD_S
+    if k < NOD_SNAP_S:
+        return 1.0 - _smooth01(k / NOD_SNAP_S)
+    return 0.0
+
+
+def nod_total() -> float:
+    """一次点头打盹从头到尾的时长（秒）。"""
+    return NOD_SAG_S + NOD_HOLD_S + NOD_SNAP_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -333,6 +375,9 @@ class Animator:
     # 无聊的叹气：这一口的开始时刻（-99 = 没有）；下一次的排期（None = 不无聊、没在排）
     _sigh_at: float = field(default=-99.0, repr=False)
     _sigh_next_at: float | None = field(default=None, repr=False)
+    # 困得点头：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 不困、没在排）
+    _nod_at: float = field(default=-99.0, repr=False)
+    _nod_next_at: float | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -544,6 +589,35 @@ class Animator:
             self.sigh(t)
             self._sigh_next_at = t + self._rng.uniform(SIGH_MIN_GAP, SIGH_MAX_GAP)
 
+    # ── 困得点头：「困了的时候，一点一点地打盹」──────────
+
+    def nod(self, at: float) -> None:
+        """安排一次点头打盹（at 时刻开始）—— 排期器（note_sleepy）与测试走同一条。
+
+        再来一次就重新从沉下去开始（实际时序里两下之间隔着几十秒，
+        这条只是把语义写死、让测试能钉住）。
+        """
+        self._nod_at = float(at)
+
+    def note_sleepy(self, t: float, sleepy: bool) -> None:
+        """喂一次「现在困不困」—— 窗口每秒调一次（和驱力钟同一拍）。
+
+        困了会**隔一会儿点一下头**（连着点 = 小鸡啄米），间隔在
+        NOD_MIN_GAP~NOD_MAX_GAP 秒之间随机 —— 均匀得像节拍器就不像活物了。
+        - 刚犯困：先等一个间隔再点第一下（立刻点 = 抽搐，不是打盹）；
+        - 一直困：点完接着排下一下；
+        - 不困了：排期清掉（**正在点的那下让它点完** —— 半路掐掉像被抽了一下）。
+        """
+        if not sleepy:
+            self._nod_next_at = None
+            return
+        if self._nod_next_at is None:
+            self._nod_next_at = t + self._rng.uniform(NOD_MIN_GAP, NOD_MAX_GAP)
+            return
+        if t >= self._nod_next_at:
+            self.nod(t)
+            self._nod_next_at = t + self._rng.uniform(NOD_MIN_GAP, NOD_MAX_GAP)
+
     def _unfreeze(self, t: float, frozen: tuple[int, int]) -> None:
         """醒来：清掉睡着期间的未来目标，从定格处缓动到原计划方向（不跳）。"""
         kept = [g for g in self._gaze if g.t <= t]
@@ -565,6 +639,8 @@ class Animator:
         self._yawn_at = -99.0  # 哈欠同理：拨过时间线，旧的那一次不作数
         self._sigh_at = -99.0  # 叹气同理：旧的那口不作数
         self._sigh_next_at = None  # 排期也是（下一次 note_bored 会重排）
+        self._nod_at = -99.0  # 点头同理：拨过时间线，旧的那下不作数
+        self._nod_next_at = None  # 排期也是（下一次 note_sleepy 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -617,6 +693,7 @@ class Animator:
         yawn = 0.0 if calm else yawn_amount(yawn_spent)
         squint = 0.0 if calm else yawn_squint(yawn_spent)
         sigh = 0.0 if calm else sigh_amount(t - self._sigh_at)
+        nod = 0.0 if calm else nod_amount(t - self._nod_at)
 
         squash = 1.0
         if not calm:  # 睡着时闭着眼，不该再眨
@@ -629,6 +706,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - YAWN_SQUINT_MIN) * squint)
         if sigh > 0.0:  # 叹气的瘪：轻轻压一下 —— 看得见，又不会读成眨眼
             squash = min(squash, 1.0 - (1.0 - SIGH_DEFLATE) * sigh)
+        if nod > 0.0:  # 点头的闭眼：沉到底时压到一半 —— 眼皮快合上
+            squash = min(squash, 1.0 - (1.0 - NOD_SQUINT_MIN) * nod)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -636,6 +715,8 @@ class Animator:
             dy -= round(YAWN_LIFT_PX * yawn)  # 伸懒腰：整脸往上顶一点（负 = 上）
         if sigh > 0.0:
             dy += round(SIGH_SINK_PX * sigh)  # 叹气：整脸往下沉一点（正 = 下）
+        if nod > 0.0:
+            dy += round(NOD_SINK_PX * nod)  # 点头：整脸往下沉一点（正 = 下）
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
 
         # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
@@ -701,6 +782,13 @@ __all__ = [
     "LOOK_HOLD_S",
     "LOOK_MOVE_MIN",
     "LOOK_RETARGET_MIN_S",
+    "NOD_HOLD_S",
+    "NOD_MAX_GAP",
+    "NOD_MIN_GAP",
+    "NOD_SAG_S",
+    "NOD_SINK_PX",
+    "NOD_SNAP_S",
+    "NOD_SQUINT_MIN",
     "POP_DURATION",
     "SIGH_DEFLATE",
     "SIGH_HOLD_S",
@@ -728,6 +816,8 @@ __all__ = [
     "Frame",
     "carry_target",
     "cursor_target",
+    "nod_amount",
+    "nod_total",
     "sigh_amount",
     "sigh_total",
     "yawn_amount",

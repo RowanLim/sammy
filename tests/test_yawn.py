@@ -304,12 +304,13 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     """几何契约：所有形变同时顶格，脸内容也不冒出重绘区（否则那圈不刷新 → 脸会花）。
 
     算法：脸的位图内容在框里本来留着一圈空边（量出来的）；最坏情况 =
-    「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收 × 叹气压扁」乘在内容到中心的
-    距离上，再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高 / 叹气下沉）。
-    叹气的「压扁」与「下沉」是同一条曲线上的成对项：对下沿的净增按两端取
-    最大（小脸是净增、大脸是净减），都算进来。
+    「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收 × 叹气压扁 / 点头压扁」乘在
+    内容到中心的距离上，再加上几种平移（呼吸 / 说话 / 凝视 / 哈欠拔高 /
+    叹气下沉 / 点头下沉）。叹气与点头的「压扁」与「下沉」都是同一条曲线上的
+    成对项：对下沿的净增按两端取最大（小脸是净增、大脸是净减），都算进来。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
-    SIGH_DEFLATE / CURIOSITY_STRETCH / TALK_* …），先看这条测试。
+    SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / CURIOSITY_STRETCH /
+    TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
 
@@ -351,6 +352,11 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             + move_y
             + anim.SIGH_SINK_PX
             - (H - 1 - bottom),
+            # 点头同理（压到一半 + 下沉）：净量按两端取最大成对算进来
+            (bottom - cy) * (v * anim.NOD_SQUINT_MIN - 1.0)
+            + move_y
+            + anim.NOD_SINK_PX
+            - (H - 1 - bottom),
             (cx - left) * anim.POP_AMPLITUDE + anim.GAZE_MAX_X + anim.SWAY_AMPLITUDE - left,
             (right - cx) * anim.POP_AMPLITUDE
             + anim.GAZE_MAX_X
@@ -361,7 +367,7 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             worst = (need, f"第 {idx} 张")
     assert worst[0] <= FACE_REGION_PAD, (
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
-        "把 YAWN_STRETCH / SIGH_SINK_PX 调小，或把 pet.FACE_REGION_PAD 调大"
+        "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX 调小，或把 pet.FACE_REGION_PAD 调大"
     )
 
 
