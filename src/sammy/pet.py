@@ -68,16 +68,21 @@ SLEEP_EXPR = 1
 
 # 脸重绘区域的留量（设备像素）。不是审美参数 —— **最大形变那一圈必须落在里面**，
 # 否则动画帧不刷新溢出的部分（脸会花）。最坏组合（好奇拉高 × 哈欠拉高 × 弹一下
-# + 各种平移）实测约需 12.4px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）
-# —— 比上一版多了摸摸头的呼噜（±2px：它和呼吸一样是纵向平移，会叠加）；
-# 要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX / PET_PURR_PX
-# 之前先看那里（叹气的「沉底」和「压扁」是一对抵消项，净量也一起算）。
-FACE_REGION_PAD = 13
+# + 各种平移）实测约需 15.3px（全 35 张脸 · tests/test_yawn.py 有几何判据钉着）
+# —— 比上一版多了哼小曲的左右摇摆（±4px —— 它和呼吸 / 哆嗦一样是横向平移，
+# 会叠加）；要调大 YAWN_STRETCH / CURIOSITY_STRETCH / SIGH_SINK_PX /
+# PET_PURR_PX / HUM_ROCK_PX 之前先看那里（叹气的「沉底」和「压扁」是一对
+# 抵消项，净量也一起算）。
+FACE_REGION_PAD = 16
 
 # 无聊的叹气（自选小步·第九次）：无聊过这条线、又没在忙的时候，它才会叹气。
 # 比「无聊脸」的门槛（0.65）松一点：先听见叹气、再看见耷拉脸 ——
 # 「气先叹出来、脸再耷拉下去」的次序。
 SIGH_BOREDOM_ABOVE = 0.55
+
+# 哼小曲（自选小步·第十六次）：心情好到「很好」才哼 —— 门线和心情标签
+# 同一档（mood.label_of 的「很好」就是 0.55），不另造一条线。
+HUM_MOOD_ABOVE = 0.55
 
 # 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
 # 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
@@ -90,6 +95,20 @@ CLOSE_CROSS = (
     "#...#",
 )
 CLOSE_CROSS_CELL = 4
+
+# 哼小曲的小音符：手画的像素矩阵（8 行 6 列，每格 HUM_NOTE_CELL 个设备单位）。
+# 为什么不用字：像素字体子集里没有音符（关闭钮的叉同理，系统回落对不上像素语言）。
+HUM_NOTE = (
+    "....##",
+    "...##.",
+    "..##..",
+    "..#...",
+    "..#...",
+    "..#...",
+    "###...",
+    "###...",
+)
+HUM_NOTE_CELL = 4
 
 # face-only 的那一行：它刚说的话停留多久（秒），之后回到状态行
 FACEONLY_LINE_HOLD = 20.0
@@ -861,8 +880,8 @@ class SammyWindow(QWidget):
 
         留量（FACE_REGION_PAD）是**量出来的、不是拍的**：最费的组合是
         「好奇拉高 × 哈欠拉高 × 弹一下」再叠上各种平移（呼吸 / 说话 /
-        凝视 / 哈欠拔高 / 摸摸头的呼噜）。实测全 35 张脸在最坏组合下最多
-        约 12.4px，13 够用（tests/test_yawn.py 按常数钉着）。框留小了，
+        凝视 / 哈欠拔高 / 摸摸头的呼噜 / 哼小曲的摇摆）。实测全 35 张脸在
+        最坏组合下最多约 15.3px，16 够用（tests/test_yawn.py 按常数钉着）。框留小了，
         动画帧不会刷新溢出的那一圈：脸会花、哈欠的额头画出去
         （和 Z 位置那条坑同源）。
 
@@ -1043,6 +1062,7 @@ class SammyWindow(QWidget):
             self.anim.note_sleepy(self.anim_t, self._sleepy_for_nod())
             self.anim.note_asleep(self.anim_t, self.drives.asleep)  # 睡着做梦：偶尔抽一下
             self.anim.note_sneeze(self.anim_t, self._sneeze_ok())  # 偶尔呛一下（喷嚏）
+            self.anim.note_hum(self.anim_t, self._hum_ok())  # 心情好：隔一会儿哼两句
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1162,6 +1182,24 @@ class SammyWindow(QWidget):
         思考中不用管 —— `_tick` 在思考时整个不跑。
         """
         return not self.drives.asleep and self._drag is None
+
+    def _hum_ok(self) -> bool:
+        """「现在心情好到能哼两句不」—— 心情到「很好」、又没在忙（演不演归动画层）。
+
+        闸门（和别的空闲行为同一套规矩）：
+        - 睡着 / 累趴：不哼（calm 优先 —— 睡着的动静是 Z 和睡梦抽动的事）；
+        - 被拎着的手上：不哼（搬运凝视在管那段，晃晃悠悠再叠上摇脑袋就散了）；
+        - 正在（刚在）写它：不哼 —— 它正看着输入框，这时候摇头晃脑就是自相矛盾；
+        - 心情没到「很好」：不哼。
+        思考中不用管 —— `_tick` 在思考时整个不跑。
+        """
+        if self.drives.asleep or self.drives.exhausted:
+            return False
+        if self._drag is not None:
+            return False
+        if self._typing_recent():
+            return False
+        return self.mood.mood.valence >= HUM_MOOD_ABOVE
 
     def _save_drives(self) -> None:
         try:
@@ -1447,6 +1485,7 @@ class SammyWindow(QWidget):
             self._draw_face_image(p, self.expression, box)
         p.restore()
         self._draw_z(p, box)
+        self._draw_hum(p, box)
 
     def _draw_z(self, p: QPainter, box: QRect) -> None:
         """睡着时在脸边上慢慢冒一个 Z（升起 + 淡出）。
@@ -1474,6 +1513,34 @@ class SammyWindow(QWidget):
         x = box.right() - w - int(14 * self.scale)
         y = box.top() + int(8 * self.scale) - int(rise * self.scale)
         p.drawText(QRect(x, y, w, h), Qt.AlignRight | Qt.AlignVCenter, "z")
+
+    def _draw_hum(self, p: QPainter, box: QRect) -> None:
+        """哼小曲的时候，脸边上慢慢冒一个小音符（一边升一边淡）。
+
+        和睡着的 Z 同一格位置、同一套逻辑：**看得见的「活着」才算数** ——
+        摇头晃脑单看像发抖，配上音符才一眼读出「它哼着歌呢」。音符是手画的
+        像素矩阵（HUM_NOTE）—— 像素字体子集里没有音符，系统回落的那个是
+        抗锯齿小样、和整块界面的像素语言对不上（关闭钮的叉同理）。
+
+        位置同样必须在**脸框内**（局部重绘区）：画到框外，动画帧不会来刷新它，
+        会卡在屏幕上不动（test_doze 给 Z 钉过这条，test_hum 给音符再来一遍）。
+        """
+        if not self.anim_on or self.drives.asleep:
+            return
+        k, rise = self.anim.hum_note(self.anim_t)
+        if k <= 0.0:
+            return
+        s = self.scale
+        cell = max(1, int(HUM_NOTE_CELL * s))
+        w = len(HUM_NOTE[0]) * cell
+        x = box.right() - w - int(20 * s)
+        y = box.top() + int(10 * s) - int(rise * s)
+        col = QColor(FG)
+        col.setAlphaF(min(1.0, 0.75 * k))
+        for row, pat in enumerate(HUM_NOTE):
+            for c, ch in enumerate(pat):
+                if ch == "#":
+                    p.fillRect(QRect(x + c * cell, y + row * cell, cell, cell), col)
 
     def _draw_face_image(self, p: QPainter, index: int, box: QRect) -> None:
         """画单张脸（动图当前帧或静态位图）—— 淡化时两张脸共用这一条路径。"""

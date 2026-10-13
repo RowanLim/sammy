@@ -88,6 +88,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 动画关。帧带与短视频见 [docs/8h-b2/sneeze-strip.png](docs/8h-b2/sneeze-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 25 节。
 
+📌 第十六个自选小步：**哼小曲「心情好的时候，摇头晃脑哼两句」** —— 心情到「很好」
+的时候，隔一会儿轻轻晃两下脑袋（左右各摆 ±4px、约 1.7 秒一拍、晃 3 下），
+右上角冒一个像素小音符（和睡着的 Z 同一格）；它是第一条**只挂心情**的自发动作 ——
+好心情也要能被眼睛读出来。睡着 / 累趴 / 被拎着 / 正在看你写字的时候不哼。
+帧带与短视频见 [docs/8h-b2/hum-strip.png](docs/8h-b2/hum-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 26 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

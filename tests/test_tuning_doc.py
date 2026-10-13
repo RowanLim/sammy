@@ -24,6 +24,7 @@
 18. 第 23 节（思考凝视）的 2 个常量同样逐条对账。
 19. 第 24 节（摸摸头）的 6 个常量同样逐条对账。
 20. 第 25 节（打个喷嚏）的 10 个常量同样逐条对账。
+21. 第 26 节（哼小曲）的 9 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -144,6 +145,15 @@ EXPECTED_PINS = {
     "SNEEZE_SQUINT_MIN",
     "SNEEZE_WINDUP",
     "SNEEZE_WINDUP_S",
+    "HUM_EASE_IN_S",
+    "HUM_EASE_OUT_S",
+    "HUM_MAX_GAP",
+    "HUM_MIN_GAP",
+    "HUM_MOOD_ABOVE",
+    "HUM_NOTE_RISE_PX",
+    "HUM_ROCK_CYCLES",
+    "HUM_ROCK_PERIOD",
+    "HUM_ROCK_PX",
     "THINKING_GAZE_Y",
     "THINKING_RETARGET_MIN_S",
     "TWITCH_DEFLATE",
@@ -229,6 +239,7 @@ def test_decisions_and_files_are_covered():
         "思考凝视",
         "摸摸头",
         "打个喷嚏",
+        "哼小曲",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

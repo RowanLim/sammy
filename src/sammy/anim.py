@@ -51,6 +51,13 @@
     （压到 12%）、往上窜一点再慢慢松回来。它是**反射不是态度**：不躲着
     交互（跟人说着话照样打）；躲的只有睡着 / 被拎着 / 动画关。
 
+14. **哼小曲**（自选小步·第十六次）：「心情好的时候，摇头晃脑哼两句」——
+    心情到「很好」（和状态行同一档标签）的时候，隔一会儿轻轻晃两下脑袋
+    （左右各摆 ±4px、约 1.7 秒一拍、晃 3 下），右上角冒一个像素小音符
+    （和睡着的 Z 同一格位置、同一套画法）。它是第一条**只挂心情**的
+    自发动作（叹气挂无聊、点头挂犯困、喷嚏是纯反射 —— 这条是「高兴」）；
+    睡着 / 被拎着 / 正在看你写字的时候不哼。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -235,6 +242,22 @@ SNEEZE_SETTLE_S = 0.30  # 松回来用时（秒）—— 打完总要缓一下
 SNEEZE_SQUINT_MIN = 0.12  # 爆发时压到 12%（眨眼 14% —— 喷嚏还要紧一点：用力闭）
 SNEEZE_LIFT_PX = 3  # 爆发时整脸往上窜几像素（设备像素）
 SNEEZE_JERK_PX = 2  # 爆发时横向一哆嗦的幅度（方向一次一换，不掷随机数）
+
+# ── 哼小曲：「心情好的时候，摇头晃脑哼两句」────────────
+# 第一条**只挂心情**的自发动作：心情到「很好」的时候，隔一会儿轻轻晃两下
+# 脑袋（左右各摆 ±HUM_ROCK_PX、约 1.7 秒一拍、晃 HUM_ROCK_CYCLES 下），
+# 右上角冒一个像素小音符（和睡着的 Z 同一套画法）。别的动作都在讲「状态」
+# （无聊 / 困 / 睡着 / 醒来），这条讲「高兴」—— 状态要能被眼睛读出来，
+# 好心情也一样。睡着 / 被拎着 / 正在看你写字的时候不哼。
+HUM_MIN_GAP = 50.0  # 两次哼歌之间最短（秒）
+HUM_MAX_GAP = 140.0  # 最长；两者之间随机 —— 别像节拍器
+HUM_EASE_IN_S = 0.30  # 起手：包络从 0 涨到满、轻轻摆进去用时（秒）
+HUM_ROCK_PERIOD = 0.60  # 摇晃的一拍（秒）—— 约 1.7 拍每秒，比呼吸快、比说话慢
+HUM_ROCK_CYCLES = 3  # 满幅摇晃几个整周期 —— 晃三下就够，再多像甩头
+HUM_EASE_OUT_S = 0.45  # 收尾：从当前摆动缓出去用时（秒）—— 不突然停
+HUM_ROCK_PX = 4  # 左右摇摆幅度（±设备像素）—— 比呼吸 / 微动（±2）明显一档
+HUM_NOTE_RISE_PX = 8  # 右上角小音符整个行程升起几像素（和 Z 的 9 一个量级）
+HUM_ROCK_S = HUM_ROCK_PERIOD * HUM_ROCK_CYCLES  # 满幅摇晃的总时长（秒）—— 由「一拍 × 几下」推导
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -424,6 +447,31 @@ def sneeze_total() -> float:
     return SNEEZE_WINDUP_S + SNEEZE_BURST_S + SNEEZE_HOLD_S + SNEEZE_SETTLE_S
 
 
+def hum_amount(t_spent: float) -> float:
+    """哼小曲的包络（0 → 1 → 0）：起手 → 满幅摇晃 → 收尾 —— 三段拼一条时间线。
+
+    纯函数：三段的时间线在测试里逐点钉死。摇晃本身（那条左右摆的正弦）在
+    frame_at 里 —— 这里只管「摆多大劲」的包络：缓着摆进去、满幅晃几拍、
+    缓着停下来（不突然停）。`t_spent` = 距离这次开哼过了多久；负数 = 还没
+    开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < HUM_EASE_IN_S:
+        return _smooth01(t_spent / HUM_EASE_IN_S)
+    if t_spent < HUM_EASE_IN_S + HUM_ROCK_S:
+        return 1.0
+    k = t_spent - HUM_EASE_IN_S - HUM_ROCK_S
+    if k < HUM_EASE_OUT_S:
+        return 1.0 - _smooth01(k / HUM_EASE_OUT_S)
+    return 0.0
+
+
+def hum_total() -> float:
+    """一次哼小曲从头到尾的时长（秒）。"""
+    return HUM_EASE_IN_S + HUM_ROCK_S + HUM_EASE_OUT_S
+
+
 def cursor_target(dx: float, dy: float) -> tuple[int, int]:
     """光标方向 → 凝视目标：按比例压进凝视盒。
 
@@ -535,6 +583,9 @@ class Animator:
     _sneeze_at: float = field(default=-99.0, repr=False)
     _sneeze_next_at: float | None = field(default=None, repr=False)
     _sneeze_dir: int = field(default=1, repr=False)
+    # 哼小曲：这一次的开始时刻（-99 = 没有）；下一次的排期（None = 心情没到、没在排）
+    _hum_at: float = field(default=-99.0, repr=False)
+    _hum_next_at: float | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -909,6 +960,50 @@ class Animator:
             self.sneeze(t)
             self._sneeze_next_at = t + self._rng.uniform(SNEEZE_MIN_GAP, SNEEZE_MAX_GAP)
 
+    # ── 哼小曲：「心情好的时候，摇头晃脑哼两句」────────────
+
+    def hum(self, at: float) -> None:
+        """安排一次哼小曲（at 时刻开始）—— 排期器（note_hum）与测试走同一条。
+
+        再来一次就重新从起手开始（实际时序里两段之间隔着一两分钟，
+        这条只是把语义写死、让测试能钉住）。
+        """
+        self._hum_at = float(at)
+
+    def note_hum(self, t: float, ok: bool) -> None:
+        """喂一次「现在心情好不好、能不能哼」—— 窗口每秒调一次（和驱力钟同一拍）。
+
+        心情到「很好」时会**隔一会儿没来由地哼一小段**（摇头晃脑 + 一个小音符），
+        间隔在 HUM_MIN_GAP~HUM_MAX_GAP 秒之间随机 —— 均匀得像节拍器就不像活物了。
+        和叹气 / 点头 / 喷嚏同一套排期：
+        - 刚高兴起来：先等一个间隔再哼第一段（立刻哼 = 情绪还没走到脸上）；
+        - 一直高兴：哼完接着排下一段；
+        - 心情落回去了：排期清掉（**正在哼的那一段让它哼完** —— 半路掐掉像
+          被捂住了嘴）。
+        """
+        if not ok:
+            self._hum_next_at = None
+            return
+        if self._hum_next_at is None:
+            self._hum_next_at = t + self._rng.uniform(HUM_MIN_GAP, HUM_MAX_GAP)
+            return
+        if t >= self._hum_next_at:
+            self.hum(t)
+            self._hum_next_at = t + self._rng.uniform(HUM_MIN_GAP, HUM_MAX_GAP)
+
+    def hum_note(self, t: float) -> tuple[float, float]:
+        """渲染层用：这一刻小音符的（包络, 已升起像素）。没在哼 = (0.0, 0.0)。
+
+        位置那张像是在渲染层拼的（pet._draw_hum）；这里只给「画多亮、升多高」——
+        和 Z 的 z_alpha / z_rise 一个分工。
+        """
+        spent = t - self._hum_at
+        k = hum_amount(spent)
+        if k <= 0.0:
+            return 0.0, 0.0
+        rise = HUM_NOTE_RISE_PX * min(1.0, max(0.0, spent / hum_total()))
+        return k, rise
+
     # ── 说话动脸：「字在往外冒，脸跟着动」────────────
 
     def note_talk(self, t: float, active: bool) -> None:
@@ -1049,6 +1144,8 @@ class Animator:
         self._pet_stop_level = 0.0
         self._sneeze_at = -99.0  # 喷嚏同理：拨过时间线，旧的那个不作数
         self._sneeze_next_at = None  # 排期也是（下一次 note_sneeze 会重排）
+        self._hum_at = -99.0  # 哼小曲同理：拨过时间线，旧的那段不作数
+        self._hum_next_at = None  # 排期也是（下一次 note_hum 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1104,6 +1201,7 @@ class Animator:
         nod = 0.0 if calm else nod_amount(t - self._nod_at)
         twitch = twitch_amount(t - self._twitch_at) if calm else 0.0
         sneeze = 0.0 if calm else sneeze_amount(t - self._sneeze_at)
+        hum = 0.0 if calm else hum_amount(t - self._hum_at)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1146,6 +1244,10 @@ class Animator:
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
         if sneeze > 0.0:  # 喷嚏：横向一哆嗦（方向一次一换，不占随机流）
             dx += self._sneeze_dir * round(SNEEZE_JERK_PX * sneeze)
+        if hum > 0.0:  # 哼小曲：左右摇摆 —— 正弦摆乘包络，摆幅到得了 ±HUM_ROCK_PX
+            dx += round(
+                HUM_ROCK_PX * hum * math.sin(2 * math.pi * (t - self._hum_at) / HUM_ROCK_PERIOD)
+            )
 
         # 凝视：睡着时定格在睡前看向的方向（不是跳回正中），醒来从定格处接上
         if calm:
@@ -1209,6 +1311,15 @@ __all__ = [
     "GAZE_MAX_X",
     "GAZE_MAX_Y",
     "GAZE_MIN_GAP",
+    "HUM_EASE_IN_S",
+    "HUM_EASE_OUT_S",
+    "HUM_MAX_GAP",
+    "HUM_MIN_GAP",
+    "HUM_NOTE_RISE_PX",
+    "HUM_ROCK_CYCLES",
+    "HUM_ROCK_PERIOD",
+    "HUM_ROCK_PX",
+    "HUM_ROCK_S",
     "LOOK_HOLD_S",
     "LOOK_MOVE_MIN",
     "LOOK_RETARGET_MIN_S",
@@ -1274,6 +1385,8 @@ __all__ = [
     "Frame",
     "carry_target",
     "cursor_target",
+    "hum_amount",
+    "hum_total",
     "nod_amount",
     "nod_total",
     "sigh_amount",
