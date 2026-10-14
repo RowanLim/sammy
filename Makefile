@@ -44,6 +44,7 @@ help:
 	@echo "make welcome-media 重生成欢迎回来素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make standby-media 重生成待机省电素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make droop-media   重生成蔫一会儿素材（帧带 + 短视频，进 docs/8h-b2/）"
+	@echo "make faces-spec-media 重生成表情总表 v1.1 素材图（三格，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -254,8 +255,12 @@ standby-media:
 droop-media:
 	$(VENV) scripts/droop_preview.py
 
+# 表情总表 v1.1 的素材图：三格（情绪 18 / 动画 42 / 判据数字卡）
+faces-spec-media:
+	$(VENV) scripts/faces_spec_v11_img.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media
