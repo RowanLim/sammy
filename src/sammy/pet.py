@@ -23,7 +23,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QApplication, QLineEdit, QMenu, QWidget
 
-from . import anim, boot, chatlog, crt, faces, layout, screen, typewriter
+from . import anim, boot, chatlog, crt, faces, layout, screen, standby, typewriter
 from . import mood as mood_mod
 from .attention import Attention, open_prompt
 from .brain import SammyBrain
@@ -329,6 +329,13 @@ class SammyWindow(QWidget):
             self._crt_overlay = crt.CrtOverlay(self)
             self._crt_overlay.show()
             self._sync_crt_layer()
+
+        # 待机省电（自选小步·第二十二次）：你走了屏幕慢慢暗下去、你回来亮回来。
+        # 蒙层一直在（不随 SAMMY_CRT 开关）—— 档位 0 时一个字都不画。
+        self.standby = standby.StandbyDim()
+        self._dim_overlay = standby.DimOverlay(self)
+        self._dim_overlay.show()
+        self._sync_dim_overlay()
 
         # 回复排版缓存（每帧都算二分查找太浪费；键变了才重算）
         self._fit_cache = None
@@ -932,6 +939,7 @@ class SammyWindow(QWidget):
             self.anim.note_thinking(
                 self.anim_t, self.thinking and not self.drives.asleep and self._drag is None
             )
+        self._standby_step()  # 待机省电：喂 away 电平、推出本帧档位（档位在动就整层重刷）
         if self._boot_t0 is not None:
             # 开机序列：整窗都在动；播到头就收尾交班（输入框回来、正常刷新接管）
             if self.anim_t - self._boot_t0 >= boot.total_seconds(len(self._boot_lines)):
@@ -1036,6 +1044,27 @@ class SammyWindow(QWidget):
             and self._shutdown_t0 is None
         )
 
+    def _standby_step(self) -> None:
+        """待机省电（自选小步·第二十二次）：喂 away 电平，推出本帧的蒙层档位。
+
+        走向「省电」的条件（和欢迎回来同一套闸门）：动画开着、光标功能开着、你
+        走了（_away：光标静够十分钟，睡着不算、被拎着不算）、不在开局 / 退场里。
+        其余任何时候一律往「亮着」走 —— 中途反悔不跳（从当下档位出发，见
+        StandbyDim）。档位在动就整层重刷：蒙层是全窗的事，刷慢了看得出「跟不上」。
+        站定之后不再多刷 —— 该刷哪儿还刷哪儿（脸那一块），待机不改变重绘纪律。
+        """
+        away_now = (
+            self.anim_on
+            and self.look_on
+            and self._away
+            and self._drag is None
+            and self._boot_t0 is None
+            and self._shutdown_t0 is None
+        )
+        self.standby.note_away(self.anim_t, away_now)
+        if self._dim_overlay is not None:
+            self._dim_overlay.set_level(self.standby.level(self.anim_t))
+
     def _note_carry(self, delta: QPoint) -> None:
         """窗口被搬动：位移换算成设备像素喂给动画层（「被带去哪儿就看哪儿」）。
 
@@ -1099,6 +1128,7 @@ class SammyWindow(QWidget):
             self._layout_input()
             self.update()
             self._sync_crt_layer()
+            self._sync_dim_overlay()
             return  # 桌面浮窗：缩放是我自己定的，不跟着窗口尺寸走
         f = screen.fit(faces.DEV_W, faces.DEV_H, self.width(), self.height())
         if abs(f.scale - self.scale) > 1e-3:
@@ -1106,6 +1136,7 @@ class SammyWindow(QWidget):
             self._layout_input()
             self.update()
             self._sync_crt_layer()
+            self._sync_dim_overlay()
 
     def _relayout(self) -> None:
         """重算版面（**设备单位**）。
@@ -1537,6 +1568,25 @@ class SammyWindow(QWidget):
                 offset=self._offset,
                 dpr=dpr,
             )
+        )
+
+    def _sync_dim_overlay(self) -> None:
+        """（重）建待机蒙层：窗口尺寸 / 缩放 / 版面变了都要跟。
+
+        和质感层一样盖满整窗、比谁都高（连输入框的文字一起暗 —— 它是独立子
+        控件，只在父窗口里画是盖不住它的）。版面上下文（面板 / 圆角 / 缩放 /
+        偏移）一起更新，蒙层贴着面板走。
+        """
+        ov = self._dim_overlay
+        if ov is None:
+            return
+        ov.setGeometry(0, 0, self.width(), self.height())
+        ov.raise_()  # 永远压在输入框（和质感层）上面
+        ov.set_context(
+            panel=self.lay.panel,
+            panel_radius=self.lay.panel_radius,
+            scale=self.scale,
+            offset=self._offset,
         )
 
     def _draw_face(self, p: QPainter) -> None:

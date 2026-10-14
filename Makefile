@@ -42,6 +42,7 @@ help:
 	@echo "make dozeoff-media 重生成入睡的一下素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make survey-media  重生成上电环顾素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make welcome-media 重生成欢迎回来素材（帧带 + 短视频，进 docs/8h-b2/）"
+	@echo "make standby-media 重生成待机省电素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -244,8 +245,12 @@ survey-media:
 welcome-media:
 	$(VENV) scripts/welcome_preview.py
 
+# 待机省电素材（「你走了，屏幕慢慢暗下去；你回来，亮回来」：帧带 + 短视频）
+standby-media:
+	$(VENV) scripts/standby_preview.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media

@@ -130,6 +130,15 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/welcome-strip.png](docs/8h-b2/welcome-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 31 节。
 
+📌 第二十二个自选小步：**待机省电「你走了，屏幕慢慢暗下去；你回来，亮回来」** ——
+光标静够十分钟（= 你走了，和休息提醒 / 欢迎回来同一把尺子）之后，整块屏幕
+慢慢暗下去（2.5 秒）；你回来又亮回来（1.1 秒，比暗下去快）。最暗蒙 25% 的黑 ——
+脸、状态行、输入框里的字一起暗（蒙层盖在最上面），扫描线与暗角照旧；它还在
+呼吸，省电不是关机。睡着不挡省电；被拎着不算离开；开局 / 退场 / 动画关 /
+光标功能关都不省电。帧带与短视频见
+[docs/8h-b2/standby-strip.png](docs/8h-b2/standby-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 32 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：
