@@ -326,13 +326,17 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
     + 好奇拉高」：下沉（加 DOZEOFF_SINK_PX）与压合（压到 DOZEOFF_SQUINT_MIN 倍）
     成对算净量（和叹气 / 点头 / 喷嚏同一套）；纵向另加定格凝视的纵向偏移。
     抽动至少 25 秒才有第一下、这一下 3 秒以内就演完 —— 两条互斥，各自算。
+    蔫一会儿（心情低时的下垂）与叹气 / 点头同一族（压扁 + 下沉成对）：和
+    叹气真的会同时刻撞上（两首都挂空闲时段）—— 单算一条之外，再叠一条
+    「与叹气同刻」的最坏（保守一点，值不大）。
     欢迎回来（精神一振）是清醒时的「上抬 + 拉高」：拉高并进 v、上抬按满量
     加在顶沿那条上 —— 和哈欠 / 喷嚏同一套写法（它和任何清醒动作都可能撞上，
     叠着算、不设互斥）。
     这是**全局预算守卫**：调大任何一道形变常数（YAWN_STRETCH / SIGH_SINK_PX /
     SIGH_DEFLATE / NOD_SINK_PX / NOD_SQUINT_MIN / TWITCH_SHIFT_PX /
     SNEEZE_LIFT_PX / SNEEZE_JERK_PX / HUM_ROCK_PX / TILT_MAX_DEG /
-    DOZEOFF_SINK_PX / DOZEOFF_SQUINT_MIN / CURIOSITY_STRETCH / PET_PURR_PX /
+    DOZEOFF_SINK_PX / DOZEOFF_SQUINT_MIN / DROOP_SINK_PX / DROOP_SQUINT_MIN /
+    CURIOSITY_STRETCH / PET_PURR_PX /
     TALK_* …），先看这条测试。
     """
     from PySide6.QtCore import QSize
@@ -407,6 +411,18 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
             + move_y
             + anim.NOD_SINK_PX
             - (H - 1 - bottom),
+            # 蔫一会儿（心情「有点蔫」时往下垂）：和叹气 / 点头同一套成对写法；
+            # 它和叹气真的可能同刻（都挂空闲时段）—— 再叠一条两条相叠的最坏
+            # （压扁取更深的那个 —— 两条取 min 是保守写法）。
+            (bottom - cy) * (v * anim.DROOP_SQUINT_MIN - 1.0)
+            + move_y
+            + anim.DROOP_SINK_PX
+            - (H - 1 - bottom),
+            (bottom - cy) * (v * min(anim.SIGH_DEFLATE, anim.DROOP_SQUINT_MIN) - 1.0)
+            + move_y
+            + anim.SIGH_SINK_PX
+            + anim.DROOP_SINK_PX
+            - (H - 1 - bottom),
             # 喷嚏（上窜 + 用力闭上同刻）：压扁把上下都收进来的收益远大于
             # 上窜的风险 —— 上窜按满量、压扁按 SNEEZE_SQUINT_MIN 成对
             # 算（对顶沿）。（下沿只有收益：上窜往上走、不动下边。）
@@ -444,7 +460,7 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
         f"最坏形变需要 {worst[0]:.1f}px（{worst[1]}脸），重绘区只留了 {FACE_REGION_PAD}px —— "
         "把 YAWN_STRETCH / SIGH_SINK_PX / NOD_SINK_PX / TWITCH_SHIFT_PX / TILT_MAX_DEG / "
         "WELCOME_LIFT_PX / WELCOME_STRETCH / "
-        "SNEEZE_LIFT_PX / HUM_ROCK_PX / DOZEOFF_SINK_PX 调小，"
+        "SNEEZE_LIFT_PX / HUM_ROCK_PX / DOZEOFF_SINK_PX / DROOP_SINK_PX 调小，"
         "或把 pet.FACE_REGION_PAD 调大"
     )
 

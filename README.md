@@ -139,6 +139,14 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 [docs/8h-b2/standby-strip.png](docs/8h-b2/standby-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 32 节。
 
+📌 第二十三个自选小步：**蔫一会儿「心情有点蔫的时候，悄悄往下垂一垂」** ——
+哼小曲讲「高兴」，这条讲对着的另一头：心情落进「有点蔫」（和心情标签同一档）
+的时候，隔一会儿没精神地往下垂一垂（头沉下去、眼皮也耷拉一点），停一段、
+自己再慢慢缓起来，约 3.9 秒演完；睡着 / 累趴 / 被拎着 / 正在看你写字 /
+刚交互完 5 秒都不垂，再往下（低落档）它会直接呆住不动（calm 定格）。
+帧带与短视频见 [docs/8h-b2/droop-strip.png](docs/8h-b2/droop-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 33 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

@@ -81,6 +81,12 @@
     之后第一次动 = 你回来：整脸抬起来一点（精神一振）、顺着光标看你一眼，
     再慢慢放回去；睡着时不排（醒来那条走哈欠），动画关也不做。
 
+20. **蔫一会儿**（自选小步·第二十三次）：「心情有点蔫的时候，悄悄往下垂一垂」——
+    哼小曲那条只讲「高兴」；这条讲对着的另一头：心情落进「有点蔫」的档里，
+    隔一会儿没精神地往下垂一垂（头沉下去、眼皮也耷拉一点），停一段、自己
+    再慢慢缓起来。它是第二条**只挂心情**的动作（和哼小曲一正一反）—— 慢、
+    深、停得久：读的不是一口气，是一段情绪。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -348,6 +354,20 @@ WELCOME_HOLD_S = 0.30  # 顶着的一小段（秒）—— 让眼睛看清「它
 WELCOME_SETTLE_S = 0.55  # 放回去用时（秒）—— 比抬起来慢，劲头落下要有尾巴
 WELCOME_LIFT_PX = 5  # 整脸往上抬几像素（负方向 = 上）—— 和叹气 / 点头的下沉同量级
 WELCOME_STRETCH = 0.06  # 顺带纵向拉高 6%（和好奇同一个量级）——「精神起来」的那一下
+
+# ── 蔫一会儿：「心情有点蔫的时候，悄悄往下垂一垂」────────────
+# 哼小曲（第十六次）讲「高兴」；这条讲对着的另一头 —— 心情落进「有点蔫」
+# 的档里（和心情标签同一档：低于 -0.05），隔一会儿没精神地往下垂一垂（头
+# 沉下去、眼皮也耷拉一点），停一段、自己再慢慢缓起来。它是第二条**只挂
+# 心情**的动作，和哼小曲一正一反；也是「会动的那一段」里把蔫演出来的那条：
+# 再往下（低落档）它会直接呆住不动（calm 定格）—— 那是更重的状态，不叠动作。
+DROOP_MIN_GAP = 60.0  # 两下之间最短（秒）
+DROOP_MAX_GAP = 150.0  # 最长；两者之间随机 —— 别像节拍器
+DROOP_SINK_S = 1.20  # 垂下去用时（秒）—— 慢：是「没精神」，不是「困」
+DROOP_HOLD_S = 1.60  # 垂到底停住的一整段（秒）—— 最长的「屏住」：情绪不是一口气
+DROOP_RISE_S = 1.10  # 缓起来用时（秒）—— 自己缓过来：不猛，也不拖
+DROOP_SINK_PX = 6  # 整脸往下垂几像素：比叹气（4）深，和入睡的一下（6）同量级
+DROOP_SQUINT_MIN = 0.72  # 垂到底压到 72%（眼皮轻轻耷拉着）—— 比点头 50% 浅：没到犯困那份上
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -639,6 +659,31 @@ def welcome_total() -> float:
     return WELCOME_RISE_S + WELCOME_HOLD_S + WELCOME_SETTLE_S
 
 
+def droop_amount(t_spent: float) -> float:
+    """蔫一会儿的形状（0 → 1 → 0）：慢慢垂下去 → 蔫着停住 → 自己缓起来。
+
+    纯函数：三段时间线在测试里逐点钉死 —— 全程都慢（垂 1.2 秒、停 1.6 秒、
+    缓 1.1 秒）：一口气的读法是叹气，这一条读的是「一段情绪」。这是「心情」
+    第二次变成看得见的动作（第一次是哼小曲 —— 一正一反）。
+    `t_spent` = 距离这一下开始过了多久；负数 = 还没开始（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < DROOP_SINK_S:
+        return _smooth01(t_spent / DROOP_SINK_S)
+    if t_spent < DROOP_SINK_S + DROOP_HOLD_S:
+        return 1.0
+    k = t_spent - DROOP_SINK_S - DROOP_HOLD_S
+    if k < DROOP_RISE_S:
+        return 1.0 - _smooth01(k / DROOP_RISE_S)
+    return 0.0
+
+
+def droop_total() -> float:
+    """一次「蔫一会儿」从头到尾的时长（秒）。"""
+    return DROOP_SINK_S + DROOP_HOLD_S + DROOP_RISE_S
+
+
 def survey_total() -> float:
     """上电环顾整段时长：第一条指令到回中缓动结束（秒）。"""
     return SURVEY_LEAD_S + (len(SURVEY_TARGETS) - 1) * SURVEY_DWELL_S + GAZE_EASE
@@ -768,6 +813,9 @@ class Animator:
     _dozeoff_at: float = field(default=-99.0, repr=False)
     # 欢迎回来：这一次的开始时刻（-99 = 没有）—— 一次「回来」演一次
     _welcome_at: float = field(default=-99.0, repr=False)
+    # 蔫一会儿：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 心情没落、没在排）
+    _droop_at: float = field(default=-99.0, repr=False)
+    _droop_next_at: float | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1275,6 +1323,40 @@ class Animator:
         """
         self._welcome_at = float(at)
 
+    # ── 蔫一会儿：「心情有点蔫的时候，悄悄往下垂一垂」────────────
+    # 第二条只挂心情的动作（第一条是哼小曲 —— 一正一反）：心情落进「有点蔫」
+    # 的档里，隔一会儿没精神地往下垂一垂，再自己缓起来。睡着 / 累趴 / 被拎着 /
+    # 正在看你写字 / 刚交互完的 5 秒由窗口那层挡。
+
+    def droop(self, at: float) -> None:
+        """安排一次蔫一会儿（at 时刻开始）—— 排期器（note_droop）与测试走同一条。
+
+        再来一次就重新从垂下去起步（实际时序里两下之间隔着一两分钟，
+        这条只是把语义写死、让测试能钉住）。不掷随机数（理由同抽动 / 喷嚏）。
+        """
+        self._droop_at = float(at)
+
+    def note_droop(self, t: float, ok: bool) -> None:
+        """喂一次「现在心情蔫不蔫、能不能垂一下」—— 窗口每秒调一次（和驱力钟同一拍）。
+
+        心情落进「有点蔫」时会**隔一会儿没精神地往下垂一垂**，间隔在
+        DROOP_MIN_GAP~DROOP_MAX_GAP 秒之间随机 —— 均匀得像节拍器就不像活物了。
+        和叹气 / 点头 / 哼小曲同一套排期：
+        - 刚蔫下去：先等一个间隔再垂第一下（立刻垂 = 情绪还没长出来）；
+        - 一直蔫：垂完接着排下一下；
+        - 心情缓回来了：排期清掉（**正在垂的那下让它垂完** —— 半路掐掉像
+          打了个哆嗦）。
+        """
+        if not ok:
+            self._droop_next_at = None
+            return
+        if self._droop_next_at is None:
+            self._droop_next_at = t + self._rng.uniform(DROOP_MIN_GAP, DROOP_MAX_GAP)
+            return
+        if t >= self._droop_next_at:
+            self.droop(t)
+            self._droop_next_at = t + self._rng.uniform(DROOP_MIN_GAP, DROOP_MAX_GAP)
+
     def note_talk(self, t: float, active: bool) -> None:
         """喂一次「现在在不在说话」（打字机在不在吐字）—— 窗口每帧调一次。
 
@@ -1419,6 +1501,8 @@ class Animator:
         self._tilt_at = -99.0  # 歪头同理：拨过时间线，旧的那下不作数
         self._dozeoff_at = -99.0  # 入睡的一下同理：拨过时间线，旧的那下不作数
         self._welcome_at = -99.0  # 欢迎回来同理：拨过时间线，旧的那次不作数
+        self._droop_at = -99.0  # 蔫一会儿同理：拨过时间线，旧的那下不作数
+        self._droop_next_at = None  # 排期也是（下一次 note_droop 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1481,6 +1565,8 @@ class Animator:
         dozeoff = dozeoff_amount(t - self._dozeoff_at) if calm else 0.0
         # 欢迎回来：你回来那一刻把脸抬起来（醒着才有 —— 睡着走哈欠那条边）
         welcome = 0.0 if calm else welcome_amount(t - self._welcome_at)
+        # 蔫一会儿：心情「有点蔫」时没精神地往下垂（醒着才有 —— calm 冻结一切）
+        droop = 0.0 if calm else droop_amount(t - self._droop_at)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1507,6 +1593,8 @@ class Animator:
             squash = min(squash, 1.0 - (1.0 - SNEEZE_SQUINT_MIN) * sneeze)
         if dozeoff > 0.0:  # 入睡的一下：眼睛合上（沉到底 20% —— 这一刻它是真闭上了）
             squash = min(squash, 1.0 - (1.0 - DOZEOFF_SQUINT_MIN) * dozeoff)
+        if droop > 0.0:  # 蔫一会儿：眼皮耷拉下来（比点头浅、比叹气深 —— 「没精神」）
+            squash = min(squash, 1.0 - (1.0 - DROOP_SQUINT_MIN) * droop)
 
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
@@ -1524,6 +1612,8 @@ class Animator:
             dy += round(DOZEOFF_SINK_PX * dozeoff)
         if welcome > 0.0:  # 欢迎回来：整脸往上抬一点（负 = 上）——「精神一振」
             dy -= round(WELCOME_LIFT_PX * welcome)
+        if droop > 0.0:  # 蔫一会儿：整脸往下垂一垂（正 = 下）——「没精神」的重量
+            dy += round(DROOP_SINK_PX * droop)
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
         if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
@@ -1600,6 +1690,13 @@ __all__ = [
     "DOZEOFF_SINK_PX",
     "DOZEOFF_SINK_S",
     "DOZEOFF_SQUINT_MIN",
+    "DROOP_HOLD_S",
+    "DROOP_MAX_GAP",
+    "DROOP_MIN_GAP",
+    "DROOP_RISE_S",
+    "DROOP_SINK_PX",
+    "DROOP_SINK_S",
+    "DROOP_SQUINT_MIN",
     "FADE_DURATION",
     "GAZE_EASE",
     "GAZE_MAX_GAP",
@@ -1701,6 +1798,8 @@ __all__ = [
     "cursor_target",
     "dozeoff_amount",
     "dozeoff_total",
+    "droop_amount",
+    "droop_total",
     "hum_amount",
     "hum_total",
     "nod_amount",

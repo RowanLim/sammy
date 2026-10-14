@@ -545,3 +545,24 @@ src/sammy/pet.py（`_standby_step` 喂「你走没走」、`_sync_dim_overlay` �
 - STANDBY_RISE_S = 1.1（亮回来用时，秒）
 
 素材重生成：make standby-media（帧带 + 短视频，落在 docs/8h-b2/）。
+
+## 33. 蔫一会儿「心情有点蔫的时候，悄悄往下垂一垂」（自选小步·第二十三次）
+
+文件：src/sammy/anim.py（形状曲线与排期）；检测与闸门在 src/sammy/pet.py
+（`_droop_ok` 喂给 note_droop）。
+触发＝心情落进「有点蔫」（和心情标签同一档：低于 -0.05）—— 隔一会儿没精神
+地往下垂一垂（头沉下去、眼皮也耷拉一点），停一段、自己再慢慢缓起来。
+睡着 / 累趴 / 被拎着 / 正在看你写字 / 刚交互完的 5 秒都不垂；再往下
+（「低落」档）它会直接呆住不动（calm 定格）—— 这条补的是「会动的那一段」
+里的蔫。
+
+- DROOP_MOOD_BELOW = -0.05（低于这条才垂；和心情标签「有点蔫」同一档）
+- DROOP_MIN_GAP = 60.0（两下之间最短，秒）
+- DROOP_MAX_GAP = 150.0（最长，秒；两者之间随机 —— 别像节拍器）
+- DROOP_SINK_S = 1.20（垂下去用时，秒）
+- DROOP_HOLD_S = 1.60（垂到底停住的一整段，秒）
+- DROOP_RISE_S = 1.10（缓起来用时，秒）
+- DROOP_SINK_PX = 6（整脸往下垂几像素）
+- DROOP_SQUINT_MIN = 0.72（垂到底纵向压到多少）
+
+素材重生成：make droop-media（帧带 + 短视频，落在 docs/8h-b2/）。

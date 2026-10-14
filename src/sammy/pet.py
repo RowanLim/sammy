@@ -84,6 +84,11 @@ SIGH_BOREDOM_ABOVE = 0.55
 # 同一档（mood.label_of 的「很好」就是 0.55），不另造一条线。
 HUM_MOOD_ABOVE = 0.55
 
+# 蔫一会儿（自选小步·第二十三次）：心情落进「有点蔫」才垂 —— 门线和心情
+# 标签同一档（mood.label_of 的「有点蔫」从 -0.05 起）。再往下（低落档）它会
+# 直接呆住不动（calm 定格），不用叠动作 —— 在「会动的那一段」里把蔫演出来。
+DROOP_MOOD_BELOW = -0.05
+
 # 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
 # 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
 # 和整块界面的像素语言对不上；手画还保证不依赖字体加载成功与否。
@@ -1165,6 +1170,7 @@ class SammyWindow(QWidget):
             self.anim.note_asleep(self.anim_t, self.drives.asleep)  # 睡着做梦：偶尔抽一下
             self.anim.note_sneeze(self.anim_t, self._sneeze_ok())  # 偶尔呛一下（喷嚏）
             self.anim.note_hum(self.anim_t, self._hum_ok())  # 心情好：隔一会儿哼两句
+            self.anim.note_droop(self.anim_t, self._droop_ok())  # 心情蔫：隔一会儿垂一垂
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1315,6 +1321,28 @@ class SammyWindow(QWidget):
         if self._typing_recent():
             return False
         return self.mood.mood.valence >= HUM_MOOD_ABOVE
+
+    def _droop_ok(self) -> bool:
+        """「现在心情蔫不蔫、又没在忙」—— 这种时候它会隔一会儿往下垂一垂。
+
+        闸门（和别的空闲行为同一套规矩）：
+        - 睡着 / 累趴：不垂（calm 优先 —— 睡着的动静是 Z 和睡梦抽动的事）；
+        - 被拎着的手上：不垂（搬运凝视在管那段）；
+        - 正在（刚在）写它：不垂 —— 它正看着输入框，这时候垂脑袋就是自相矛盾；
+        - 刚交互完的 5 秒：不垂（情绪表达要挑时机 —— 别对着刚说完话的人垂
+          脑袋，和叹气 / 点头同一条规矩）；
+        - 心情没到「有点蔫」：不垂。
+        思考中不用管 —— `_tick` 在思考时整个不跑。
+        """
+        if self.drives.asleep or self.drives.exhausted:
+            return False
+        if self._drag is not None:
+            return False
+        if self._typing_recent():
+            return False
+        if time.time() - self._last_interaction_at < 5:
+            return False
+        return self.mood.mood.valence < DROOP_MOOD_BELOW
 
     def _save_drives(self) -> None:
         try:
