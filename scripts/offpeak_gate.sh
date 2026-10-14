@@ -32,36 +32,39 @@ if [ "$rc" -eq 1 ]; then
   exit 0
 fi
 
-# ── 每日 token 预算（2026-10-14 加：Rowan「token 消耗有点多了」）──
-# 口径：读 ~/.hermes/cron/usage_audit.jsonl，按**本地日**累加 cron 用量；
-# 到上限就整块跳过（和高峰一样：零 token、零消息）。
-# 为什么需要它：一个块 ≈ 15~25M tokens（上下文每做一次工具调用就要重发一遍），
-# 光靠"只跑非高峰"挡不住总量。1 亿 ≈ 5 个块/天 —— 要调就改这一个数。
-BUDGET=100000000
-today=$("${ROOT}/.venv/bin/python" - <<'PY'
+# ── 每日预算闸门（2026-10-14 加，同日改成按「钱」算）──
+# 口径：读 ~/.hermes/state.db 的 session_model_usage（含缓存命中与官方价快照），
+# 按**本地日**累加 cron 会话的 estimated_cost_usd；到上限就整块跳过（零 token 零消息）。
+#
+# 为什么按钱不按 token：一个块"看上"烧 15~25M tokens，但其中 96%+ 是缓存命中
+# （$0.003/M，比未命中便宜 50 倍）—— 真正一个块 ≈ $0.15~0.25。按 token 设限会吓自己，
+# 按钱设限才是 Rowan 真正关心的那个数。历史参考：跑满的一天 ≈ $2.1。
+BUDGET_USD=1.50   # 每天封顶（$）；≈ 7 个块。要调就改这一个数
+spent=$(/usr/bin/python3 - <<'PY'
 import datetime as dt
-import json
 import pathlib
+import sqlite3
 
-p = pathlib.Path.home() / ".hermes" / "cron" / "usage_audit.jsonl"
-today, tot = dt.datetime.now().date(), 0
+p = pathlib.Path.home() / ".hermes" / "state.db"
+today = dt.datetime.now().date()
+tot = 0.0
 try:
-    for line in p.read_text().splitlines():
-        if not line.strip():
+    db = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    for sid, cost, last in db.execute("SELECT session_id, estimated_cost_usd, last_seen FROM session_model_usage"):
+        if not (sid or "").startswith("cron_"):
             continue
-        r = json.loads(line)
-        t = dt.datetime.fromisoformat(r["ts"].replace("Z", "+00:00")).astimezone().date()
-        if t == today:
-            tot += r.get("prompt_tokens", 0) + r.get("completion_tokens", 0)
+        if dt.datetime.fromtimestamp(last or 0).date() == today:
+            tot += float(cost or 0)
+    db.close()
 except Exception:  # noqa: BLE001 - 读不到就当没超（宁可干活，别因记账坏了停工）
     pass
-print(tot)
+print(f"{tot:.2f}")
 PY
 )
-if [ "${today:-0}" -ge "$BUDGET" ]; then
-  echo "今日 cron 用量已达预算（$((today / 1000000))M / $((BUDGET / 1000000))M tokens）—— 本块跳过"
+if /usr/bin/python3 -c "import sys; sys.exit(0 if float('${spent:-0}') >= float('${BUDGET_USD}') else 1)"; then
+  echo "今日 cron 花费已达预算（\$${spent} / \$${BUDGET_USD}）—— 本块跳过"
   echo '{"wakeAgent": false}'
   exit 0
 fi
 
-echo "$out · 今日已用 $((today / 1000000))M / 上限 $((BUDGET / 1000000))M"
+echo "$out · 今日已花 \$${spent} / 上限 \$${BUDGET_USD}"
