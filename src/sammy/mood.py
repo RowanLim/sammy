@@ -15,6 +15,20 @@
    这条特别小心：不能因为没人理就变成怨妇 —— 那是**情感绑架**，
    陪伴产品最容易在这里翻车（"你怎么不理我"这种话一次就让人想卸载）。
 
+## 第二根轴：**劲头**（spirit）
+
+一根轴只说得清「今天过得好不好」，说不清「今天过得热闹还是冷清」。
+而这两件事对一张脸的影响是不同的：过得**好**嘴角往上走；过得**冷清**
+（一直没人理、也没发生什么事）眼神该发飘、脑袋该放空。
+
+所以加第二根轴 —— 但**落盘还是只存一个数**：劲头从 `valence`
+与 `notes`（最近发生的事）**算出来**（`spirit_from`），不新增要迁移的字段。
+理由：多一个字段就多一类「文件坏了/旧文件读不出」的故障面，
+而算出来的东西永远不会和已有的数打架。
+
+两根轴都**不许互相代理**：推劲头不碰 `valence`，默认表情仍由第一根轴单独决定
+（`idle_expression_for` 只是把它写成显式接口，数一个不变）。
+
 ## 两条硬规矩
 
 - **一切变化都朝基线回归**（半衰期 6 小时）：心情不该被一件事绑架一整天。
@@ -43,6 +57,26 @@ ALONE_AFTER_H = 3.0  # 多久没人说话开始"有点蔫"
 ALONE_RATE = 0.05  # 每小时往下多少
 MAX_NOTES = 5
 
+# ── 第二根轴：劲头 ────────────────────────────────
+# 0 = 平常，+1 = 来劲/兴奋，-1 = 发蔫/走神
+SPIRIT_HOME = 0.0
+SPIRIT_NUDGE = 0.18  # 每轮回复对劲头的推动量（比心情大一档：热闹是看得出来的）
+SPIRIT_POKE = 0.10  # 被戳一下
+SPIRIT_ALONE_RATE = 0.04  # 没人理时每小时往下多少（与 ALONE_RATE 同量级）
+# 谱的两头：劲头 >= SPIRIT_UP 叫「来劲」，<= SPIRIT_DOWN 叫「发蔫」
+SPIRIT_UP = 0.5
+SPIRIT_DOWN = -0.5
+# 劲头这五档的切点，按**下界（含）**记，四刀切五档：
+#   走神 | 偏蔫 | 平常 | 偏活 | 兴奋
+# SPIRIT_HOME = 0.0 落在**正中间**那档（判据 test_the_flat_spirit_lands_in_the_middle_band 钉着）。
+# 第一版写成位置索引（SPIRIT_CUTS[1]）取用，结果「偏活」那档永远轮不到 ——
+# 这种错外面看不出来（每档都还有名字），所以另有一条判据扫「每个词都得真的用得上」。
+SPIRIT_GLUM = -0.5
+SPIRIT_MILD_DOWN = -0.15
+SPIRIT_MILD_UP = 0.15
+SPIRIT_CUTS = (SPIRIT_GLUM, SPIRIT_MILD_DOWN, SPIRIT_MILD_UP, SPIRIT_UP)
+
+
 # 表情编号 → 对心情的方向（编号↔名字见 expressions.py）
 POSITIVE_EXPRS = {
     3,
@@ -59,10 +93,19 @@ POSITIVE_EXPRS = {
 }  # 微笑 开心 惊喜 亲亲 星星眼 爱心 满足 燃 坏笑 期待 卖萌
 NEGATIVE_EXPRS = {6, 10, 12, 17, 25, 31, 33}  # 伤心 生气 可怜 难受 邪恶 委屈 不悦
 
+# 劲头往上：不是「开心」就算热闹，而是**真的闹起来了**（大笑/搞怪/新奇/期待）。
+# 微笑（3）故意不算 —— 它太常见，算了就等于劲头一直高位，等于常量。
+LIVELY_EXPRS = {4, 7, 14, 20, 21, 23, 24, 34}  # 大笑 惊喜 亲亲 星星眼 爱心 燃 坏笑 期待
+# 劲头往下：**没精神**的那几张脸。负面情绪故意不算 —— 难过是往下那根轴的事，
+# 不是「没劲」那根轴的事，两根轴不该互相代理。
+DULL_EXPRS = {1, 5}  # 睡眠 困
+
 NOTE_UP = "聊得挺开心"
 NOTE_DOWN = "有点不痛快"
 NOTE_POKE = "被人逗了一下"
 NOTE_ALONE = "安静好一阵了"
+NOTE_LIVELY = "热闹了一下"
+NOTE_SLEEPY = "困得不行"
 
 
 # ── 纯函数（判据都打在这几个上）─────────────────────
@@ -143,6 +186,155 @@ def shrink_for(valence: float, anim_on: bool, asleep: bool) -> float:
     if not anim_on or asleep:
         return 1.0
     return _anim.mood_shrink(valence)
+
+
+# ── 全谱：一张 5 x 5 的表，一格一个字 ──────────────
+# 行＝劲头（0 走神 / 1 偏蔫 / 2 平常 / 3 偏活 / 4 兴奋），列＝心情（低落…很好）。
+# 写成表而不是 if 阶梯：改一格、漏一格、词用不上，都看得见。
+SPECTRUM = (
+    ("空落落的", "发蔫", "放空", "悠着", "安安静静地高兴"),
+    ("提不起劲", "有点闷", "有点走神", "有点懒懒的", "静静的满足"),
+    ("低落", "有点蔫", "还行", "挺轻松", "心情挺好"),
+    ("提不起劲", "有点闷", "挺有兴致", "挺来劲的", "兴致很高"),
+    ("心里堵得慌", "有点坐不住", "有点躁", "挺来劲的", "兴致很高"),
+)
+
+# ── 第二根轴：纯函数（判据都打在这几个上）────────────
+
+
+def clamp_spirit(v: float) -> float:
+    return max(-1.0, min(1.0, float(v)))
+
+
+def spirit_nudge(spirit: float, expr: int) -> float:
+    """按这一轮回复的表情推一把劲头。中性/平静的开心都不动它。"""
+    if expr in LIVELY_EXPRS:
+        return clamp_spirit(spirit + SPIRIT_NUDGE)
+    if expr in DULL_EXPRS:
+        return clamp_spirit(spirit - SPIRIT_NUDGE)
+    return clamp_spirit(spirit)
+
+
+def spirit_alone(spirit: float, hours_alone: float) -> float:
+    """实在没意思的时候自己往下走 —— **和心情共用同一道闸门**（ALONE_AFTER_H）。
+
+    单独一套时间常数就会变成两套作息，迟早打架。
+    """
+    if hours_alone <= ALONE_AFTER_H:
+        return clamp_spirit(spirit)
+    return clamp_spirit(spirit - SPIRIT_ALONE_RATE * (hours_alone - ALONE_AFTER_H))
+
+
+def spirit_decayed(spirit: float, hours: float, half_life: float = HALF_LIFE_H) -> float:
+    """劲头也朝平常回归：热闹过完一阵子会淡下来，但比心情快（半衰期取一半）。"""
+    if hours <= 0 or half_life <= 0:
+        return clamp_spirit(spirit)
+    keep = 0.5 ** (hours / (half_life / 2.0))
+    return clamp_spirit(SPIRIT_HOME + (spirit - SPIRIT_HOME) * keep)
+
+
+def note_effect(text: str) -> float:
+    """一件事对劲头的影响。**只有两种事会动它**：聊得热闹 / 实在没劲。"""
+    if text == NOTE_LIVELY:
+        return 1.0
+    if text == NOTE_SLEEPY:
+        return -1.0
+    return 0.0
+
+
+def spirit_from(valence: float, notes: list[str] | None = None, hours_alone: float = 0.0) -> float:
+    """从**文件里读得到**的东西算劲头：心情 + 最近发生的事 + 多久没人理。
+
+    为什么不落盘：多一个字段就多一类「旧文件读不出」的故障面；
+    而算出来的东西永远不会和已有的数打架。
+    """
+    v = clamp(valence)
+    s = 0.0
+    if v >= 0.55:
+        s += 0.4  # 心情好本身就是「有劲」的一部分
+    elif v <= -0.25:
+        s -= 0.3
+    for note in (notes or [])[-3:]:
+        s += 0.25 * note_effect(note)
+    if v <= -0.05 and s > 0.2:
+        # 「心里堵」：不好的心情会把亢奋压住（不是删掉这一格，是别让它变成乱闹）
+        s *= 0.6
+    return spirit_alone(clamp_spirit(s), hours_alone)
+
+
+def spectrum_label(valence: float, spirit: float) -> str:
+    """两根轴合起来说人话 —— `describe()`（也就是 `--mood`）用这个。
+
+    写法：**一张 5 x 5 的表，一格一个字**（TABLE 就在函数上面，改哪儿一眼看得见）。
+    第一版写成了一串 if 阶梯，结果出了个外面看不出来的 bug：
+    「偏活」那一档被位置索引算进了别的档，成了死代码 —— 表里那格有名字，
+    只是那个名字永远轮不到（判据 test_the_spectrum_is_full 只查「有没有名字」，
+    查不出「这个词永远用不上」）。所以后面加了一条：**每个名字都得真的出现**。
+
+    规矩两条：
+    - 基线 0.15 是**略偏正面**，不该被叫「平静」（那是不好不坏的意思）；
+    - 低落那一路（valence ≤ -0.05）且劲头低的时候，名字里**不许出现好词**
+      —— 陪伴产品在这上面翻过车。这两条都有判据扫。
+    """
+    return SPECTRUM[spirit_band_of(spirit)][band_of(valence)]
+
+
+def band_of(valence: float) -> int:
+    """第一根轴落哪一档（0 低落 / 1 有点蔫 / 2 平静 / 3 不错 / 4 很好）。
+
+    判定顺序从低档往上，**用 `label_of` 的同一套边界**（它先写、被多份判据钉着）：
+    `label_of` 里 -0.25 是「低落」、-0.05 是「平静」、0.55 是「很好」，
+    所以这里也用 `<= / <` 的同一套归属 —— 判据 test_bands_agree_with_label_of 钉着。
+    """
+    v = clamp(valence)
+    if v <= -0.25:
+        return 0
+    if v < -0.05:
+        return 1
+    if v < 0.25:
+        return 2
+    if v < 0.55:
+        return 3
+    return 4
+
+
+def spirit_band_of(spirit: float) -> int:
+    """第二根轴落哪一档（0 走神 / 1 偏蔫 / 2 平常 / 3 偏活 / 4 兴奋）。
+
+    切点 `SPIRIT_CUTS` 按**下界（含）**记，中间那档以 `SPIRIT_HOME = 0.0` 为中心：
+    ±0.15 之内是平常，`SPIRIT_UP = 0.5` 以上是兴奋。
+    `SPIRIT_HOME` 必须落在**正中间**（2 平常）—— 判据钉着这条。
+    """
+    s = clamp_spirit(spirit)
+    band = 0
+    for cut in SPIRIT_CUTS:
+        if s >= cut:
+            band += 1
+    return band
+
+
+def spirit_hint(valence: float, spirit: float) -> str | None:
+    """给提示词接的一句（只在两头出现，中间什么都不加 —— 别把提示词写成流水账）。"""
+    s = clamp_spirit(spirit)
+    v = clamp(valence)
+    if -SPIRIT_UP < s < SPIRIT_UP:
+        return None
+    if v <= -0.05 and s > 0:
+        return "你现在心里不太痛快、又有点躁 —— **别闹**，也别亢奋地安慰自己"
+    if s > 0:
+        return "你现在兴致挺高 —— 可以主动找点话说，但别吵"
+    if v <= -0.05:
+        return "你现在有点发蔫 —— 答话短一点没关系，不用硬撑"
+    return "你现在有点走神 —— 像在想别的事，别急着找话说"
+
+
+def idle_expression_for(valence: float, spirit: float) -> int:
+    """默认摆哪张脸。**数上与加第二根轴之前一字不差** —— 现在仍由第一根轴单独决定。
+
+    写成显式接口只是为了让「劲头不许碰默认表情」这条有个可打的靶子；
+    哪天真有真机观感了，改的也是这一处。
+    """
+    return idle_expression(valence)
 
 
 def idle_expression(valence: float) -> int:
@@ -239,11 +431,21 @@ class MoodTracker:
         """给大脑提示词用的一行（心情 + 最近发生的事）。"""
         return prompt_line(self.mood.valence, self.mood.notes)
 
-    def describe(self) -> str:
+    def spirit(self, now: float | None = None) -> float:
+        """它此刻的劲头（算出来的，不落盘）。"""
+        t = now if now is not None else time.time()
+        hours = max(0.0, (t - self.mood.updated) / 3600.0)
+        s = spirit_from(self.mood.valence, self.mood.notes)
+        return spirit_decayed(s, hours)
+
+    def describe(self, now: float | None = None) -> str:
         """给 `--mood` 打印。"""
-        h = max(0.0, (time.time() - self.mood.updated) / 3600.0)
+        t = now if now is not None else time.time()
+        h = max(0.0, (t - self.mood.updated) / 3600.0)
+        s = self.spirit(now=t)
         lines = [
             f"心情：{self.label()}（{self.mood.valence:+.2f}）",
+            f"劲头：{spectrum_label(self.mood.valence, s)}（{s:+.2f}）",
             f"上次更新：{h:.1f} 小时前",
             f"空闲时会摆的脸：{idle_expression(self.mood.valence)}",
             "最近影响它的事：" + ("；".join(self.mood.notes) if self.mood.notes else "（还没有）"),
@@ -253,10 +455,17 @@ class MoodTracker:
 
 __all__ = [
     "ALONE_AFTER_H",
+    "DULL_EXPRS",
     "FLOOR",
     "HOME",
+    "LIVELY_EXPRS",
     "NEGATIVE_EXPRS",
+    "NOTE_LIVELY",
+    "NOTE_SLEEPY",
     "POSITIVE_EXPRS",
+    "SPIRIT_DOWN",
+    "SPIRIT_HOME",
+    "SPIRIT_UP",
     "STATE_FILE",
     "Mood",
     "MoodTracker",
@@ -264,7 +473,13 @@ __all__ = [
     "clamp",
     "decayed",
     "idle_expression",
+    "idle_expression_for",
     "label_of",
     "nudge_value",
     "prompt_line",
+    "spectrum_label",
+    "spirit_alone",
+    "spirit_from",
+    "spirit_hint",
+    "spirit_nudge",
 ]
