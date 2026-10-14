@@ -682,3 +682,51 @@ Animator.hunch / note_hunch）；窗口那一层在 src/sammy/pet.py 的 _tick
 
 **素材**：`scripts/day_preview.py` 出 `docs/8h-b2/day-chart.png`（精力 + 心情/无聊 + 拍子标记
 + 判据数字卡），一条命令（`make day-media`）可重生成。
+
+## 38. 凭证总目录「我所有的密钥现在放在哪儿」（自选小步·第二十七次）
+
+文件：`scripts/credential_sweep.py`（`scan` / `route` / `machine_places` /
+`LEGAL_ENV` / `MACHINE_PLACES` / `VALUE_PATTERNS`）；台账 `docs/凭证总目录.md`；
+判据 `tests/test_credentials_inventory.py`；图 `scripts/credentials_preview.py`。
+
+**它解决什么**：隔离约定说「项目的一切都在项目文件夹里」，凭证的唯一合法位置是
+`<项目>/data/.env`。但「一切都在项目里」这句话**没有测试看着** —— 早前为了省事
+在别处放过东西（跨机器密钥、代理配置），这些位置不进版本库、也不在任何判据里，
+于是只会在出事那天才被发现。**看不见的凭证才是漏点。**
+
+**它做什么**：把「这台机器上和我们有关」的地方只读扫一遍，看有没有**看起来是凭证**
+的东西出现在 `data/.env` 之外；结果归并成一张台账（位置 + 类型 + 处置），
+台账里**一个密钥字符都没有**。
+
+- `LEGAL_ENV` = `<项目>/data/.env`（唯一的家；被 git 忽略、不进打包的 .app）
+- `MACHINE_PLACES` = 6 条**点名清单**（`~/.hermes/remote-keys`、`~/.hermes/.env`、
+  `~/.gitconfig`、`~/.netrc`、`~/.ssh/config`、`~/.aws/credentials`）——
+  写死名字，不递归、不猜
+- `VALUE_PATTERNS` = 5 条内容形状（sk- / gh[pousr]_ / 被赋值的 UUID 形式 /
+  AWS AKIA / Bearer 字面量）—— 和 `scripts/audit_repo.py` 同一套口径，
+  但这里扫的是磁盘，那边扫的是 git
+- 目录级命中行号记 `0`（目录不是一个位置）；机器级的命中只登记到「文件 / 目录」这一层
+
+**三条纪律**：① 项目里只认 `data/.env`，多一个位置就该红；
+② 扫描器只读、只报位置、**不打印内容**（不删、不改、不挪）；
+③ 机器级的位置只列名字、不递归 —— 那是 Rowan 的地盘，不是替他去整理。
+
+**实测（2026-10-15）**：扫过 299 个文件，项目内**零泄漏**；命中 3 处 ——
+`~/.hermes/.env` 第 477 行（DASHSCOPE_API_KEY，项目代码零引用）、
+`~/.hermes/.env` 里的 DEEPSEEK 键（重复定义两次，清理候选）、
+`~/.hermes/remote-keys/`（跨机器密钥，必须留）。
+**注意**：这些都不属于这个项目，台账登记它们只是为了下次不必重新发现一遍。
+
+**已知的近似**（不是 bug，别拿判据去「修」它）：
+- 扫描器**逐行只认一个规则**（命中即 break），所以一行里两类形状只报一类；
+- `~/.hermes/.env` 里 DEEPSEEK 键写了两遍、值相同 —— 那是那台机器上 Hermes 自己的
+  配置，扫描只负责**看见**，收拾与否由 Rowan 定；
+- 「扫不到 ≠ 安全」：它只扫点名清单里的地方，未知的地方它当然不知道。
+
+**判据**：`tests/test_credentials_inventory.py` 12 条 —— 坏样本必须命中 / 好样本不误报、
+扫完**文件时间戳一字不变**、报告与命令行输出里**不许出现任何密钥形状的内容**、
+台账对账（扫到的都在台账里、台账里写的都得真的在）、合法位置被 git 忽略、接线与名单。
+
+**素材**：`scripts/credentials_preview.py` 出 `docs/8h-b2/credentials-chart.png`
+（覆盖 / 命中 / 唯一的家），一条命令（`make credentials-media`）可重生成；
+随时核一遍用 `make credentials`。

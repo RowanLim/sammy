@@ -314,6 +314,7 @@ def test_decisions_and_files_are_covered():
         "蔫一会儿",
         "蔫过头",
         "绷住",
+        "凭证总目录",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (
@@ -327,6 +328,7 @@ def test_decisions_and_files_are_covered():
         "typewriter.py",
         "anim.py",
         "boot.py",
+        "credential_sweep.py",
     ):
         assert filename in text, "速查表没点文件名：" + filename
 

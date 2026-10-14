@@ -155,3 +155,16 @@ Rowan 把待拍板项**全部授权给 Max 自行取决**（原话：「等我�
   六个文件**逐字节未变**（md5 对过）；drives.json 只动了 `last_update`
   （+380 秒，数值一字未变）—— 那是窗口那条每分钟落盘的既有路径，不是压测写的。
   周六再来一次正式那场即可（入口 `make soak-1h`）。
+
+- 2026-10-15 06:1x · **自选小步·第二十七次：凭证总目录（「我所有的密钥现在放在哪儿」）** · 提交见下 ·
+  判据：新增 `tests/test_credentials_inventory.py` **12 条**，全套 1309 → **1321 passed / 1 skipped**，
+  ruff 与 format 全绿。交付物：`scripts/credential_sweep.py`（只读扫描：点名清单 6 条 +
+  5 条内容形状；项目内 299 个文件全扫过）、`docs/凭证总目录.md`（位置台账，零密钥字符）、
+  `scripts/credentials_preview.py` 出 `docs/8h-b2/credentials-chart.png`、
+  `make credentials`（随时核一遍）与 `make credentials-media`。
+  实测数字：项目内**零泄漏**（`data/.env` 之外一处都没有）；命中 3 处，
+  全在机器级（`~/.hermes/.env` 第 477 行 DASHSCOPE、同文件 DEEPSEEK 重复定义、
+  `~/.hermes/remote-keys/`），**都不属于本项目**，只登记位置、不动内容。
+  关键判据（都是行为）：坏样本必命中 / 好样本不误报、扫完文件时间戳一字不变、
+  报告与命令行输出里不许出现任何密钥形状的内容、台账对账（扫到的都在台账里、台账里写的都得真在）。
+  下一件：Rowan 回话后小屏实测第二轮；或周六 1 小时压测正式跑（入口 `make soak-1h`）。

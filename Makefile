@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak soak-1h history clear-history home mood recall face-only watchdog watchdog-status mcp mcp-demo replay-media day-media
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak soak-1h history clear-history home mood recall face-only watchdog watchdog-status mcp mcp-demo replay-media day-media credentials
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -47,6 +47,8 @@ help:
 	@echo "make faces-spec-media 重生成表情总表 v1.1 素材图（三格，进 docs/8h-b2/）"
 	@echo "make replay-media 重生成历史回放的曲线图（进 docs/8h-b2/）"
 	@echo "make day-media  重生成「桌上的一天」的曲线图（进 docs/8h-b2/）"
+	@echo "make credentials 扫一遍凭证都放在哪儿（只读、只报位置、不打印内容）"
+	@echo "make credentials-media 重生成凭证总目录的判据图（进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -274,6 +276,14 @@ replay-media:
 day-media:
 	$(VENV) scripts/day_preview.py
 
+# 凭证总目录：只读扫一遍，只报位置不报内容（台账见 docs/凭证总目录.md）
+credentials:
+	$(VENV) scripts/credential_sweep.py
+
+# 凭证总目录的判据图（覆盖 / 命中 / 唯一的家，一张图说清）
+credentials-media:
+	$(VENV) scripts/credentials_preview.py
+
 faces-spec-media:
 	$(VENV) scripts/faces_spec_v11_img.py
 
@@ -281,4 +291,4 @@ faces-spec-media:
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media replay-media day-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media replay-media day-media credentials-media
