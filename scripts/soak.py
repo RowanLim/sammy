@@ -77,6 +77,21 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=8.0)
     ap.add_argument("--interval", type=float, default=30.0, help="每轮之间歇多少秒")
+    ap.add_argument("--no-replay", action="store_true", help="不跑历史回放那一段")
+    ap.add_argument(
+        "--replay-offline",
+        action="store_true",
+        help="回放不接大脑（只推时间，不产生回复）—— 没有凭证或想快速验脚本时用",
+    )
+    ap.add_argument(
+        "--replay-sleep-s", type=float, default=0.0, help="回放每步让出的真实秒数（0 = 全速）"
+    )
+    ap.add_argument(
+        "--replay-gap-cap-s",
+        type=float,
+        default=8 * 3600.0,
+        help="回放里相邻两条之间最长按多少秒算（真实跨度太大时压缩；只影响显示）",
+    )
     ap.add_argument(
         "--report", default=str(REPORT), help="报告写到哪（默认 docs/soak-report.json）"
     )
@@ -85,13 +100,21 @@ def main() -> int:
 
     from sammy.brain import SammyBrain
 
+    rss_first = rss_mb()
+    rss_series: list[float] = [rss_first]
+    latencies: list[float] = []
+    replay_data: dict = {}
+    turns = crashes = empties = 0
+    report: dict = {}
+
+    if not args.no_replay:
+        print("── 历史回放（把真实流水里的几天压成几十秒）──")
+        replay_data = replay_section(args)
+        print()
+
     print(f"压测开始：目标 {args.hours} 小时，每轮间隔 {args.interval}s")
     brain = SammyBrain()
     started = time.time()
-    rss_first = rss_mb()
-    latencies: list[float] = []
-    turns = crashes = empties = 0
-    report: dict = {}
 
     def save(last_error: str = "") -> None:
         report.update(
@@ -99,6 +122,8 @@ def main() -> int:
             turns=turns,
             crashes=crashes,
             empties=empties,
+            rss_series_mb=[round(v, 1) for v in rss_series],
+            replay=replay_data,
             rss_first_mb=round(rss_first, 1),
             rss_last_mb=round(rss_mb(), 1),
             latency_p50=round(statistics.median(latencies), 3) if latencies else 0,
@@ -126,6 +151,7 @@ def main() -> int:
         # **每轮都写报告** —— 文件很小，而"进度随时看得见"比省这点 IO 重要得多。
         # （原来 10 轮才写一次，于是刚启动那几分钟报告根本不存在，
         #   看上去就像"没在跑" —— 我自己都被骗过一次，还以为进程挂了。）
+        rss_series.append(rss_mb())
         save(last_error)
         if turns % 10 == 0 or crashes:
             h = (time.time() - started) / 3600.0
@@ -140,6 +166,37 @@ def main() -> int:
     print(f"\n压测结束。报告：{REPORT}")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if crashes == 0 else 1
+
+
+# ── 历史回放（ROWAN 2026-10-14 定的 1 小时压测用）──────────────
+#
+# 1 小时的真机跑暴露内存与句柄问题，但**结构上**暴露不了「过几天会怎样」：
+# 一小时的驱力变化只有 0.1 的量级，累不垮、饿不困。回放把真实流水里的
+# 长间隔（比如隔一天再开机）压缩后喂给同一套代码 —— 几十秒过完几天，
+# 报告里那一段 `replay` 就是这么来的。默认开；`--no-replay` 关掉。
+
+
+def replay_section(args) -> dict:
+    from sammy import replay as replay_mod
+
+    steps = replay_mod.steps_from_log()
+    if not steps:
+        print("（没有真实流水可回放 —— data/chat.jsonl 是空的）")
+        return {"steps": 0, "skipped": "没有流水"}
+    for line in replay_mod.summary_lines(steps, args.replay_gap_cap_s * len(steps) / 3600.0):
+        print("  " + line)
+    brain = None
+    if not args.replay_offline:
+        from sammy.brain import SammyBrain
+
+        try:
+            brain = SammyBrain()
+        except Exception as e:
+            print(f"  ⚠️ 大脑接不通（{e}）—— 改成离线回放（只推时间，不产生回复）")
+    rep = replay_mod.replay(steps, brain=brain, sleep_s=args.replay_sleep_s)
+    for line in rep.human_lines():
+        print("  " + line)
+    return rep.as_dict()
 
 
 if __name__ == "__main__":

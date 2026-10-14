@@ -34,6 +34,8 @@
 28. 第 33 节（蔫一会儿）的 8 个常量同样逐条对账。
 29. 第 34 节（蔫过头）的 3 个常量同样逐条对账。
 30. 第 35 节（绷住）的 7 个常量同样逐条对账。
+31. 第 36 节（历史回放）的 1 个常量（长间隔封顶）同样逐条对账，
+    且 `replay` 进 _MODULE_NAMES —— 常量必须真在某个 sammy 模块里。
 """
 
 from __future__ import annotations
@@ -219,6 +221,7 @@ EXPECTED_PINS = {
     "HUNCH_STRETCH_ABS",
     "HUNCH_MIN_GAP",
     "HUNCH_MAX_GAP",
+    "DEFAULT_DAY_GAP_S",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -239,6 +242,7 @@ _MODULE_NAMES = (
     "anim",
     "boot",
     "standby",
+    "replay",
 )
 
 

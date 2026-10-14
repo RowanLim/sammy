@@ -4,7 +4,7 @@
 
 VENV := .venv/bin/python
 
-.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak history clear-history home mood recall face-only watchdog watchdog-status mcp mcp-demo
+.PHONY: help check check-live fmt backup app run models memory set-key drives accept soak soak-1h history clear-history home mood recall face-only watchdog watchdog-status mcp mcp-demo
 
 help:
 	@echo "make run        跑起来（桌面浮窗）"
@@ -45,6 +45,7 @@ help:
 	@echo "make standby-media 重生成待机省电素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make droop-media   重生成蔫一会儿素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make faces-spec-media 重生成表情总表 v1.1 素材图（三格，进 docs/8h-b2/）"
+	@echo "make replay-media 重生成历史回放的曲线图（进 docs/8h-b2/）"
 	@echo "make watchdog-demo 看门狗全流程演示（约 1 分钟，全在 .tmp/）"
 	@echo "make wake       看唤醒词状态（会认哪些说法）"
 	@echo "make voice-demo 语音闭环演示：唤醒→听懂→回答→说出来（用音频文件代替麦克风）"
@@ -54,6 +55,7 @@ help:
 	@echo "make accept     跑 M1 验收（PRD P0 逐条，出数字）"
 	@echo "make app        打包成双击即开的 .app"
 	@echo "make soak       八小时稳定性压测（后台，可放心跑一夜）"
+	@echo "make soak-1h    一小时长跑压测（周末那场：1 小时真机 + 历史回放）"
 	@echo "make check      本地跑一遍 CI 会跑的全部检查"
 	@echo "make check-live 联网验收（要凭证，慢）"
 	@echo "make fmt        格式化 + 自动修"
@@ -64,6 +66,13 @@ accept:
 
 app:
 	$(VENV) scripts/build_app.py
+
+# 一小时长跑压测（Rowan 2026-10-14 定的周末那一场）：1 小时真机 + 历史回放。
+# 回放把真实流水里的几天压成几十秒喂给同一套代码 —— 一小时的驱力变化只有 0.1 的量级，
+# 结构性的问题（会不会累睡着、主动开口的日常配额）只有回放能碰到。
+# 报告：docs/soak-report.json（含 replay 一节）；随时 Ctrl+C 停，报告每轮都在写。
+soak-1h:
+	$(VENV) scripts/soak.py --hours 1 --interval 30
 
 soak:
 	$(VENV) scripts/soak.py --hours 8
@@ -256,6 +265,10 @@ droop-media:
 	$(VENV) scripts/droop_preview.py
 
 # 表情总表 v1.1 的素材图：三格（情绪 18 / 动画 42 / 判据数字卡）
+# 历史回放的判据图（精力 / 无聊 / 心情三条曲线 + 睡着浅带）
+replay-media:
+	$(VENV) scripts/replay_preview.py
+
 faces-spec-media:
 	$(VENV) scripts/faces_spec_v11_img.py
 
@@ -263,4 +276,4 @@ faces-spec-media:
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media replay-media
