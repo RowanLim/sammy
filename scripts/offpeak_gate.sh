@@ -39,7 +39,7 @@ fi
 # 为什么按钱不按 token：一个块"看上"烧 15~25M tokens，但其中 96%+ 是缓存命中
 # （$0.003/M，比未命中便宜 50 倍）—— 真正一个块 ≈ $0.15~0.25。按 token 设限会吓自己，
 # 按钱设限才是 Rowan 真正关心的那个数。历史参考：跑满的一天 ≈ $2.1。
-BUDGET_USD=1.50   # 每天封顶（$）；≈ 7 个块。要调就改这一个数
+BUDGET_USD=1.00   # 每天封顶（$）；≈ 7 个块。要调就改这一个数
 spent=$(/usr/bin/python3 - <<'PY'
 import datetime as dt
 import pathlib
