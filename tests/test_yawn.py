@@ -360,12 +360,16 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
                 ys += [cy + dx * sth + dy * cth, cy - dx * sth + dy * cth]
         return min(xs), min(ys), max(xs), max(ys)
 
+    # 蔫过头（心情躺平时静止姿态自己收一小圈）：缩放绕着脸中心，对上 / 下 / 左右
+    # 四条边都是**收益**（收进来），不会把任何一条顶出去 —— 并列在这里是为了让
+    # 「预算里算过这一条」有据可查（常量名钉在下面这条等式里）。
     v = (
         (1.0 + anim.CURIOSITY_STRETCH)
         * (1.0 + anim.YAWN_STRETCH)
         * (1.0 + anim.POP_AMPLITUDE)
         * (1.0 + anim.TALK_SQUASH)
         * (1.0 + anim.WELCOME_STRETCH)
+        * anim.MOOD_SHRINK_MIN  # 蔫过头的静止收一圈（乘上去 = 保守；真值是收）
     )
     # 入睡的一下在 calm 里演：那一刻的队友 = 定格凝视 + 换表情的弹 + 好奇拉高
     # （哈欠 / 说话 / 微动都被 calm 关掉；抽动至少 25 秒才有第一下 —— 互斥）。

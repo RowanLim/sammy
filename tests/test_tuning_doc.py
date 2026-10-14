@@ -32,6 +32,7 @@
 26. 第 31 节（欢迎回来）的 7 个常量同样逐条对账。
 27. 第 32 节（待机省电）的 3 个常量同样逐条对账。
 28. 第 33 节（蔫一会儿）的 8 个常量同样逐条对账。
+29. 第 34 节（蔫过头）的 3 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -207,6 +208,9 @@ EXPECTED_PINS = {
     "DROOP_RISE_S",
     "DROOP_SINK_PX",
     "DROOP_SQUINT_MIN",
+    "MOOD_SHRINK_BELOW",
+    "MOOD_SHRINK_MIN",
+    "MOOD_SHRINK_FLOOR",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")

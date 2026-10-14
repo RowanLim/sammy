@@ -59,8 +59,8 @@ app = QApplication(sys.argv[:1])
 layout.load_fonts()
 
 
-def make_window(*, with_droop: bool = True) -> SammyWindow:
-    """稳态窗口：普通脸、状态行「在线」—— 只留蔫一会儿一个变量。"""
+def make_window(*, with_droop: bool = True, shrink: float = 1.0) -> SammyWindow:
+    """稳态窗口：普通脸、状态行「在线」—— 只留蔫一会儿 / 静止收一圈一个变量。"""
     win = SammyWindow(autoconnect=False)
     for tm in (win.timer, win.anim_timer, win.heart, win.night):
         tm.stop()
@@ -76,6 +76,7 @@ def make_window(*, with_droop: bool = True) -> SammyWindow:
     win.my_line = ""  # 素材里不留上一句的残影
     win.sammy_line = ""
     win.anim_t = T0
+    win.anim.set_mood_shrink(shrink)  # 蔫过头的静止收一圈（默认 1.0 = 不收）
     if with_droop:
         win.anim.droop(T0)
     # 素材脚本不碰真状态：关窗时的保存全换成空操作（素材不是它的一天）
@@ -338,3 +339,46 @@ for name in ("droop-strip.png", "droop-demo.mp4"):
         print(
             f"  sha256 {name}: {hashlib.sha256(p.read_bytes()).hexdigest()[:16]}  ({p.stat().st_size} bytes)"
         )
+
+
+# ── 蔫过头：静止收一圈的对照图（第二十五次）──────
+shrunk = make_window(with_droop=False, shrink=anim.MOOD_SHRINK_MIN)
+plain = make_window(with_droop=False, shrink=1.0)
+ia = shrunk.grab().toImage()
+ib = plain.grab().toImage()
+xa0, ya0, xa1, ya1 = face_box(ia)
+xb0, yb0, xb1, yb1 = face_box(ib)
+wa, ha = xa1 - xa0, ya1 - ya0
+wb, hb = xb1 - xb0, yb1 - yb0
+print(f"  收到底实读：宽 {wa} vs {wb}（比 {wa / wb:.4f}）/ 高 {ha} vs {hb}（比 {ha / hb:.4f}）")
+print(
+    f"  中心：{(xa0 + xa1) / 2:.1f} vs {(xb0 + xb1) / 2:.1f}（左右）/ {(ya0 + ya1) / 2:.1f} vs {(yb0 + yb1) / 2:.1f}（上下）"
+)
+
+CA, _ = _ghost(_crop2x(ia), _crop2x(ib))
+CB = _tile(
+    _crop2x(ib), "常态（心情没到线 —— 一点都不收）", "同一颗种子 · scale 1.0 · 与真机同一段绘制代码"
+)
+CC = _tile(
+    CA,
+    "蔫过头（心情到底 —— 静止姿态收一小圈）",
+    f"宽比 {wa / wb:.4f} / 高比 {ha / hb:.4f}（目标 {anim.MOOD_SHRINK_MIN}）· 琥珀 = 常态的它站过的地方",
+)
+card = _card(
+    [
+        "\u2022 触发：心情落进「有点蔫」以下（低于 -0.05）—— 不排期、不占随机流，它一直在",
+        f"\u2022 收到底 = 缩到 {anim.MOOD_SHRINK_MIN:.0%}（{anim.MOOD_SHRINK_BELOW} 到 {anim.MOOD_SHRINK_FLOOR:.2f} 之间线性）",
+        "\u2022 动画关 / 睡着不收（睡相归 calm，不能两个状态抢同一个位置）",
+        f"\u2022 实测（上面右格）：宽比 {wa / wb:.4f} / 高比 {ha / hb:.4f}，中心几乎不动，屏幕角落逐像素一致",
+        "\u2022 琥珀 = 没在收的它站过的地方（收进去之后露出来的那一圈）",
+    ]
+)
+
+_grid(
+    "蔫过头「心情蔫透了，静止姿态自己收一小圈」：不用动，就看得出它没精神",
+    "双胞胎实测（同一颗种子，只差「收没收」）· 2x 最近邻放大 · 与真机同一段绘制代码",
+    [CB, CC, _tile(card, "判据数字卡（与 tests/test_shrink.py 同口径）", "纸上写的 = 代码里跑的")],
+    3,
+    OUT / "shrink-strip.png",
+)
+print("  帧带: ", OUT / "shrink-strip.png")

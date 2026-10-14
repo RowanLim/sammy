@@ -566,3 +566,21 @@ src/sammy/pet.py（`_standby_step` 喂「你走没走」、`_sync_dim_overlay` �
 - DROOP_SQUINT_MIN = 0.72（垂到底纵向压到多少）
 
 素材重生成：make droop-media（帧带 + 短视频，落在 docs/8h-b2/）。
+
+
+## 34. 蔫过头「心情蔫透了，静止姿态自己收一小圈」（自选小步·第二十五次）
+
+文件：src/sammy/anim.py（MOOD_SHRINK 三常量与 mood_shrink / mood_shrink_ok）；
+窗口那一层在 src/sammy/pet.py 的 _tick（每秒喂 set_mood_shrink），
+心情到缩放的换算，收在 mood.py 的 shrink_for 里。
+触发＝心情落进「有点蔫」以下（和蔫一会儿同一档，低于 -0.05）。
+这一段不排期、不占随机流、不掷骰子 —— 它一直在（只要心情在线下面），
+像呼吸和微动一样属于底噪。也是全表第一次「心情直接改静止姿态」：
+以前心情只决定摆哪张脸，现在连那张脸多大也归它管。
+
+
+- MOOD_SHRINK_BELOW = -0.05（低于这条才开始收；和心情标签「有点蔫」同档）
+- MOOD_SHRINK_MIN = 0.94（收到底 = 缩到 94% ；再小没人看得见，再大就变形）
+- MOOD_SHRINK_FLOOR = -0.45（心情下限：到这里就收到底，再低也只是更蔫）
+
+素材重生成：静止收一圈与蔫一会儿是同一批素材（见第 33 节的 make droop-media）。
