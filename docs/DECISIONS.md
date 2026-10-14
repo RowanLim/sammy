@@ -64,7 +64,9 @@
 
 **已做的四刀**：
 1. **自主任务关思考**：`hermes cron edit --reasoning-effort none` 给 `sammy-autopilot-offpeak` 与 `sammy-daily-report`；
-   `sammy-license-review` 保留 `low`（许可证结论要细）。**交互会话不动**（跟你聊天还是 max）。
+   `sammy-license-review` 保留 `low`（许可证结论要细）。**交互会话：max → medium**（Rowan 2026-10-14 拍板：「好似 max 和 medium 区别不大」）。
+   配置链实测：**任务级 > 按模型覆盖 > 全局 `agent.reasoning_effort`**（`hermes_constants.py:1127` 确实读它；
+   `hermes config set` 报"not a recognized key"只是 schema 不全，不影响生效）。
    为什么是"关"不是"低"：DeepSeek 的思考接口只有开关（`thinking: {type: disabled}`），档位参数大概率被忽略 —— 实测 key 401 拿不到真实数据，
    但正因为不确定，才选**唯一确定生效**的那档；预算闸门兜底，质量真掉了改回一条命令的事。
 2. **子任务（delegation）从 max 降到 low**（机械活不需要深想）。
