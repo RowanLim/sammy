@@ -382,3 +382,53 @@ _grid(
     OUT / "shrink-strip.png",
 )
 print("  帧带: ", OUT / "shrink-strip.png")
+
+
+# ── 绷住：心情压到「低落」以下的静止收紧（第二十六次）──────
+def make_hunch_window(valence: float) -> SammyWindow:
+    """稳态窗口：普通脸、静止缩量钉在 1.0 —— 只留「绷没绷」一个变量。"""
+    win = make_window(with_droop=False, shrink=1.0)
+    win.anim.set_mood_valence(valence)
+    return win
+
+
+hunched = make_hunch_window(-0.45)
+untight = make_hunch_window(0.2)
+ia = hunched.grab().toImage()
+ib = untight.grab().toImage()
+xa0, ya0, xa1, ya1 = face_box(ia)
+xb0, yb0, xb1, yb1 = face_box(ib)
+ha, hb = ya1 - ya0 + 1, yb1 - yb0 + 1
+print(f"  绷到底实读：高 {ha} vs {hb}（比 {ha / hb:.4f}）/ 中心下拉 {(ya0 - yb0)}px")
+
+CA2, _ = _ghost(_crop2x(ia), _crop2x(ib))
+CB2 = _tile(
+    _crop2x(ib), "常态（心情没到线 —— 一点都不绷）", "同一颗种子 · scale 1.0 · 与真机同一段绘制代码"
+)
+CC2 = _tile(
+    CA2,
+    "绷住（心情压到「低落」以下 —— 整个人紧一小圈）",
+    f"高比 {ha / hb:.4f}（目标约 {anim.HUNCH_SQUASH_MIN}）· 琥珀 = 常态的它站过的地方",
+)
+card2 = _card(
+    [
+        "\u2022 触发：心情压到「低落」以下（低于 -0.20）—— 排期在 note_hunch，间隔随机不像节拍器",
+        f"\u2022 三条通道一起动：横向 +{anim.HUNCH_SQUINT_PX}px、纵向压到 {anim.HUNCH_SQUASH_MIN:.0%}、好奇拉高按 {anim.HUNCH_STRETCH_ABS:.2f} 收掉",
+        f"\u2022 两下之间 {anim.HUNCH_MIN_GAP:.0f}~{anim.HUNCH_MAX_GAP:.0f} 秒（随机）—— 这是最重的一条，宁可更稀",
+        "\u2022 动画关 / 睡着 / 被拎着 / 正在看你写字 / 刚交互完 5 秒 —— 都不绷",
+        f"\u2022 实测（上面右格）：高比 {ha / hb:.4f}，中心几乎不动，屏幕角落逐像素一致",
+    ]
+)
+
+_grid(
+    "绷住「心情压到低落以下的时候，整个人缩一小圈」：不用动，就看得出它绷紧了",
+    "双胞胎实测（同一颗种子，只差「绷没绷」）· 2x 最近邻放大 · 与真机同一段绘制代码",
+    [
+        CB2,
+        CC2,
+        _tile(card2, "判据数字卡（与 tests/test_hunch.py 同口径）", "纸上写的 = 代码里跑的"),
+    ],
+    3,
+    OUT / "hunch-strip.png",
+)
+print("  帧带: ", OUT / "hunch-strip.png")

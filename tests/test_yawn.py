@@ -370,6 +370,7 @@ def test_worst_case_geometry_fits_the_repaint_pad(qapp):
         * (1.0 + anim.TALK_SQUASH)
         * (1.0 + anim.WELCOME_STRETCH)
         * anim.MOOD_SHRINK_MIN  # 蔫过头的静止收一圈（乘上去 = 保守；真值是收）
+        * anim.HUNCH_SQUASH_MIN  # 绷住的纵向压（同上：乘上去偏保守）
     )
     # 入睡的一下在 calm 里演：那一刻的队友 = 定格凝视 + 换表情的弹 + 好奇拉高
     # （哈欠 / 说话 / 微动都被 calm 关掉；抽动至少 25 秒才有第一下 —— 互斥）。
