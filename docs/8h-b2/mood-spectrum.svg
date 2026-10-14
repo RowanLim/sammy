@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="740" viewBox="0 0 1180 740">
+<rect width="1180" height="740" fill="#0a120d"/>
+<text x="60" y="58" font-family="Helvetica" font-size="30" fill="#c8e6cf">Sammy 的心情全谱：两根轴合起来才是一个谱</text>
+<text x="60" y="92" font-family="Helvetica" font-size="17" fill="#5f8a6c">列 = 过得好不好（valence）· 行 = 热不热闹（spirit）· 一格一个说人话的名字</text>
+<text x="283" y="140" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="middle">低落</text>
+<text x="469" y="140" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="middle">有点蔫</text>
+<text x="655" y="140" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="middle">平静</text>
+<text x="841" y="140" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="middle">不错</text>
+<text x="1027" y="140" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="middle">很好</text>
+<text x="176" y="580" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="end">走神</text>
+<text x="176" y="488" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="end">偏蔫</text>
+<text x="176" y="396" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="end">平常</text>
+<text x="176" y="304" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="end">偏活</text>
+<text x="176" y="212" font-family="Helvetica" font-size="18" fill="#c8e6cf" text-anchor="end">兴奋</text>
+<rect x="194" y="532" width="178" height="84" rx="10" fill="#12211a" stroke="#6fb3d2" stroke-width="2"/>
+<text x="283" y="581" font-family="Helvetica" font-size="19" fill="#6fb3d2" text-anchor="middle">空落落的</text>
+<rect x="380" y="532" width="178" height="84" rx="10" fill="#12211a" stroke="#6fb3d2" stroke-width="2"/>
+<text x="469" y="581" font-family="Helvetica" font-size="19" fill="#6fb3d2" text-anchor="middle">发蔫</text>
+<rect x="566" y="532" width="178" height="84" rx="10" fill="#12211a" stroke="#6fb3d2" stroke-width="2"/>
+<text x="655" y="581" font-family="Helvetica" font-size="19" fill="#6fb3d2" text-anchor="middle">放空</text>
+<rect x="752" y="532" width="178" height="84" rx="10" fill="#12211a" stroke="#6fb3d2" stroke-width="2"/>
+<text x="841" y="581" font-family="Helvetica" font-size="19" fill="#6fb3d2" text-anchor="middle">悠着</text>
+<rect x="938" y="532" width="178" height="84" rx="10" fill="#12211a" stroke="#6fb3d2" stroke-width="2"/>
+<text x="1027" y="581" font-family="Helvetica" font-size="19" fill="#6fb3d2" text-anchor="middle">安安静静地高兴</text>
+<rect x="194" y="440" width="178" height="84" rx="10" fill="#12211a" stroke="#7fd8a0" stroke-width="2"/>
+<text x="283" y="489" font-family="Helvetica" font-size="19" fill="#7fd8a0" text-anchor="middle">提不起劲</text>
+<rect x="380" y="440" width="178" height="84" rx="10" fill="#12211a" stroke="#7fd8a0" stroke-width="2"/>
+<text x="469" y="489" font-family="Helvetica" font-size="19" fill="#7fd8a0" text-anchor="middle">有点闷</text>
+<rect x="566" y="440" width="178" height="84" rx="10" fill="#12211a" stroke="#7fd8a0" stroke-width="2"/>
+<text x="655" y="489" font-family="Helvetica" font-size="19" fill="#7fd8a0" text-anchor="middle">有点走神</text>
+<rect x="752" y="440" width="178" height="84" rx="10" fill="#12211a" stroke="#7fd8a0" stroke-width="2"/>
+<text x="841" y="489" font-family="Helvetica" font-size="19" fill="#7fd8a0" text-anchor="middle">有点懒懒的</text>
+<rect x="938" y="440" width="178" height="84" rx="10" fill="#12211a" stroke="#7fd8a0" stroke-width="2"/>
+<text x="1027" y="489" font-family="Helvetica" font-size="19" fill="#7fd8a0" text-anchor="middle">静静的满足</text>
+<rect x="194" y="348" width="178" height="84" rx="10" fill="#12211a" stroke="#9fb8a8" stroke-width="2"/>
+<text x="283" y="397" font-family="Helvetica" font-size="19" fill="#9fb8a8" text-anchor="middle">低落</text>
+<rect x="380" y="348" width="178" height="84" rx="10" fill="#12211a" stroke="#9fb8a8" stroke-width="2"/>
+<text x="469" y="397" font-family="Helvetica" font-size="19" fill="#9fb8a8" text-anchor="middle">有点蔫</text>
+<rect x="566" y="348" width="178" height="84" rx="10" fill="#12211a" stroke="#9fb8a8" stroke-width="2"/>
+<text x="655" y="397" font-family="Helvetica" font-size="19" fill="#9fb8a8" text-anchor="middle">还行</text>
+<rect x="752" y="348" width="178" height="84" rx="10" fill="#12211a" stroke="#9fb8a8" stroke-width="2"/>
+<text x="841" y="397" font-family="Helvetica" font-size="19" fill="#9fb8a8" text-anchor="middle">挺轻松</text>
+<rect x="938" y="348" width="178" height="84" rx="10" fill="#12211a" stroke="#9fb8a8" stroke-width="2"/>
+<text x="1027" y="397" font-family="Helvetica" font-size="19" fill="#9fb8a8" text-anchor="middle">心情挺好</text>
+<rect x="194" y="256" width="178" height="84" rx="10" fill="#12211a" stroke="#e8c05a" stroke-width="2"/>
+<text x="283" y="305" font-family="Helvetica" font-size="19" fill="#e8c05a" text-anchor="middle">提不起劲</text>
+<rect x="380" y="256" width="178" height="84" rx="10" fill="#12211a" stroke="#e8c05a" stroke-width="2"/>
+<text x="469" y="305" font-family="Helvetica" font-size="19" fill="#e8c05a" text-anchor="middle">有点闷</text>
+<rect x="566" y="256" width="178" height="84" rx="10" fill="#12211a" stroke="#e8c05a" stroke-width="2"/>
+<text x="655" y="305" font-family="Helvetica" font-size="19" fill="#e8c05a" text-anchor="middle">挺有兴致</text>
+<rect x="752" y="256" width="178" height="84" rx="10" fill="#12211a" stroke="#e8c05a" stroke-width="2"/>
+<text x="841" y="305" font-family="Helvetica" font-size="19" fill="#e8c05a" text-anchor="middle">挺来劲的</text>
+<rect x="938" y="256" width="178" height="84" rx="10" fill="#12211a" stroke="#e8c05a" stroke-width="2"/>
+<text x="1027" y="305" font-family="Helvetica" font-size="19" fill="#e8c05a" text-anchor="middle">兴致很高</text>
+<rect x="194" y="164" width="178" height="84" rx="10" fill="#12211a" stroke="#f0a35e" stroke-width="2"/>
+<text x="283" y="213" font-family="Helvetica" font-size="19" fill="#f0a35e" text-anchor="middle">心里堵得慌</text>
+<rect x="380" y="164" width="178" height="84" rx="10" fill="#12211a" stroke="#f0a35e" stroke-width="2"/>
+<text x="469" y="213" font-family="Helvetica" font-size="19" fill="#f0a35e" text-anchor="middle">有点坐不住</text>
+<rect x="566" y="164" width="178" height="84" rx="10" fill="#12211a" stroke="#f0a35e" stroke-width="2"/>
+<text x="655" y="213" font-family="Helvetica" font-size="19" fill="#f0a35e" text-anchor="middle">有点躁</text>
+<rect x="752" y="164" width="178" height="84" rx="10" fill="#12211a" stroke="#f0a35e" stroke-width="2"/>
+<text x="841" y="213" font-family="Helvetica" font-size="19" fill="#f0a35e" text-anchor="middle">挺来劲的</text>
+<rect x="938" y="164" width="178" height="84" rx="10" fill="#12211a" stroke="#f0a35e" stroke-width="2"/>
+<text x="1027" y="213" font-family="Helvetica" font-size="19" fill="#f0a35e" text-anchor="middle">兴致很高</text>
+</svg>

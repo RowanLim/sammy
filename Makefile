@@ -287,8 +287,12 @@ credentials-media:
 faces-spec-media:
 	$(VENV) scripts/faces_spec_v11_img.py
 
+# 心情全谱的判据图（两根轴 5 x 5 的表；先出 SVG，再转 PNG）
+spectrum-media:
+	$(VENV) scripts/mood_spectrum_img.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media replay-media day-media credentials-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media spectrum-media replay-media day-media credentials-media
