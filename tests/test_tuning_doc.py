@@ -33,6 +33,7 @@
 27. 第 32 节（待机省电）的 3 个常量同样逐条对账。
 28. 第 33 节（蔫一会儿）的 8 个常量同样逐条对账。
 29. 第 34 节（蔫过头）的 3 个常量同样逐条对账。
+30. 第 35 节（绷住）的 7 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -211,6 +212,13 @@ EXPECTED_PINS = {
     "MOOD_SHRINK_BELOW",
     "MOOD_SHRINK_MIN",
     "MOOD_SHRINK_FLOOR",
+    "HUNCH_ABS_BELOW",
+    "HUNCH_RAMP",
+    "HUNCH_SQUINT_PX",
+    "HUNCH_SQUASH_MIN",
+    "HUNCH_STRETCH_ABS",
+    "HUNCH_MIN_GAP",
+    "HUNCH_MAX_GAP",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -293,6 +301,8 @@ def test_decisions_and_files_are_covered():
         "欢迎回来",
         "待机省电",
         "蔫一会儿",
+        "蔫过头",
+        "绷住",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

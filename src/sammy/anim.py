@@ -388,6 +388,18 @@ MOOD_SHRINK_FLOOR = -0.45
 # 心情的下限（mood.FLOOR 同一把尺）：到这里就收到底，再低也只是更蔫
 DROOP_SQUINT_MIN = 0.72  # 垂到底压到 72%（眼皮轻轻耷拉着）—— 比点头 50% 浅：没到犯困那份上
 
+# 绷住（第二十六次）
+# 心情差到下面这条以下才开始绷，到心情下限绷到底
+HUNCH_ABS_BELOW = -0.20  # 到「低落」档以下才绷（下限 -0.45）；上面那段是缓坡
+HUNCH_RAMP = 0.25  # 上面那条线的「软硬」：小于它按比例缓入（不是开关）
+HUNCH_SQUINT_PX = 2  # 横向也收一点（缩一圈不是一个方向的事）
+HUNCH_SQUASH_MIN = 0.97  # 纵向压到 97%（和缩同一量级：读成「整个人小一号」）
+HUNCH_STRETCH_ABS = 0.46  # 把好奇拉高的增益按这个量收掉：缩的时候不许再被拉高抵回去
+HUNCH_MIN_GAP = 90.0  # 两次绷住之间最短（秒）
+HUNCH_MAX_GAP = 210.0  # 最长；两者之间随机 —— 别像节拍器（宁可更稀：这是最重的一条）
+# 几何守卫用（test_yawn）
+HUNCH_SLACK_X = 2  # 几何守卫的横向净量（缩是收益，这是保守写法）
+
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
 
@@ -705,6 +717,25 @@ def droop_total() -> float:
     return DROOP_SINK_S + DROOP_HOLD_S + DROOP_RISE_S
 
 
+def hunch_ok(anim_on: bool, asleep: bool) -> bool:
+    """绷住的闸门：动画关着不绷（关就关彻底）、睡着不绷。
+    睡着不绷：睡相归 calm（睡脸自己会安静下来），再叠一层缩就是两个状态抢同一个位置。
+    """
+    return bool(anim_on) and not asleep
+
+
+def hunch_amount(valence: float) -> float:
+    """心情 -> 绷的量（0 = 没绷，1 = 绷到底）。
+    和蔫过头共用同一条曲线（同一个刻度、同一个下限），但晚一步：心情到「低落」
+    （HUNCH_ABS_BELOW）以下才开始绷，再往下走 HUNCH_RAMP 这一段就绷到底。
+    上头那段（-0.05 到 -0.20）不绷：那时它只是「有点蔫」，缩一圈就够读了。
+    """
+    if valence > HUNCH_ABS_BELOW:
+        return 0.0
+    k = (HUNCH_ABS_BELOW - valence) / max(1e-9, HUNCH_RAMP)
+    return max(0.0, min(1.0, k))
+
+
 def mood_shrink_ok(anim_on: bool, asleep: bool) -> bool:
     """静止缩一圈的闸门。
 
@@ -865,8 +896,12 @@ class Animator:
     _welcome_at: float = field(default=-99.0, repr=False)
     # 蔫一会儿：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 心情没落、没在排）
     _mood_shrink: float = field(default=1.0, repr=False)
+    _mood_valence: float = field(default=0.15, repr=False)
     _droop_at: float = field(default=-99.0, repr=False)
     _droop_next_at: float | None = field(default=None, repr=False)
+    # 绷住：这一下的开始时刻（-99 = 没有）；排期（None = 心情没到线，没在排）
+    _hunch_at: float = field(default=-99.0, repr=False)
+    _hunch_next_at: float | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1391,6 +1426,35 @@ class Animator:
         """一直在的静止缩放（缩小圈）：窗口每秒喂一次。"""
         self._mood_shrink = round(float(value), 6)
 
+    def set_mood_valence(self, value: float) -> None:
+        """心情底色（越低越差）：窗口每秒喂一次 —— 绷住从它算，不从缩量反推。"""
+        self._mood_valence = round(float(value), 6)
+
+    def hunch(self, at: float) -> None:
+        """安排一次绷住（at 时刻开始）。
+        再来一次就重新从「绷起来」起步 —— 实际时序里两下之间隔着几十秒，
+        这条只是把语义写死、让测试能钉住。不掷随机数（理由同抽动 / 喷嚏）。
+        """
+        self._hunch_at = float(at)
+
+    def note_hunch(self, t: float, ok: bool) -> None:
+        """喂一次「现在心情差不差、能不能绷一下」—— 窗口每秒调一次（和驱力钟同一拍）。
+        心情压到「低落」以下时会隔一会儿**整个人缩一小圈**（不是单纯地往下垂 ——
+        垂是蔫一会儿那条；这条是在垂与垂之间把「绷紧了」也交代出来），间隔在
+        HUNCH_MIN_GAP ~ HUNCH_MAX_GAP 秒之间随机 —— 均匀得像节拍器就不像活物了。
+        和别的排期器同一套规矩：刚压下去先等一个间隔、一直差接着排、
+        心情缓回来排期清掉（正在绷的那下让它绷完 —— 半路掐掉像被拍了一下）。
+        """
+        if not ok:
+            self._hunch_next_at = None
+            return
+        if self._hunch_next_at is None:
+            self._hunch_next_at = t + self._rng.uniform(HUNCH_MIN_GAP, HUNCH_MAX_GAP)
+            return
+        if t >= self._hunch_next_at:
+            self.hunch(t)
+            self._hunch_next_at = t + self._rng.uniform(HUNCH_MIN_GAP, HUNCH_MAX_GAP)
+
     def note_droop(self, t: float, ok: bool) -> None:
         """喂一次「现在心情蔫不蔫、能不能垂一下」—— 窗口每秒调一次（和驱力钟同一拍）。
 
@@ -1558,6 +1622,8 @@ class Animator:
         self._welcome_at = -99.0  # 欢迎回来同理：拨过时间线，旧的那次不作数
         self._droop_at = -99.0  # 蔫一会儿同理：拨过时间线，旧的那下不作数
         self._droop_next_at = None  # 排期也是（下一次 note_droop 会重排）
+        self._hunch_at = -99.0  # 绷住同理：拨过时间线，旧的那下不作数
+        self._hunch_next_at = None  # 排期也是（下一次 note_hunch 会重排）
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1622,6 +1688,8 @@ class Animator:
         welcome = 0.0 if calm else welcome_amount(t - self._welcome_at)
         # 蔫一会儿：心情「有点蔫」时没精神地往下垂（醒着才有 —— calm 冻结一切）
         droop = 0.0 if calm else droop_amount(t - self._droop_at)
+        # 绷住：心情压到「低落」以下时的静止关（醒着 / 睡着都在 —— 它不是动作，是姿态）
+        hunch = hunch_amount(self._mood_valence)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1651,6 +1719,9 @@ class Animator:
         if droop > 0.0:  # 蔫一会儿：眼皮耷拉下来（比点头浅、比叹气深 —— 「没精神」）
             squash = min(squash, 1.0 - (1.0 - DROOP_SQUINT_MIN) * droop)
 
+        if hunch > 0.0:  # 绷住：整个人缩一小圈（和别的压扁取更紧的那个）
+            squash = min(squash, 1.0 - (1.0 - HUNCH_SQUASH_MIN) * hunch)
+
         amp = CALM_FACTOR if calm else 1.0
         dy = round(amp * BREATH_AMPLITUDE * math.sin(2 * math.pi * t / BREATH_PERIOD))
         if yawn > 0.0:
@@ -1674,6 +1745,8 @@ class Animator:
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
         if sneeze > 0.0:  # 喷嚏：横向一哆嗦（方向一次一换，不占随机流）
             dx += self._sneeze_dir * round(SNEEZE_JERK_PX * sneeze)
+        if hunch > 0.0:  # 绷住：横向也收一点（缩一圈不是一个方向的事）
+            dx += round(HUNCH_SQUINT_PX * hunch)
         if hum > 0.0:  # 哼小曲：左右摇摆 —— 正弦摆乘包络，摆幅到得了 ±HUM_ROCK_PX
             dx += round(
                 HUM_ROCK_PX * hum * math.sin(2 * math.pi * (t - self._hum_at) / HUM_ROCK_PERIOD)
@@ -1700,6 +1773,7 @@ class Animator:
             (1.0 + CURIOSITY_STRETCH * edge * edge)
             * (1.0 + YAWN_STRETCH * yawn)
             * (1.0 + WELCOME_STRETCH * welcome)
+            * (1.0 - HUNCH_STRETCH_ABS * hunch)
         )
 
         pop = 1.0
@@ -1768,6 +1842,14 @@ __all__ = [
     "HUM_ROCK_PERIOD",
     "HUM_ROCK_PX",
     "HUM_ROCK_S",
+    "HUNCH_ABS_BELOW",
+    "HUNCH_MAX_GAP",
+    "HUNCH_MIN_GAP",
+    "HUNCH_RAMP",
+    "HUNCH_SLACK_X",
+    "HUNCH_SQUASH_MIN",
+    "HUNCH_SQUINT_PX",
+    "HUNCH_STRETCH_ABS",
     "LOOK_HOLD_S",
     "LOOK_MOVE_MIN",
     "LOOK_RETARGET_MIN_S",
@@ -1861,6 +1943,8 @@ __all__ = [
     "droop_total",
     "hum_amount",
     "hum_total",
+    "hunch_amount",
+    "hunch_ok",
     "mood_shrink",
     "nod_amount",
     "nod_total",

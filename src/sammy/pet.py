@@ -89,6 +89,11 @@ HUM_MOOD_ABOVE = 0.55
 # 直接呆住不动（calm 定格），不用叠动作 —— 在「会动的那一段」里把蔫演出来。
 DROOP_MOOD_BELOW = -0.05
 
+# 绷住（第二十六次）：心情压到「低落」以下、又没在忙，它会隔一会儿整个人缩一小圈。
+# 和蔫一会儿同一把尺子的下一档（心情标签的「低落」从 -0.25 起，这里取 -0.20
+# —— 比标签稍早一点起步，别让「字说了低落、人还绷着」）。
+HUNCH_MOOD_BELOW = -0.20
+
 # 关闭钮的叉：手画的像素矩阵（5 行 5 列，每格 CLOSE_CROSS_CELL 个设备单位）。
 # 为什么不用字：像素字体子集里没有合适的叉号，系统回落的那个笔画带弧线，
 # 和整块界面的像素语言对不上；手画还保证不依赖字体加载成功与否。
@@ -1173,7 +1178,9 @@ class SammyWindow(QWidget):
             self.anim.set_mood_shrink(
                 mood_mod.shrink_for(self.mood.mood.valence, self.anim_on, self.drives.asleep)
             )
+            self.anim.set_mood_valence(self.mood.mood.valence)  # 绷住从底色算
             self.anim.note_droop(self.anim_t, self._droop_ok())  # 心情蔫：隔一会儿垂一垂
+            self.anim.note_hunch(self.anim_t, self._hunch_ok())  # 心情压得很低：隔一会儿绷一绷
         self._refresh_idle_look()
 
         # 每分钟落盘一次 —— 状态是"它的一天"，不该只在退出时才存
@@ -1346,6 +1353,18 @@ class SammyWindow(QWidget):
         if time.time() - self._last_interaction_at < 5:
             return False
         return self.mood.mood.valence < DROOP_MOOD_BELOW
+
+    def _hunch_ok(self) -> bool:
+        """「现在心情压得很低、又没在忙」—— 这种时候它会隔一会儿绷一绷。
+        闸门（和蔫一会儿同一套，理由见 _droop_ok）：
+        睡着 / 累趴、被拎着的手上、正在（刚在）看它写字、刚交互完的 5 秒 —— 都不绷；
+        心情没压到「低落」以下也不绷。
+        """
+        if self.drives.asleep or self.drives.exhausted:
+            return False
+        if self._drag is not None:
+            return False
+        return self._droop_ok() and self.mood.mood.valence < HUNCH_MOOD_BELOW
 
     def _save_drives(self) -> None:
         try:

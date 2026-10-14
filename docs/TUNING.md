@@ -584,3 +584,23 @@ src/sammy/pet.py（`_standby_step` 喂「你走没走」、`_sync_dim_overlay` �
 - MOOD_SHRINK_FLOOR = -0.45（心情下限：到这里就收到底，再低也只是更蔫）
 
 素材重生成：静止收一圈与蔫一会儿是同一批素材（见第 33 节的 make droop-media）。
+
+
+## 35. 绷住「心情压到低落以下的时候，整个人缩一小圈」（自选小步·第二十六次）
+
+文件：src/sammy/anim.py（HUNCH_* 常量与 hunch_amount / hunch_ok /
+Animator.hunch / note_hunch）；窗口那一层在 src/sammy/pet.py 的 _tick
+（每秒喂 set_mood_valence 与 note_hunch）和 _hunch_ok 闸门。
+触发＝心情压到「低落」以下（低于 -0.20）—— 隔一会儿整个人缩一回：
+横向收、纵向压、连好奇那点拉高也按比例收掉，停一段再松开。
+往上那段（-0.05 到 -0.20）不绷 —— 那时它只是「有点蔫」，那是蔫过头的活。
+
+- HUNCH_ABS_BELOW = -0.20（到「低落」档以下才绷；心情下限 -0.45）
+- HUNCH_RAMP = 0.25（再往下走这么多就绷到底；小于它按比例缓入，不是开关）
+- HUNCH_SQUINT_PX = 2（横向也收一点 —— 缩一圈不是一个方向的事）
+- HUNCH_SQUASH_MIN = 0.97（纵向压到 97%）
+- HUNCH_STRETCH_ABS = 0.46（把好奇拉高的增益按这个量收掉）
+- HUNCH_MIN_GAP = 90.0 / HUNCH_MAX_GAP = 210.0（两下之间，秒；随机，别像节拍器）
+
+再往下（叹气 / 蔫一会儿）都是「动一下」，这条是「静着缩」—— 它不排期般精确，
+按分钟级间隔偶发；睡着 / 累趴 / 被拎着 / 正在看它写字 / 刚交互完 5 秒都不绷。
