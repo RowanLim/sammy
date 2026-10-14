@@ -1170,6 +1170,9 @@ class SammyWindow(QWidget):
             self.anim.note_asleep(self.anim_t, self.drives.asleep)  # 睡着做梦：偶尔抽一下
             self.anim.note_sneeze(self.anim_t, self._sneeze_ok())  # 偶尔呛一下（喷嚏）
             self.anim.note_hum(self.anim_t, self._hum_ok())  # 心情好：隔一会儿哼两句
+            self.anim.set_mood_shrink(
+                mood_mod.shrink_for(self.mood.mood.valence, self.anim_on, self.drives.asleep)
+            )
             self.anim.note_droop(self.anim_t, self._droop_ok())  # 心情蔫：隔一会儿垂一垂
         self._refresh_idle_look()
 
@@ -1642,7 +1645,7 @@ class SammyWindow(QWidget):
                 # 几乎与孪生相等（结构保住了），平滑会让它多糊出 ~500 个
                 # 中间调像素。5° 的行进阶梯 ~11px 一格、一格一像素，正合适。
                 p.rotate(fr.tilt)
-            p.scale(fr.pop, fr.pop * fr.squash * fr.stretch * fr.talk_sq)
+            p.scale(fr.pop * fr.shrink, fr.pop * fr.squash * fr.stretch * fr.talk_sq * fr.shrink)
             p.translate(-box.center().x(), -box.center().y())
         if prev is not None and alpha < 1.0:
             # 交叉淡化：两张脸各半的时候，读起来是"变过去"而不是"切过去"

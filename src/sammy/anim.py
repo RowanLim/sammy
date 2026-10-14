@@ -367,6 +367,25 @@ DROOP_SINK_S = 1.20  # 垂下去用时（秒）—— 慢：是「没精神」�
 DROOP_HOLD_S = 1.60  # 垂到底停住的一整段（秒）—— 最长的「屏住」：情绪不是一口气
 DROOP_RISE_S = 1.10  # 缓起来用时（秒）—— 自己缓过来：不猛，也不拖
 DROOP_SINK_PX = 6  # 整脸往下垂几像素：比叹气（4）深，和入睡的一下（6）同量级
+# 蔫过头：蔫久了，自己缩一小圈·第二十五条的自选小步。
+# 第二十四条补的是「垂」的那一下；这一条补垂与垂之间的那段。
+# 心情从早到晚都是蔫的，光靠每 1 到 2 分钟垂一下，两个动作之间的它看起来
+# 又正常了（动作是瞬时的，底色不是）。所以：心情在「有点蔫」这条线以下时，
+# 让它的静止姿态自己收一小圈——不是变矮，是整个人小一号。
+#
+# 三个「不是」，免得后来的人改错方向：
+# - 不是 squash 那种动态压扁：squash 只在动作里动；这一条改的是静止基线
+#   （见 mood_shrink——空闲摆着的那张脸按心情缩一档）；
+# - 不是第三个动作：不排期、不占随机流、不掷骰子——它一直在（只要
+#   心情在线下面），像呼吸和微动一样属于底噪；
+# - 不越界：收的是脸自己（在脸框内缩），不是整块屏幕——缩完一圈
+#   仍然落在 FACE_REGION_PAD 那条几何守卫里。
+MOOD_SHRINK_BELOW = -0.05
+# 低于这条（= 心情标签的「有点蔫」）才开始收——和垂同一档，不另立一条线
+MOOD_SHRINK_MIN = 0.94
+# 收到底 = 缩到 94%（6% 是看得出的最小量级：再小没人看得见，再大就变形了）
+MOOD_SHRINK_FLOOR = -0.45
+# 心情的下限（mood.FLOOR 同一把尺）：到这里就收到底，再低也只是更蔫
 DROOP_SQUINT_MIN = 0.72  # 垂到底压到 72%（眼皮轻轻耷拉着）—— 比点头 50% 浅：没到犯困那份上
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
@@ -387,6 +406,7 @@ class Frame:
     talk_y: int = 0  # 说话：上下弹（设备像素；0 = 不在说话）
     talk_sq: float = 1.0  # 说话：一鼓一收（1.0 = 不在说话）
     tilt: float = 0.0  # 歪头：绕脸中心旋转的角度（度；正负 = 两个方向）
+    shrink: float = 1.0  # 缩小起来：静止基线缩放（1.0 = 不收）
 
     @property
     def idle(self) -> bool:
@@ -401,6 +421,7 @@ class Frame:
             and self.talk_y == 0
             and self.talk_sq == 1.0
             and self.tilt == 0.0
+            and self.shrink == 1.0
         )
 
 
@@ -684,6 +705,35 @@ def droop_total() -> float:
     return DROOP_SINK_S + DROOP_HOLD_S + DROOP_RISE_S
 
 
+def mood_shrink_ok(anim_on: bool, asleep: bool) -> bool:
+    """静止缩一圈的闸门。
+
+    动画关着不收：没有时间轴，就没有静止姿态这回事（关就该关彻底）；
+    睡着不收：睡相是另一个状态——睡脸自己会安静下来（calm 定格），
+    再叠一层缩放就是两个状态抢同一个位置。
+    """
+    return bool(anim_on) and not asleep
+
+
+def mood_shrink(valence: float) -> float:
+    """心情 -> 静止基线的缩放（1.0 = 一点都不收）。
+
+    和动作曲线（0 -> 1 -> 0 那种）不一样：这条不随时间动，只随心情动。
+    它回答的是「蔫到这个份上，它整个人该收多少」。也是全表第一次出现
+    「心情直接改静止姿态」：以前心情只决定摆哪张脸（mood.idle_expression），
+    现在连那张脸多大也归它管。
+
+    - 没到「有点蔫」（高于 MOOD_SHRINK_BELOW）：1.0（一点都不收）；
+    - 从线到心情下限（MOOD_SHRINK_FLOOR）之间：线性收到 MOOD_SHRINK_MIN；
+    - 比下限还低时不更收（mood 自己在下限截断）。
+    """
+    if valence > MOOD_SHRINK_BELOW:
+        return 1.0
+    span = MOOD_SHRINK_BELOW - MOOD_SHRINK_FLOOR
+    frac = min(1.0, (MOOD_SHRINK_BELOW - valence) / span)
+    return round(1.0 - (1.0 - MOOD_SHRINK_MIN) * frac, 6)
+
+
 def survey_total() -> float:
     """上电环顾整段时长：第一条指令到回中缓动结束（秒）。"""
     return SURVEY_LEAD_S + (len(SURVEY_TARGETS) - 1) * SURVEY_DWELL_S + GAZE_EASE
@@ -814,6 +864,7 @@ class Animator:
     # 欢迎回来：这一次的开始时刻（-99 = 没有）—— 一次「回来」演一次
     _welcome_at: float = field(default=-99.0, repr=False)
     # 蔫一会儿：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 心情没落、没在排）
+    _mood_shrink: float = field(default=1.0, repr=False)
     _droop_at: float = field(default=-99.0, repr=False)
     _droop_next_at: float | None = field(default=None, repr=False)
 
@@ -1336,6 +1387,10 @@ class Animator:
         """
         self._droop_at = float(at)
 
+    def set_mood_shrink(self, value: float) -> None:
+        """一直在的静止缩放（缩小圈）：窗口每秒喂一次。"""
+        self._mood_shrink = round(float(value), 6)
+
     def note_droop(self, t: float, ok: bool) -> None:
         """喂一次「现在心情蔫不蔫、能不能垂一下」—— 窗口每秒调一次（和驱力钟同一拍）。
 
@@ -1673,6 +1728,7 @@ class Animator:
             talk_y=talk_y,
             talk_sq=talk_sq,
             tilt=tilt,
+            shrink=self._mood_shrink,
         )
 
 
@@ -1715,6 +1771,9 @@ __all__ = [
     "LOOK_HOLD_S",
     "LOOK_MOVE_MIN",
     "LOOK_RETARGET_MIN_S",
+    "MOOD_SHRINK_BELOW",
+    "MOOD_SHRINK_FLOOR",
+    "MOOD_SHRINK_MIN",
     "NOD_HOLD_S",
     "NOD_MAX_GAP",
     "NOD_MIN_GAP",
@@ -1802,6 +1861,7 @@ __all__ = [
     "droop_total",
     "hum_amount",
     "hum_total",
+    "mood_shrink",
     "nod_amount",
     "nod_total",
     "sigh_amount",

@@ -134,6 +134,17 @@ def prompt_line(valence: float, notes: list[str] | None = None) -> str:
     return line
 
 
+def shrink_for(valence: float, anim_on: bool, asleep: bool) -> float:
+    """心情落进「有点蔫」后，它的静止姿态自己收一小圈（效果看不到「在动」，但看得出「没精神」）。
+    动画关或睡着时回 1.0（闸门在这里统一道）。
+    """
+    from . import anim as _anim
+
+    if not anim_on or asleep:
+        return 1.0
+    return _anim.mood_shrink(valence)
+
+
 def idle_expression(valence: float) -> int:
     """空闲时默认该摆哪张脸（不是回复时的表情）。"""
     v = clamp(valence)
