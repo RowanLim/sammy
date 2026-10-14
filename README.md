@@ -123,6 +123,13 @@ Sammy 是一个有脸、有声音、有记忆的**个人 AI agent**。它不只�
 帧带与短视频见 [docs/8h-b2/survey-strip.png](docs/8h-b2/survey-strip.png)；
 调参见 [docs/TUNING.md](docs/TUNING.md) 第 30 节。
 
+📌 第二十一个自选小步：**欢迎回来「你回来啦」** —— 光标静够十分钟（= 你离开，
+和休息提醒同一把尺子）之后再动起来的第一下 = 你回来：整脸抬起来一点
+（精神一振）、顺着光标看你一眼，再慢慢放回去，1 秒出头演完；睡着 / 开局 /
+退场 / 动画关都不演，打字与戳算「你还在」。帧带与短视频见
+[docs/8h-b2/welcome-strip.png](docs/8h-b2/welcome-strip.png)；
+调参见 [docs/TUNING.md](docs/TUNING.md) 第 31 节。
+
 ## 目录结构（隔离约定）
 
 **这个项目的一切都在这个文件夹里**（Rowan 定的约定，由 `tests/test_isolation.py` 钉住）：

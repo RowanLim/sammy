@@ -29,6 +29,7 @@
 23. 第 28 节（好奇歪头）的 4 个常量同样逐条对账。
 24. 第 29 节（入睡的一下）的 5 个常量同样逐条对账。
 25. 第 30 节（上电环顾）的 3 个常量同样逐条对账。
+26. 第 31 节（欢迎回来）的 7 个常量同样逐条对账。
 """
 
 from __future__ import annotations
@@ -186,6 +187,13 @@ EXPECTED_PINS = {
     "SURVEY_LEAD_S",
     "SURVEY_DWELL_S",
     "SURVEY_LIFT_PX",
+    "WELCOME_AWAY_S",
+    "WELCOME_HOLD_S",
+    "WELCOME_LIFT_PX",
+    "WELCOME_MOVE_MIN",
+    "WELCOME_RISE_S",
+    "WELCOME_SETTLE_S",
+    "WELCOME_STRETCH",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -264,6 +272,7 @@ def test_decisions_and_files_are_covered():
         "好奇歪头",
         "入睡的一下",
         "上电环顾",
+        "欢迎回来",
     ):
         assert heading in text, "速查表缺小节：" + heading
     for filename in (

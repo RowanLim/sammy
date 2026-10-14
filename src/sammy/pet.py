@@ -73,7 +73,7 @@ SLEEP_EXPR = 1
 # 旋转的溢出比平移大一个量级，这是留量第一次为「转」涨）；要调大 YAWN_STRETCH /
 # CURIOSITY_STRETCH / SIGH_SINK_PX / PET_PURR_PX / HUM_ROCK_PX / TILT_MAX_DEG
 # 之前先看那里（叹气的「沉底」和「压扁」是一对抵消项，净量也一起算）。
-FACE_REGION_PAD = 32
+FACE_REGION_PAD = 42
 
 # 无聊的叹气（自选小步·第九次）：无聊过这条线、又没在忙的时候，它才会叹气。
 # 比「无聊脸」的门槛（0.65）松一点：先听见叹气、再看见耷拉脸 ——
@@ -277,6 +277,11 @@ class SammyWindow(QWidget):
         self._idle_face: int | None = None
         self._last_interaction_at = 0.0
         self._last_typing_at = 0.0  # 你最近一次在输入框里敲字（打字凝视与它的闸门用）
+        # 欢迎回来（自选小步·第二十一次）：「你回来啦」。光标静够久 = 你离开；
+        # 再动起来的第一下 = 你回来 —— 醒着就抬脸看一眼，睡着就安静记下。
+        self._presence_at = 0.0  # 最近一次「你还在」的信号时刻（光标动 / 打字 / 戳 / 发送）
+        self._away = False  # 光标与打字都静够久 = 你离开了（下一次信号 = 你回来）
+        self._presence_ref: tuple[float, float] | None = None  # 「光标动了没」的参照点
         self._save_ticks = 0
         self._started_at = time.time()
 
@@ -402,6 +407,7 @@ class SammyWindow(QWidget):
             self.anim.tilt(self.anim_t)  # 醒着被戳：歪头看你（唔？）
         self.care.note_activity()
         self._last_interaction_at = time.time()
+        self._note_presence_signal()  # 戳 = 你还在：消费掉「你离开了」，别叠着演欢迎
         self._idle_face = None
         self.set_expression(random.choice(POKE_FACES))
         self.sammy_line = random.choice(POKE_QUIPS)
@@ -413,11 +419,13 @@ class SammyWindow(QWidget):
 
         只认「有字」的变化：发送 / 删光（空文本）不算一次「在写」。
         睡着时不喂动画层（它还没醒 —— 醒来那一下是 send / poke 的事，别抢）；
-        动画关着也不喂（没有时间轴，就没有这回事）。
+        动画关着也不喂（没有时间轴，就没有这回事）；顺带记一笔「你还在」
+        （欢迎回来用它判你走没走 —— 写长文不算离开）。
         """
         if not text:
             return
         self._last_typing_at = time.time()
+        self._note_presence_signal()
         if self.anim_on and not self.drives.asleep:
             self.anim.note_typing(self.anim_t)
 
@@ -437,6 +445,7 @@ class SammyWindow(QWidget):
         self._yawn_if_woke(was_asleep)
         self.care.note_activity()
         self._last_interaction_at = time.time()
+        self._note_presence_signal()  # 跟它说话 = 你还在：同「戳」那一条
         self._idle_face = None
         self.my_line = text
         chatlog.append("user", text)  # 先记你说的（哪怕它答不上来，流水也该有你那句）
@@ -886,9 +895,10 @@ class SammyWindow(QWidget):
         """脸在窗口里的像素区域（向外留余量，盖住**所有**形变）。
 
         留量（FACE_REGION_PAD）是**量出来的、不是拍的**：最费的组合是
-        「好奇拉高 × 哈欠拉高 × 弹一下」再叠上各种平移（呼吸 / 说话 /
-        凝视 / 哈欠拔高 / 摸摸头的呼噜 / 哼小曲的摇摆）。实测全 35 张脸在
-        最坏组合下最多约 15.3px，16 够用（tests/test_yawn.py 按常数钉着）。框留小了，
+        「好奇拉高 × 哈欠拉高 × 弹一下 × 说话鼓收 × 欢迎回来的上抬与拉高」
+        再叠上各种平移（呼吸 / 说话 / 凝视 / 哈欠拔高 / 叹气下沉 / 点头 /
+        喷嚏上窜 / 摸摸头的呼噜 / 哼小曲的摇摆）。实测全 35 张脸在最坏
+        组合下最多约 40.2px，42 够用（tests/test_yawn.py 按常数钉着）。框留小了，
         动画帧不会刷新溢出的那一圈：脸会花、哈欠的额头画出去
         （和 Z 位置那条坑同源）。
 
@@ -949,7 +959,8 @@ class SammyWindow(QWidget):
 
         「它在看着你」：光标动了就转过去看，停下 LOOK_HOLD_S 秒后回去发自己的呆。
         顺手喂「摸摸头」：光标**停进脸框**够久 = 在摸它（停够与缓动归动画层）。
-        关掉开关（SAMMY_LOOK 设 off）时连读都不读 —— 关就该关彻底（摸摸头一并关）；
+        顺手喂「欢迎回来」：光标静够久再动起来的第一下 = 你回来了（见 _note_presence）。
+        关掉开关（SAMMY_LOOK 设 off）时连读都不读 —— 关就该关彻底（摸摸头、欢迎回来一并关）；
         动画关着时不喂（没有时间线，就没有这回事）。
         """
         if not self.look_on:
@@ -965,6 +976,7 @@ class SammyWindow(QWidget):
         dx = (local.x() - self._offset[0]) / self.scale - c.x()
         dy = (local.y() - self._offset[1]) / self.scale - c.y()
         self.anim.note_cursor(dx, dy, self.anim_t)
+        self._note_presence(dx, dy)  # 欢迎回来：光标由静到动 = 你回来了
         if self.anim_on:
             # 摸摸头：光标停进脸框（设备坐标）并且醒着时，算「手在摸」
             px = (local.x() - self._offset[0]) / self.scale
@@ -972,6 +984,57 @@ class SammyWindow(QWidget):
             self.anim.note_pet(
                 self.anim_t, self.lay.face.contains(int(px), int(py)) and not self.drives.asleep
             )
+
+    def _note_presence(self, dx: float, dy: float) -> None:
+        """欢迎回来（自选小步·第二十一次）：「你回来啦」。
+
+        光标（你能碰到的唯一全局信号）静够 WELCOME_AWAY_S 没人动 = 你走了；
+        之后第一次动至少 WELCOME_MOVE_MIN 像素 = 你回来了：
+        - 醒着：抬脸精神一振（anim.welcome）—— 顺着它自己的光标凝视看你一眼；
+        - 睡着：安静消费掉（回来那条走哈欠，别叠着演）；
+        - 开局 / 退场 / 动画关：不排（和别的通道同一套闸门）。
+        移动检测有自己的参照点（和光标凝视的分开）—— 凝视要 6px 才转头，
+        「回来」只要 4px 就该被注意到。
+        """
+        if not self.anim_on:
+            return
+        if self._presence_ref is None:
+            self._presence_ref = (dx, dy)
+            return
+        rx, ry = self._presence_ref
+        moved = (dx - rx) ** 2 + (dy - ry) ** 2 >= anim.WELCOME_MOVE_MIN**2
+        if moved:
+            self._presence_ref = (dx, dy)
+            self._presence_at = self.anim_t
+            if self._away:
+                self._away = False
+                if self._welcome_ok():
+                    self.anim.welcome(self.anim_t)
+        elif self.anim_t - self._presence_at >= anim.WELCOME_AWAY_S:
+            self._away = True
+
+    def _note_presence_signal(self) -> None:
+        """一个「你还在」的非光标信号（打字 / 戳 / 发送）：记账 + 消费旧的离开。
+
+        为什么消费：这次回来已经有人应你了（歪头 / 哈欠 / 看输入框）——
+        欢迎回来只认「光标先动」那条路，不叠着演。
+        """
+        if not self.anim_on:
+            return
+        self._presence_at = self.anim_t
+        self._away = False
+
+    def _welcome_ok(self) -> bool:
+        """现在能不能「看见你回来」：醒着、不在开局 / 退场里。
+
+        （SAMMY_LOOK 关掉时连光标都不读，压根走不到这里 —— 关就关彻底。）
+        """
+        return (
+            self.anim_on
+            and not self.drives.asleep
+            and self._boot_t0 is None
+            and self._shutdown_t0 is None
+        )
 
     def _note_carry(self, delta: QPoint) -> None:
         """窗口被搬动：位移换算成设备像素喂给动画层（「被带去哪儿就看哪儿」）。

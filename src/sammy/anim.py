@@ -72,6 +72,15 @@
     2.6 秒演完；它**就是进入 calm 的那一下**（只在睡着这一瞬演，醒着没有）。
     它是「睡着」的入口 —— 和哈欠（「醒来」的出口）对称。
 
+18. **上电环顾**（自选小步·第二十次）：「自检播完，先看一圈」—— 开机自检
+    交班那一刻先站定一下，抬着头把左右两边各看一眼、再回正中，然后才开始
+    随机漂移；三条固定凝视指令，复用既有凝视盒与缓动（不掷随机数）；
+    点一下跳过也看。
+
+19. **欢迎回来**（自选小步·第二十一次）：「你回来啦」—— 光标静够久（= 你离开）
+    之后第一次动 = 你回来：整脸抬起来一点（精神一振）、顺着光标看你一眼，
+    再慢慢放回去；睡着时不排（醒来那条走哈欠），动画关也不做。
+
 睡觉（calm）时：不眨眼、位移收敛、**凝视定格**在睡前方向 —— 睡着还四处看、
 还晃来晃去就不像睡着了；醒来从定格处接着缓动，不跳。
 
@@ -322,6 +331,23 @@ SURVEY_TARGETS: tuple[tuple[int, int], ...] = (
     (GAZE_MAX_X, -SURVEY_LIFT_PX),  # 再看右边
     (0, 0),  # 回正中 —— 之后交给随机漂移
 )
+
+# ── 欢迎回来：「你回来啦」────────────
+# 光标（= 你能碰到的唯一全局信号）静够 WELCOME_AWAY_S 没人动 = 你离开了；
+# 再动起来的第一下 = 你回来了 —— 它把脑袋抬起来（精神一振）、顺着光标看
+# 你一眼，再慢慢放回去。它补的是「离开一会儿再回来」这条缝：长离开它是
+# 睡着的（醒来走哈欠），短离开此前什么反应也没有 —— 你回来它都不知道，
+# 那不像活物，像一台不在家的机器。宁可错迎（看电影四十分钟再动鼠标，它
+# 也会欢迎一下 —— 那一下本来也读得通），不可漏迎。
+WELCOME_AWAY_S = (
+    600.0  # 光标静这么久没人碰 = 你走了（秒）—— 和 care.ACTIVE_WINDOW_MINUTES 同一把尺子
+)
+WELCOME_MOVE_MIN = 4  # 光标累计位移至少这么多设备像素算「有人在用鼠标」（贴手小抖不算）
+WELCOME_RISE_S = 0.18  # 精神一振：抬起来用时（秒）—— 快：是「一下注意到」
+WELCOME_HOLD_S = 0.30  # 顶着的一小段（秒）—— 让眼睛看清「它看见你了」
+WELCOME_SETTLE_S = 0.55  # 放回去用时（秒）—— 比抬起来慢，劲头落下要有尾巴
+WELCOME_LIFT_PX = 5  # 整脸往上抬几像素（负方向 = 上）—— 和叹气 / 点头的下沉同量级
+WELCOME_STRETCH = 0.06  # 顺带纵向拉高 6%（和好奇同一个量级）——「精神起来」的那一下
 
 CALM_FACTOR = 0.25  # 睡着/休息时位移缩到多少
 ANIM_DT = 0.033  # 驱动频率（~30fps）
@@ -589,6 +615,30 @@ def dozeoff_total() -> float:
     return DOZEOFF_SINK_S + DOZEOFF_HOLD_S + DOZEOFF_SETTLE_S
 
 
+def welcome_amount(t_spent: float) -> float:
+    """「你回来啦」的形状（0 → 1 → 0）：抬起来 → 顶住 → 放回去 —— 三段一条线。
+
+    纯函数：三段时间线在测试里逐点钉死。抬起来（RISE）比放回去（SETTLE）快 ——
+    注意到你是一瞬间的事，放松下来有个尾巴；两头精确为 0。
+    `t_spent` = 距离这次「回来」过了多久；负数 = 还没发生（取 0）。
+    """
+    if t_spent < 0:
+        return 0.0
+    if t_spent < WELCOME_RISE_S:
+        return _smooth01(t_spent / WELCOME_RISE_S)
+    if t_spent < WELCOME_RISE_S + WELCOME_HOLD_S:
+        return 1.0
+    k = t_spent - WELCOME_RISE_S - WELCOME_HOLD_S
+    if k < WELCOME_SETTLE_S:
+        return 1.0 - _smooth01(k / WELCOME_SETTLE_S)
+    return 0.0
+
+
+def welcome_total() -> float:
+    """一次「欢迎回来」从头到尾的时长（秒）。"""
+    return WELCOME_RISE_S + WELCOME_HOLD_S + WELCOME_SETTLE_S
+
+
 def survey_total() -> float:
     """上电环顾整段时长：第一条指令到回中缓动结束（秒）。"""
     return SURVEY_LEAD_S + (len(SURVEY_TARGETS) - 1) * SURVEY_DWELL_S + GAZE_EASE
@@ -716,6 +766,8 @@ class Animator:
     _tilt_dir: int = field(default=1, repr=False)
     # 入睡的一下：「醒着 → 睡着」那一刻的开始时刻（-99 = 没有）；一段睡觉只有一次
     _dozeoff_at: float = field(default=-99.0, repr=False)
+    # 欢迎回来：这一次的开始时刻（-99 = 没有）—— 一次「回来」演一次
+    _welcome_at: float = field(default=-99.0, repr=False)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1211,6 +1263,18 @@ class Animator:
         """
         self._dozeoff_at = float(at)
 
+    # ── 欢迎回来：「你回来啦」────────────
+    # 光标静够久（= 你离开）之后第一次动 = 你回来 —— 窗口（pet._note_presence）
+    # 在那一下调；醒着才有（睡着时安静的回来归哈欠那条边管）。
+
+    def welcome(self, at: float) -> None:
+        """安排一次「欢迎回来」（at 时刻开始）。
+
+        再来一次就重新从抬起来起步（实际时序里两次回来隔着十分钟以上 ——
+        这条只把语义写死、让测试能钉住）。不掷随机数、不占随机流。
+        """
+        self._welcome_at = float(at)
+
     def note_talk(self, t: float, active: bool) -> None:
         """喂一次「现在在不在说话」（打字机在不在吐字）—— 窗口每帧调一次。
 
@@ -1354,6 +1418,7 @@ class Animator:
         self._hum_next_at = None  # 排期也是（下一次 note_hum 会重排）
         self._tilt_at = -99.0  # 歪头同理：拨过时间线，旧的那下不作数
         self._dozeoff_at = -99.0  # 入睡的一下同理：拨过时间线，旧的那下不作数
+        self._welcome_at = -99.0  # 欢迎回来同理：拨过时间线，旧的那次不作数
         self._gaze = [g for g in self._gaze if g.t > t]
         if not self._gaze:
             self._gaze = [self._new_gaze(t + 1.2, 0, 0)]
@@ -1414,6 +1479,8 @@ class Animator:
         # 入睡的一下：只在 calm（睡着）里演 —— 它本来就是「进入 calm」的那一刻；
         # 醒着的时候一眼都不许有（和抽动同一套：calm 定生死）
         dozeoff = dozeoff_amount(t - self._dozeoff_at) if calm else 0.0
+        # 欢迎回来：你回来那一刻把脸抬起来（醒着才有 —— 睡着走哈欠那条边）
+        welcome = 0.0 if calm else welcome_amount(t - self._welcome_at)
 
         if not calm:  # 摸摸头：手停够时间就把「在摸」立起来（睡着不处理，calm 优先）
             self._pet_step(t)
@@ -1455,6 +1522,8 @@ class Animator:
             dy -= round(SNEEZE_LIFT_PX * sneeze)
         if dozeoff > 0.0:  # 入睡的一下：整脸往下沉（撑不住的「塌」—— 比点头更深）
             dy += round(DOZEOFF_SINK_PX * dozeoff)
+        if welcome > 0.0:  # 欢迎回来：整脸往上抬一点（负 = 上）——「精神一振」
+            dy -= round(WELCOME_LIFT_PX * welcome)
         dx = round(amp * SWAY_AMPLITUDE * math.sin(2 * math.pi * t / SWAY_PERIOD))
         if twitch > 0.0:  # 横向一激灵：方向一左一右交替（不占随机流）
             dx += self._twitch_dir * round(TWITCH_SHIFT_PX * twitch)
@@ -1482,7 +1551,11 @@ class Animator:
 
         # 好奇：越靠左右边缘，脸越"探"（只拉高，不拉宽）
         edge = min(1.0, abs(gx) / GAZE_MAX_X)
-        stretch = (1.0 + CURIOSITY_STRETCH * edge * edge) * (1.0 + YAWN_STRETCH * yawn)
+        stretch = (
+            (1.0 + CURIOSITY_STRETCH * edge * edge)
+            * (1.0 + YAWN_STRETCH * yawn)
+            * (1.0 + WELCOME_STRETCH * welcome)
+        )
 
         pop = 1.0
         spent = t - self._pop_at
@@ -1606,6 +1679,13 @@ __all__ = [
     "TYPING_TILT_FIRST_MIN_S",
     "TYPING_TILT_MAX_GAP",
     "TYPING_TILT_MIN_GAP",
+    "WELCOME_AWAY_S",
+    "WELCOME_HOLD_S",
+    "WELCOME_LIFT_PX",
+    "WELCOME_MOVE_MIN",
+    "WELCOME_RISE_S",
+    "WELCOME_SETTLE_S",
+    "WELCOME_STRETCH",
     "YAWN_HOLD_S",
     "YAWN_LIFT_PX",
     "YAWN_RISE_S",
@@ -1634,6 +1714,8 @@ __all__ = [
     "tilt_total",
     "twitch_amount",
     "twitch_total",
+    "welcome_amount",
+    "welcome_total",
     "yawn_amount",
     "yawn_squint",
     "yawn_total",
