@@ -36,6 +36,7 @@
 30. 第 35 节（绷住）的 7 个常量同样逐条对账。
 31. 第 36 节（历史回放）的 1 个常量（长间隔封顶）同样逐条对账，
     且 `replay` 进 _MODULE_NAMES —— 常量必须真在某个 sammy 模块里。
+32. 第 37 节的 4 个常量（一天的长度 / 最长空档 / 两个窗口）对账，replica 进模块名单。
 """
 
 from __future__ import annotations
@@ -222,6 +223,11 @@ EXPECTED_PINS = {
     "HUNCH_MIN_GAP",
     "HUNCH_MAX_GAP",
     "DEFAULT_DAY_GAP_S",
+    "DAY_S",
+    "MAX_GAP_S",
+    "DEFAULT_AWAKE_WINDOW_S",
+    "DEFAULT_AWAY_WINDOW_S",
+    "DEFAULT_NIGHT_S",
 }
 
 _PIN_RE = re.compile(r"\b([A-Z][A-Z0-9_]{2,})\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)")
@@ -243,6 +249,7 @@ _MODULE_NAMES = (
     "boot",
     "standby",
     "replay",
+    "replica",
 )
 
 

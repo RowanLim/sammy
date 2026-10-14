@@ -52,6 +52,7 @@
 
 - [x] 表情总表 v1.1：把第 1 条选定的 17 个标出来、第 4 条选定的 8 个动画标注、第 2/3/5/6/7 条写进表头"已定"说明（2026-10-15 02:0x 落地：`docs/表情总表_v1.1.md` 由 `scripts/faces_spec_v11.py` 从 v1 逐字节生成，一条命令重生成；判据 `tests/test_faces_spec.py` 25 条，12 情绪首发 / 6 情绪第二批 / 8 动画首发三条集合从本文件读出对账）
 - [ ] 给 Nex 的决策回执（写文件到 docs/，它自己来取）
+  （2026-10-14 18:23 已落地：`docs/给Nex的回执_决策与许可证.md` 48 行，与 `docs/许可证结论_v1.md` 同一次提交）
 - [x] 小屏实测（第一轮，2026-10-14 18:04）落地件 3 个：
   scripts/faceonly_run.sh 常驻 + scripts/faceonly_stop.sh 一键停（按 PID）+
   判据测试 tests/test_faceonly_deploy.py 13 条。
@@ -83,3 +84,8 @@
 
 **怎么验证有没有效**：看 `state.db` 的 `session_model_usage.reasoning_tokens`（每块一条）——
 关思考后应显著下降；哪天成本没降或质量掉了，改回 `--reasoning-effort low` 即可（一条命令）。
+- [x] 周六 1 小时压测的**第二节：桌上的一天（复刻）**（2026-10-15 04:0x 落地）：
+  `src/sammy/replica.py` 用合成脚本替它把一整天过掉（几十秒过完 6.5 小时时间轴），
+  替身写自己的 `data/replica/`、真实 `data/` 逐字节不改；压测脚本接上（`--no-day` 可关，
+  报告新增 `replica` 一节 + `real_data_touched`）；判据 `tests/test_replica.py` 12 条。
+  **周六那场本身还没跑**（等周末非高峰）。

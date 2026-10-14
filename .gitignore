@@ -51,3 +51,7 @@ models/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
+
+# 压测报告 v2（带 rss_series_mb 与 replay / replica 两节）—— 每次跑都不一样，
+# 不入库；docs/soak-report.json 是 2026-10-01 那份旧格式的历史留存，留着。
+docs/soak-report-1h.json

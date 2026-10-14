@@ -78,6 +78,16 @@ def main() -> int:
     ap.add_argument("--hours", type=float, default=8.0)
     ap.add_argument("--interval", type=float, default=30.0, help="每轮之间歇多少秒")
     ap.add_argument("--no-replay", action="store_true", help="不跑历史回放那一段")
+    ap.add_argument("--no-day", action="store_true", help="不跑「桌上的一天」（复刻）那一段")
+    ap.add_argument(
+        "--day-days",
+        type=int,
+        default=1,
+        help="「桌上的一天」跑几天（默认 1 天，约 6.5 小时时间轴）",
+    )
+    ap.add_argument(
+        "--day-seed", type=int, default=None, help="「桌上的一天」的随机种子（默认每次不同）"
+    )
     ap.add_argument(
         "--replay-offline",
         action="store_true",
@@ -104,8 +114,14 @@ def main() -> int:
     rss_series: list[float] = [rss_first]
     latencies: list[float] = []
     replay_data: dict = {}
+    day_data: dict = {}
     turns = crashes = empties = 0
     report: dict = {}
+
+    if not args.no_day:
+        print("── 桌上的一天（复刻：替它把这一天过掉，真实 data/ 一字不动）──")
+        day_data = day_section(args)
+        print()
 
     if not args.no_replay:
         print("── 历史回放（把真实流水里的几天压成几十秒）──")
@@ -124,6 +140,7 @@ def main() -> int:
             empties=empties,
             rss_series_mb=[round(v, 1) for v in rss_series],
             replay=replay_data,
+            replica=day_data,
             rss_first_mb=round(rss_first, 1),
             rss_last_mb=round(rss_mb(), 1),
             latency_p50=round(statistics.median(latencies), 3) if latencies else 0,
@@ -174,6 +191,32 @@ def main() -> int:
 # 一小时的驱力变化只有 0.1 的量级，累不垮、饿不困。回放把真实流水里的
 # 长间隔（比如隔一天再开机）压缩后喂给同一套代码 —— 几十秒过完几天，
 # 报告里那一段 `replay` 就是这么来的。默认开；`--no-replay` 关掉。
+
+
+# ── 桌上的一天（复刻）────────────────────────────────
+#
+# 别的压测段问的是「代码稳不稳」，这一段问的是「**它自己过得好不好**」：
+# 一天里精力掉到哪、有没有熬到睡着、没人理的时候无聊涨得多快、心情走成什么样。
+# 替身有自己的数据目录（data/replica/），真实 data/ 一字不动 —— 见 replica.py 顶部。
+
+
+def day_section(args) -> dict:
+    from sammy import replica as replica_mod
+
+    before = {
+        p.name: p.read_bytes() for p in sorted(replica_mod.data_dir().iterdir()) if p.is_file()
+    }
+    rep = replica_mod.Replica()
+    print("  " + "\n  ".join(rep.script.lines() or ["（脚本还没造）"]))
+    out = rep.run(days=args.day_days, seed=args.day_seed)
+    for line in out.human_lines():
+        print("  " + line)
+    changed = rep.real_untouched(before)
+    if changed:
+        print(f"  ⚠️ 真实数据目录被动过：{', '.join(changed)}")
+    d = out.as_dict()
+    d["real_data_touched"] = changed
+    return d
 
 
 def replay_section(args) -> dict:

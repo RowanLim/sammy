@@ -134,3 +134,14 @@ Rowan 把待拍板项**全部授权给 Max 自行取决**（原话：「等我�
 - 2026-10-15 03:1x / 第 4 项（周六 1 小时压测）的回放段完成
 - 判据：新增 tests/test_replay.py 14 条，全套 1283 到 1297 passed / 1 skipped，ruff 与 format 与全历史凭证审计全绿。
 - 交付物：src/sammy/replay.py（按 8 小时封顶把真实流水里的长间隔压成几十秒，喂给同一套驱力与心情路径）加 scripts/soak.py 接线（可关，报告新增 rss_series_mb 与 replay 一节）加 make soak-1h（周六那场的入口）加素材 docs/8h-b2/replay-chart.png（三条曲线加睡着浅带，可一条命令重生成）。
+
+- 2026-10-15 04:2x · **DECISIONS 待执行清单第 4 项补完：1 小时压测的「桌上的一天」段** · 提交见下 ·
+  判据：新增 `tests/test_replica.py` 12 条，全套 1297 → **1309 passed / 1 skipped**，
+  ruff 与 format 全绿。交付物：`src/sammy/replica.py`（合成脚本替它把一天过掉：
+  你说话 / 戳它 / 没人理 / 隔夜四种拍子，几十秒过完 6.5 小时时间轴）、
+  `scripts/soak.py` 接线（`--no-day` 可关，报告新增 `replica` 一节与 `real_data_touched`）、
+  `make day-media` 出 `docs/8h-b2/day-chart.png`（精力 + 心情/无聊 + 拍子标记 + 判据数字卡）。
+  关键判据（都是行为）：替身跑完真实 `data/` 里 7 个文件**逐字节未变**（md5 对过）；
+  一天过完精力 0.85 → 0.13（没推时间的话这个数一动不动）；
+  隔夜脚本必须熬到睡着（energy_min 0.09 → 睡 2 小时充回 1.00）。
+  **周六那场 1 小时真机跑本身还没跑**（等周末非高峰）。
