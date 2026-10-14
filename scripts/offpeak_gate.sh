@@ -29,6 +29,39 @@ fi
 if [ "$rc" -eq 1 ]; then
   # 高峰：最后一行必须是这个 JSON，否则调度器照样唤醒 agent（那就白烧钱了）
   echo '{"wakeAgent": false}'
-else
-  echo "$out"
+  exit 0
 fi
+
+# ── 每日 token 预算（2026-10-14 加：Rowan「token 消耗有点多了」）──
+# 口径：读 ~/.hermes/cron/usage_audit.jsonl，按**本地日**累加 cron 用量；
+# 到上限就整块跳过（和高峰一样：零 token、零消息）。
+# 为什么需要它：一个块 ≈ 15~25M tokens（上下文每做一次工具调用就要重发一遍），
+# 光靠"只跑非高峰"挡不住总量。1 亿 ≈ 5 个块/天 —— 要调就改这一个数。
+BUDGET=100000000
+today=$("${ROOT}/.venv/bin/python" - <<'PY'
+import datetime as dt
+import json
+import pathlib
+
+p = pathlib.Path.home() / ".hermes" / "cron" / "usage_audit.jsonl"
+today, tot = dt.datetime.now().date(), 0
+try:
+    for line in p.read_text().splitlines():
+        if not line.strip():
+            continue
+        r = json.loads(line)
+        t = dt.datetime.fromisoformat(r["ts"].replace("Z", "+00:00")).astimezone().date()
+        if t == today:
+            tot += r.get("prompt_tokens", 0) + r.get("completion_tokens", 0)
+except Exception:  # noqa: BLE001 - 读不到就当没超（宁可干活，别因记账坏了停工）
+    pass
+print(tot)
+PY
+)
+if [ "${today:-0}" -ge "$BUDGET" ]; then
+  echo "今日 cron 用量已达预算（$((today / 1000000))M / $((BUDGET / 1000000))M tokens）—— 本块跳过"
+  echo '{"wakeAgent": false}'
+  exit 0
+fi
+
+echo "$out · 今日已用 $((today / 1000000))M / 上限 $((BUDGET / 1000000))M"
