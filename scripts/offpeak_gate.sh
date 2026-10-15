@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ⚠️ 注意：**cron 真正执行的不是这个文件**，而是 ~/.hermes/scripts/sammy_offpeak_gate.sh。
+# 原因：外置盘 /Volumes/Mac mini 被 macOS TCC 挡住，后台进程（cron）读不到 —— 见那份文件头
+# Nex 2026-10-13 的记录。本文件是**记录 + 参考实现**（可读、可测、跟着项目走）；
+# 改闸门逻辑要改两份，或者在 ~/.hermes 那份里改完再同步回来（2026-10-15 踩过这个坑：
+# 预算检查只加在这边 → cron 那版没有 → 超预算照样跑）。
 # 定时任务的闸门 —— 只在非高峰唤醒 agent，高峰**整个跳过**。
 #
 # ⚠️ 语义是照源码实读的（cron/scheduler.py:2255 + cron/scheduler_prompt.py:20）：
