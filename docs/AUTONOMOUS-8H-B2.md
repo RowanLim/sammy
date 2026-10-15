@@ -183,3 +183,16 @@ Rowan 把待拍板项**全部授权给 Max 自行取决**（原话：「等我�
   （外面看不出来，是补的那条「每个词都得用得上」抓出来的）；
   并验证了这条判据有牙 —— 把行列调换的 bug 故意塞回去，它红了。
   下一件：Rowan 回话后小屏实测第二轮；或周六 1 小时压测正式跑（`make soak-1h`）。
+
+- 2026-10-15 13:0x · **自选小步·第二十九次：第二根轴也管姿态（两种形变）** · 提交见下 · 判据：
+  新增 `tests/test_spirit_posture.py` **11 条**，全套 1356 变 **1367 passed / 1 skipped**，
+  ruff 与 format 全绿。交付物：`src/sammy/anim.py` 加 spirit_posture 纯函数
+  （SINK_MIN/MILD/FLOOR/LIFT_MAX 四个常量）与 set_spirit_posture，只乘在 stretch 那一路；
+  `src/sammy/mood.py` 加 posture_for（与 shrink_for 同一道闸门）、pet.py 每秒喂一次、
+  `docs/两根轴两种形变.md` 口径文档、`scripts/spirit_posture_img.py` + make spirit-posture-media
+  出 `docs/8h-b2/spirit-posture.svg`。
+  关键判据（都是行为）：心情那根轴的值**逐值未变**（劲头碰不碰它都不动）、
+  喂过的它与没喂的它 stretch 恰好差一个比例，而 shrink、squash、pop、凝视、位移逐值相同、
+  0 点与门线上恒 1.0、两头单调且截断、塌比缩浅、提只有塌的一半。
+  补的两条有牙验证：把接线拆掉 3 条红；把分档朝向调错 4 条红。
+  下一件：Rowan 回话后小屏实测第二轮；或周六 1 小时压测正式跑（make soak-1h）。

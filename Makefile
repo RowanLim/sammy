@@ -291,8 +291,12 @@ faces-spec-media:
 spectrum-media:
 	$(VENV) scripts/mood_spectrum_img.py
 
+# 两根轴各管一种形变（心情管大小 / 劲头管挺不挺得住）的判据图
+spirit-posture-media:
+	$(VENV) scripts/spirit_posture_img.py
+
 # 看门狗演示：三条真命令路径（约 1 分钟，全部落在 .tmp/）
 watchdog-demo:
 	$(VENV) scripts/watchdog_demo.py
 
-.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media spectrum-media replay-media day-media credentials-media
+.PHONY: report-media watchdog-demo ui-media boot-media shutdown-media look-media input-font-media carry-media talk-media yawn-media sigh-media nod-media typing-media twitch-media thinking-media petting-media sneeze-media hum-media tilt-media typing-tilt-media dozeoff-media survey-media welcome-media standby-media droop-media faces-spec-media spectrum-media spirit-posture-media replay-media day-media credentials-media

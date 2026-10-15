@@ -188,6 +188,15 @@ def shrink_for(valence: float, anim_on: bool, asleep: bool) -> float:
     return _anim.mood_shrink(valence)
 
 
+def posture_for(spirit: float, anim_on: bool, asleep: bool) -> float:
+    """劲头低就塌一点、高就提一口气（只动纵向）。动画关或睡着时回 1.0（与 shrink_for 同一道闸门）。"""
+    from . import anim as _anim
+
+    if not anim_on or asleep:
+        return 1.0
+    return _anim.spirit_posture(spirit)
+
+
 # ── 全谱：一张 5 x 5 的表，一格一个字 ──────────────
 # 行＝劲头（0 走神 / 1 偏蔫 / 2 平常 / 3 偏活 / 4 兴奋），列＝心情（低落…很好）。
 # 写成表而不是 if 阶梯：改一格、漏一格、词用不上，都看得见。
@@ -476,6 +485,7 @@ __all__ = [
     "idle_expression_for",
     "label_of",
     "nudge_value",
+    "posture_for",
     "prompt_line",
     "spectrum_label",
     "spirit_alone",

@@ -1178,6 +1178,10 @@ class SammyWindow(QWidget):
             self.anim.set_mood_shrink(
                 mood_mod.shrink_for(self.mood.mood.valence, self.anim_on, self.drives.asleep)
             )
+            # 第二根轴（劲头）：低就塌、高就提，只动纵向；与收一圈共用同一道闸门
+            self.anim.set_spirit_posture(
+                mood_mod.posture_for(self.mood.spirit(), self.anim_on, self.drives.asleep)
+            )
             self.anim.set_mood_valence(self.mood.mood.valence)  # 绷住从底色算
             self.anim.note_droop(self.anim_t, self._droop_ok())  # 心情蔫：隔一会儿垂一垂
             self.anim.note_hunch(self.anim_t, self._hunch_ok())  # 心情压得很低：隔一会儿绷一绷

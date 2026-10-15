@@ -385,6 +385,20 @@ MOOD_SHRINK_BELOW = -0.05
 MOOD_SHRINK_MIN = 0.94
 # 收到底 = 缩到 94%（6% 是看得出的最小量级：再小没人看得见，再大就变形了）
 MOOD_SHRINK_FLOOR = -0.45
+
+# 劲头也管姿态（自选小步·第二十九次）——第一根轴管大小，第二根轴管挺不挺得住。
+# 第 28 次给心情加了第二根轴（劲头），但它只改了名字：一个走神的它与一个来劲的它，
+# 静止姿态逐像素相同 —— 正是 docs/心情的全谱.md 自己点名的毛病（活物迹象只在有人时看得到）。
+# 换一种形变、不并进 MOOD_SHRINK：并进去会让两根轴互相代理，而且「低落 + 兴奋」
+# （心里堵得慌）那格会被算成反而更小，与全谱口径打架。
+# 塌：纵向压到 97.5% —— 比 MOOD_SHRINK_MIN 浅。没劲是「塌下去」，不是「变小」。
+SPIRIT_POSTURE_SINK_MIN = 0.975
+# 门线：与 mood 的 SPIRIT_MILD_DOWN / MILD_UP（正负 0.15）同一条，不另立一把尺。
+SPIRIT_POSTURE_MILD = 0.15
+# 到劲头下限就塌到底（与 mood.SPIRIT_GLUM 同一把尺），再低也只是更没劲。
+SPIRIT_POSTURE_FLOOR = -0.5
+# 提：最多抬 +2.5% —— 只有塌的一半。高的一头是加分，不该比低的一头更抢眼。
+SPIRIT_POSTURE_LIFT_MAX = 0.025
 # 心情的下限（mood.FLOOR 同一把尺）：到这里就收到底，再低也只是更蔫
 DROOP_SQUINT_MIN = 0.72  # 垂到底压到 72%（眼皮轻轻耷拉着）—— 比点头 50% 浅：没到犯困那份上
 
@@ -765,6 +779,30 @@ def mood_shrink(valence: float) -> float:
     return round(1.0 - (1.0 - MOOD_SHRINK_MIN) * frac, 6)
 
 
+def spirit_posture(spirit: float) -> float:
+    """劲头 -> 静止姿态的纵向一档（1.0 = 一点都不动）。
+
+    和 mood_shrink 是两回事，别合并：
+    - mood_shrink 读第一根轴（心情），管「整个人大不大」（宽高一起缩）；
+    - 这一条读第二根轴（劲头），管「挺不挺得住」（只动纵向）。
+    两根轴各管一种形变，于是「低落 + 兴奋」那一格不会互相抵消。
+
+    门线以内（含正负 SPIRIT_POSTURE_MILD）恒 1.0 —— 平常的它和加这根轴之前逐值相同。
+    不随时间动、不掷随机数：和 mood_shrink 同属底色那一层（像呼吸一样一直在）。
+    """
+    s = max(-1.0, min(1.0, float(spirit)))
+    if s >= SPIRIT_POSTURE_MILD:
+        span = 1.0 - SPIRIT_POSTURE_MILD
+        frac = (s - SPIRIT_POSTURE_MILD) / span
+        return round(1.0 + SPIRIT_POSTURE_LIFT_MAX * frac, 6)
+    if s <= -SPIRIT_POSTURE_MILD:
+        # 到 FLOOR 正好 frac=1 —— 上界取 |FLOOR| 减门线，不是整段长度
+        span = -SPIRIT_POSTURE_FLOOR - SPIRIT_POSTURE_MILD
+        frac = min(1.0, (-s - SPIRIT_POSTURE_MILD) / span)
+        return round(1.0 - (1.0 - SPIRIT_POSTURE_SINK_MIN) * frac, 6)
+    return 1.0
+
+
 def survey_total() -> float:
     """上电环顾整段时长：第一条指令到回中缓动结束（秒）。"""
     return SURVEY_LEAD_S + (len(SURVEY_TARGETS) - 1) * SURVEY_DWELL_S + GAZE_EASE
@@ -896,6 +934,7 @@ class Animator:
     _welcome_at: float = field(default=-99.0, repr=False)
     # 蔫一会儿：这一下的开始时刻（-99 = 没有）；下一次的排期（None = 心情没落、没在排）
     _mood_shrink: float = field(default=1.0, repr=False)
+    _spirit_posture: float = field(default=1.0, repr=False)
     _mood_valence: float = field(default=0.15, repr=False)
     _droop_at: float = field(default=-99.0, repr=False)
     _droop_next_at: float | None = field(default=None, repr=False)
@@ -1426,6 +1465,10 @@ class Animator:
         """一直在的静止缩放（缩小圈）：窗口每秒喂一次。"""
         self._mood_shrink = round(float(value), 6)
 
+    def set_spirit_posture(self, value: float) -> None:
+        """一直在的静止纵向一档（劲头）：窗口每秒喂一次。"""
+        self._spirit_posture = round(float(value), 6)
+
     def set_mood_valence(self, value: float) -> None:
         """心情底色（越低越差）：窗口每秒喂一次 —— 绷住从它算，不从缩量反推。"""
         self._mood_valence = round(float(value), 6)
@@ -1774,6 +1817,8 @@ class Animator:
             * (1.0 + YAWN_STRETCH * yawn)
             * (1.0 + WELCOME_STRETCH * welcome)
             * (1.0 - HUNCH_STRETCH_ABS * hunch)
+            * self._spirit_posture
+            # 第二根轴（劲头）：塌 / 提都只走纵向这一路 —— 不碰 shrink、squash、凝视
         )
 
         pop = 1.0
@@ -1887,6 +1932,10 @@ __all__ = [
     "SNEEZE_SQUINT_MIN",
     "SNEEZE_WINDUP",
     "SNEEZE_WINDUP_S",
+    "SPIRIT_POSTURE_FLOOR",
+    "SPIRIT_POSTURE_LIFT_MAX",
+    "SPIRIT_POSTURE_MILD",
+    "SPIRIT_POSTURE_SINK_MIN",
     "SURVEY_DWELL_S",
     "SURVEY_LEAD_S",
     "SURVEY_LIFT_PX",
@@ -1952,6 +2001,7 @@ __all__ = [
     "sigh_total",
     "sneeze_amount",
     "sneeze_total",
+    "spirit_posture",
     "survey_total",
     "tilt_amount",
     "tilt_total",
