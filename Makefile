@@ -28,6 +28,7 @@ help:
 	@echo "make carry-media   重生成搬运凝视素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make talk-media    重生成说话动脸素材（帧带 + 短视频，进 docs/8h-b2/）"
 	@echo "make doze-media    重生成作息与睡相素材（帧带 + Z 循环短视频，进 docs/8h-b2/）"
+	@echo "make mirror         把 main 镜像到 GitHub（异地第三份备份）"
 	@echo "make yawn-media    重生成醒来哈欠素材（帧带 + 哈欠短视频，进 docs/8h-b2/）"
 	@echo "make sigh-media    重生成无聊叹气素材（帧带 + 叹气短视频，进 docs/8h-b2/）"
 	@echo "make nod-media     重生成困得点头素材（帧带 + 点头短视频，进 docs/8h-b2/）"
@@ -202,6 +203,12 @@ talk-media:
 
 doze-media:
 	$(VENV) scripts/doze_preview.py
+
+# GitHub 镜像（origin 是内网 Gitea 主库；github 是异地镜像，SSH 走 22 端口，不依赖 VPN）
+mirror:
+	@echo "镜像到 GitHub（github = RowanLim/sammy，私有）…"
+	git push github main
+	@echo "✅ 远程 main：" && git ls-remote github refs/heads/main | cut -f1
 
 # 醒来哈欠素材（「睡醒了先伸个懒腰」：帧带 + 短视频）
 yawn-media:

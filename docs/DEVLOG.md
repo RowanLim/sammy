@@ -1200,3 +1200,25 @@ cron 眼里根本不存在。**真正被执行的是 `~/.hermes/scripts/` 里那
 
 **修法**：把预算检查搬进 `~/.hermes/scripts/sammy_offpeak_gate.sh`（真正的执行体），
 并在项目那份文件头写了"别改错文件"的警告 + 两版同步的要求。
+
+## 2026-10-15 · GitHub 接入：两条死路 + 一条活路
+
+**死路①（真凶）**：git 全局配置里 `http.proxy` / `https.proxy` 指着 `http://127.0.0.1:12000` ——
+ikuuu 的旧端口，**没有程序在听**。iKuuu 现在是 TUN 模式，根本不需要本地代理。
+所以每次 `git` 打 GitHub 都 `Couldn't connect to 127.0.0.1:12000` ——
+这才是"GitHub 连不上"的真正原因（不是墙，是**自己配的一个死代理**）。删掉即通。
+
+**死路②**：`gh auth login` 的设备码流程。它能跑（拿到过一次码 `9524-E6E8`），
+但 ① 它的 TUI 会问终端尺寸/光标位置，裸伪终端答不了就死等（**给 pty 预设 40×120 用 `TIOCSWINSZ` 才能渲染**）；
+② 设备码的 oauth 端点在 github.com 上，而这条线路 github.com 时通时断（实测 8s / 20s 超时 / 0.9s 三种结果）
+→ `TLS handshake timeout`。**gh 这条路在"网络不稳 + 无真人终端"的组合下不划算**，放弃。
+
+**活路**：**SSH 公钥**。
+- `github.com:22` 的连通性**不依赖 VPN**，稳定 ✓
+- 用户在手机浏览器贴公钥（`https://github.com/settings/keys`）→ `ssh -T` = `Hi RowanLim!`
+- 身份：`RowanLim` / `295611317+RowanLim@users.noreply.github.com`（no-reply，不暴露真实邮箱）
+- 远程：`origin` = 内网 Gitea（主库）+ `github` = GitHub（**私有镜像 = 异地第三份备份**）
+- 首次推送 1m58s（SSH）；对账：本地 HEAD 与远程 main 同为 `cca8993` ✓；`make mirror` 随时同步
+
+**教训**：报错 `Couldn't connect to 127.0.0.1:xxxx` 时，先查**自己的代理配置**，再怀疑网络。
+"墙"是最容易被冤枉的那个。
